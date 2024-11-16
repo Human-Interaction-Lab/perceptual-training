@@ -7,6 +7,7 @@ const path = require('path'); // Add this line for path module
 const json2csv = require('json2csv').parse;
 const fs = require('fs');
 const app = express();
+const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
 
 // Middleware
 app.use(cors({
@@ -28,7 +29,7 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 app.get('/audio/:phase/:filename', (req, res, next) => {
   const { phase, filename } = req.params;
   const filepath = path.join(__dirname, 'public', 'audio', phase, filename);
-  
+
   // Check if file exists before serving
   if (!require('fs').existsSync(filepath)) {
     return res.status(404).json({ error: `Audio file ${filename} not found in ${phase} phase` });
@@ -40,7 +41,7 @@ app.get('/audio/:phase/:filename', (req, res, next) => {
 app.get('/audio/training/day:day/:filename', (req, res, next) => {
   const { day, filename } = req.params;
   const filepath = path.join(__dirname, 'public', 'audio', 'training', `day${day}`, filename);
-  
+
   if (!require('fs').existsSync(filepath)) {
     return res.status(404).json({ error: `Audio file ${filename} not found in training day ${day}` });
   }
@@ -162,7 +163,7 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { userId, password } = req.body;
-    
+
     const user = await User.findOne({ userId });
     if (!user) {
       return res.status(400).json({ error: 'User not found' });
@@ -194,7 +195,7 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
     const { phase, stimulusId, response, trainingDay } = req.body;
-    
+
     const newResponse = new Response({
       userId: req.user.userId,
       phase,
@@ -207,7 +208,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
     // Update user progress
     const user = await User.findOne({ userId: req.user.userId });
-    
+
     if (phase === 'pretest' && user.currentPhase === 'pretest') {
       user.currentPhase = 'training';
       user.lastTrainingDate = new Date();
@@ -219,7 +220,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     } else if (phase === 'posttest') {
       user.completed = true;
     }
-    
+
     await user.save();
     res.status(201).json({ message: 'Response saved successfully' });
   } catch (error) {
@@ -235,7 +236,7 @@ app.get('/api/admin/users', async (req, res) => {
       password: 0,
       _id: 0
     }).sort({ createdAt: -1 });
-    
+
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -254,9 +255,9 @@ app.get('/api/admin/stats', async (req, res) => {
         }
       }
     ]);
-    
+
     const completedUsers = await User.countDocuments({ completed: true });
-    
+
     res.json({
       totalUsers,
       usersByPhase,
@@ -272,14 +273,14 @@ app.delete('/api/admin/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     await User.deleteOne({ userId });
     await Response.deleteMany({ userId }); // Delete user's responses too
-    
+
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
@@ -291,7 +292,7 @@ app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
   try {
     const { userId } = req.params;
     const { newPassword } = req.body;
-    
+
     const user = await User.findOne({ userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -299,7 +300,7 @@ app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-    
+
     user.password = hashedPassword;
     await user.save();
 
@@ -314,7 +315,7 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
