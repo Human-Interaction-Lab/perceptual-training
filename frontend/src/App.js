@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import Admin from './Admin';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
-import { Label } from './components/ui/label';
+import AdminLogin from './AdminLogin';
+import PhaseSelection from './PhaseSelection';
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
-  const [phase, setPhase] = useState('auth');  // Values: 'auth', 'selection', 'pretest', 'training', 'posttest'
+  const [phase, setPhase] = useState('auth');
   const [authMode, setAuthMode] = useState('login');
   const [currentStimulus, setCurrentStimulus] = useState(0);
   const [userResponse, setUserResponse] = useState('');
@@ -16,10 +18,11 @@ const App = () => {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [canProceedToday, setCanProceedToday] = useState(true);
-  const [lastTrainingDate, setLastTrainingDate] = useState(null);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [currentPhase, setCurrentPhase] = useState('pretest');
+  const [lastTrainingDate, setLastTrainingDate] = useState(null);
+  const [canProceedToday, setCanProceedToday] = useState(true);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
   // Sample stimuli data structure
   const stimuli = {
@@ -62,7 +65,7 @@ const App = () => {
         setLastTrainingDate(data.lastTrainingDate);
         setCurrentPhase(data.currentPhase);
         setTrainingDay(data.trainingDay);
-        setPhase('selection'); // Go to selection screen instead of directly to pretest
+        setPhase('selection');
       } else {
         setError(data.error || 'Login failed');
       }
@@ -80,25 +83,6 @@ const App = () => {
     setPhase(selectedPhase);
   };
 
-  // Add this component to display when user can't proceed
-  const NotAvailableMessage = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow-xl rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Please Return Tomorrow
-          </h2>
-          <p className="text-gray-600 mb-4">
-            To maintain the effectiveness of the training, each session must be completed on consecutive days.
-            Please return tomorrow to continue your training.
-          </p>
-          <p className="text-sm text-gray-500">
-            Last completed: {lastTrainingDate ? new Date(lastTrainingDate).toLocaleDateString() : 'Not started'}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
 
   const handleRegister = async () => {
     try {
@@ -184,7 +168,38 @@ const App = () => {
     audio.play();
   };
 
+  // Handle admin login success
+  const handleAdminLoginSuccess = () => {
+    setShowAdminLogin(false);
+    setIsAdminLoggedIn(true);
+  };
 
+  // Add this component to display when user can't proceed
+  const NotAvailableMessage = () => (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Please Return Tomorrow
+          </h2>
+          <p className="text-gray-600 mb-4">
+            To maintain the effectiveness of the training, each session must be completed on consecutive days.
+            Please return tomorrow to continue your training.
+          </p>
+          <p className="text-sm text-gray-500">
+            Last completed: {lastTrainingDate ? new Date(lastTrainingDate).toLocaleDateString() : 'Not started'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Add a logout handler for admin
+  const handleAdminLogout = () => {
+    localStorage.removeItem('adminToken');
+    setIsAdminLoggedIn(false);
+    setShowAdminLogin(false);
+  };
 
   // renderAuth() updated
   const renderAuth = () => (
@@ -285,13 +300,13 @@ const App = () => {
         </div>
 
         {/* Admin Access */}
-        <div className="text-center">
+        <div className="text-center mt-4">
           <Button
             variant="link"
-            onClick={() => setIsAdmin(!isAdmin)}
+            onClick={() => setShowAdminLogin(true)}
             className="text-gray-500 hover:text-gray-700"
           >
-            {isAdmin ? 'Exit Admin Panel' : 'Access Admin Panel'}
+            Access Admin Panel
           </Button>
         </div>
       </div>
@@ -387,7 +402,7 @@ const App = () => {
                 ? "Excellent work! You've completed the pre-test. Your training phase will begin tomorrow."
                 : phase === 'training'
                   ? "Great job! You've completed today's training session. Please return tomorrow for your next session."
-                  : "Congratulations! You've successfully completed the study."}
+                  : "Congratulations! You've successfully completed the training."}
             </p>
             <button
               onClick={() => {
@@ -413,17 +428,22 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAdmin ? (
+      {isAdminLoggedIn ? (
         <div className="p-4">
           <button
-            onClick={() => setIsAdmin(false)}
+            onClick={handleAdminLogout}
             className="mb-4 text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
           >
             <span>←</span>
-            <span>Back to App</span>
+            <span>Back to Main App</span>
           </button>
           <Admin />
         </div>
+      ) : showAdminLogin ? (
+        <AdminLogin
+          onBack={() => setShowAdminLogin(false)}
+          onLoginSuccess={handleAdminLoginSuccess}
+        />
       ) : (
         <>
           {phase === 'auth' ? (
@@ -444,6 +464,8 @@ const App = () => {
       )}
     </div>
   );
+
+
 };
 
 export default App;

@@ -108,6 +108,7 @@ const userSchema = new mongoose.Schema({
   lastTrainingDate: { type: Date },
   completed: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
+  isAdmin: { type: Boolean, default: false },  // Add this line
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -199,18 +200,17 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid password' });
     }
 
-    const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET || 'your_jwt_secret');
-
-    // Calculate if user can proceed today
-    const canProceedToday = isCorrectDay(user);
+    const token = jwt.sign({ userId: user.userId, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET || 'your_jwt_secret');
 
     res.json({
       token,
+      isAdmin: user.isAdmin,
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
-      completed: user.completed,
       lastTrainingDate: user.lastTrainingDate,
-      canProceedToday
+      completed: user.completed,
+      canProceedToday: true // You'll want to implement your date logic here
     });
   } catch (error) {
     console.error('Login error:', error);

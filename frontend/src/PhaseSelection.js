@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
+import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
 
-const PhaseSelection = ({ 
+const PhaseSelection = ({
   currentPhase,
   trainingDay,
   lastTrainingDate,
@@ -12,25 +12,25 @@ const PhaseSelection = ({
   // Helper function to determine if a phase is available
   const isPhaseAvailable = (phaseName, dayNumber = null) => {
     if (!lastTrainingDate && phaseName !== 'pretest') return false;
-    
+
     const lastDate = lastTrainingDate ? new Date(lastTrainingDate) : null;
     const today = new Date();
     // Reset time portions to compare dates only
     today.setHours(0, 0, 0, 0);
     if (lastDate) lastDate.setHours(0, 0, 0, 0);
-    
+
     switch (phaseName) {
       case 'pretest':
         return currentPhase === 'pretest';
       case 'training':
         if (currentPhase !== 'training') return false;
-        const daysSinceStart = lastDate ? 
+        const daysSinceStart = lastDate ?
           Math.floor((today - lastDate) / (1000 * 60 * 60 * 24)) : 0;
         return dayNumber === trainingDay && daysSinceStart === dayNumber - 1;
       case 'posttest':
-        return currentPhase === 'posttest' && 
-               lastDate && 
-               Math.floor((today - lastDate) / (1000 * 60 * 60 * 24)) === 1;
+        return currentPhase === 'posttest' &&
+          lastDate &&
+          Math.floor((today - lastDate) / (1000 * 60 * 60 * 24)) === 1;
       default:
         return false;
     }
@@ -40,8 +40,8 @@ const PhaseSelection = ({
   const getPhaseStatus = (phaseName, dayNumber = null) => {
     const isAvailable = isPhaseAvailable(phaseName, dayNumber);
     const isCompleted = (phaseName === 'pretest' && currentPhase !== 'pretest') ||
-                       (phaseName === 'training' && dayNumber < trainingDay) ||
-                       (phaseName === 'posttest' && currentPhase === 'completed');
+      (phaseName === 'training' && dayNumber < trainingDay) ||
+      (phaseName === 'posttest' && currentPhase === 'completed');
 
     return {
       isAvailable,
@@ -111,39 +111,43 @@ const PhaseSelection = ({
 
 const PhaseCard = ({ title, description, status, onClick, date }) => {
   const { isAvailable, isCompleted, isUpcoming } = status;
-  
+
   return (
-    <Card className={`p-6 ${isAvailable ? 'bg-white' : 'bg-gray-50'}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {title}
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">{description}</p>
-          <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Upcoming'}
-            {date && ` • ${date}`}
-          </p>
+    <Card className={isAvailable ? "" : "opacity-75"}>
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-600 mt-1">{description}</p>
+          </div>
+          <div className="ml-4">
+            {isCompleted ? (
+              <CheckCircle className="h-6 w-6 text-green-500" />
+            ) : isAvailable ? (
+              <Clock className="h-6 w-6 text-blue-500" />
+            ) : (
+              <Lock className="h-6 w-6 text-gray-400" />
+            )}
+          </div>
         </div>
-        <div className="ml-4">
-          {isCompleted ? (
-            <CheckCircle className="h-6 w-6 text-green-500" />
-          ) : isAvailable ? (
-            <Clock className="h-6 w-6 text-blue-500" />
-          ) : (
-            <Lock className="h-6 w-6 text-gray-400" />
-          )}
-        </div>
-      </div>
-      <Button
-        className="w-full mt-4"
-        disabled={!isAvailable}
-        variant={isAvailable ? "default" : "secondary"}
-        onClick={onClick}
-      >
-        {isCompleted ? 'Completed' : isAvailable ? 'Begin Session' : 'Locked'}
-        {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
-      </Button>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500">
+          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Upcoming'}
+          {date && ` • ${date}`}
+        </p>
+      </CardContent>
+      <CardFooter>
+        <Button
+          className="w-full"
+          disabled={!isAvailable}
+          variant={isAvailable ? "default" : "secondary"}
+          onClick={onClick}
+        >
+          {isCompleted ? 'Completed' : isAvailable ? 'Begin Session' : 'Locked'}
+          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+        </Button>
+      </CardFooter>
     </Card>
   );
 };
@@ -152,24 +156,28 @@ const TrainingDayCard = ({ day, status, onClick, date }) => {
   const { isAvailable, isCompleted, isUpcoming } = status;
 
   return (
-    <Card className={`p-4 ${isAvailable ? 'bg-white' : 'bg-gray-50'}`}>
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+    <Card className={isAvailable ? "" : "opacity-75"}>
+      <CardHeader>
+        <h3 className="text-lg font-semibold text-gray-900 text-center">
           Training Day {day}
         </h3>
-        <div className="mb-4">
+        <div className="flex justify-center mt-2">
           {isCompleted ? (
-            <CheckCircle className="h-8 w-8 text-green-500 mx-auto" />
+            <CheckCircle className="h-8 w-8 text-green-500" />
           ) : isAvailable ? (
-            <Clock className="h-8 w-8 text-blue-500 mx-auto" />
+            <Clock className="h-8 w-8 text-blue-500" />
           ) : (
-            <Lock className="h-8 w-8 text-gray-400 mx-auto" />
+            <Lock className="h-8 w-8 text-gray-400" />
           )}
         </div>
-        <p className="text-xs text-gray-500 mb-4">
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500 text-center">
           {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Upcoming'}
           {date && ` • ${date}`}
         </p>
+      </CardContent>
+      <CardFooter>
         <Button
           className="w-full"
           disabled={!isAvailable}
@@ -179,7 +187,7 @@ const TrainingDayCard = ({ day, status, onClick, date }) => {
           {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
           {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
-      </div>
+      </CardFooter>
     </Card>
   );
 };
