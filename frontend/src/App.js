@@ -3,7 +3,7 @@ import Admin from './Admin';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
-import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
+// import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
   const [phase, setPhase] = useState('auth');
