@@ -17,6 +17,8 @@ const App = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canProceedToday, setCanProceedToday] = useState(true);
+  const [lastTrainingDate, setLastTrainingDate] = useState(null);
 
   // Sample stimuli data structure
   const stimuli = {
@@ -55,7 +57,10 @@ const App = () => {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        setPhase('pretest');
+        setCanProceedToday(data.canProceedToday);
+        setLastTrainingDate(data.lastTrainingDate);
+        setPhase(data.currentPhase);
+        setTrainingDay(data.trainingDay);
       } else {
         setError(data.error || 'Login failed');
       }
@@ -64,6 +69,26 @@ const App = () => {
       setError('Login failed. Please try again.');
     }
   };
+
+  // Add this component to display when user can't proceed
+  const NotAvailableMessage = () => (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Please Return Tomorrow
+          </h2>
+          <p className="text-gray-600 mb-4">
+            To maintain the effectiveness of the training, each session must be completed on consecutive days.
+            Please return tomorrow to continue your training.
+          </p>
+          <p className="text-sm text-gray-500">
+            Last completed: {lastTrainingDate ? new Date(lastTrainingDate).toLocaleDateString() : 'Not started'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleRegister = async () => {
     try {
@@ -158,7 +183,7 @@ const App = () => {
         {/* Logo/Title Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Perception Training
+            Perceptual Training
           </h1>
           <p className="text-gray-600">
             {authMode === 'login'
@@ -391,7 +416,13 @@ const App = () => {
         </div>
       ) : (
         <>
-          {phase === 'auth' ? renderAuth() : renderAudioTest()}
+          {phase === 'auth' ? (
+            renderAuth()
+          ) : !canProceedToday ? (
+            <NotAvailableMessage />
+          ) : (
+            renderAudioTest()
+          )}
         </>
       )}
     </div>

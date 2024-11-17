@@ -7,7 +7,28 @@ const path = require('path'); // Add this line for path module
 const json2csv = require('json2csv').parse;
 const fs = require('fs');
 const app = express();
-const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
+//const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
+
+// helper fun to check correct day
+const isCorrectDay = (user) => {
+  if (!user.lastTrainingDate) return true;
+
+  const lastDate = new Date(user.lastTrainingDate);
+  const today = new Date();
+
+  // Reset time portions to compare dates only
+  lastDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate the expected date based on the phase and training day
+  let expectedDate = new Date(user.lastTrainingDate);
+  expectedDate.setHours(0, 0, 0, 0);
+  expectedDate.setDate(expectedDate.getDate() + 1);
+
+  return today.getTime() === expectedDate.getTime();
+};
+
+
 
 // Middleware
 app.use(cors({
@@ -179,11 +200,17 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET || 'your_jwt_secret');
+
+    // Calculate if user can proceed today
+    const canProceedToday = isCorrectDay(user);
+
     res.json({
       token,
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
-      completed: user.completed
+      completed: user.completed,
+      lastTrainingDate: user.lastTrainingDate,
+      canProceedToday
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -195,6 +222,14 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
     const { phase, stimulusId, response, trainingDay } = req.body;
+    const user = await User.findOne({ userId: req.user.userId });
+
+    // Check if user is attempting on the correct day
+    if (!isCorrectDay(user)) {
+      return res.status(403).json({
+        error: 'Please return tomorrow to continue your training'
+      });
+    }
 
     const newResponse = new Response({
       userId: req.user.userId,
@@ -207,8 +242,6 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     await newResponse.save();
 
     // Update user progress
-    const user = await User.findOne({ userId: req.user.userId });
-
     if (phase === 'pretest' && user.currentPhase === 'pretest') {
       user.currentPhase = 'training';
       user.lastTrainingDate = new Date();
