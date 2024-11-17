@@ -6,7 +6,7 @@ import { Label } from './components/ui/label';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
-  const [phase, setPhase] = useState('auth');
+  const [phase, setPhase] = useState('auth');  // Values: 'auth', 'selection', 'pretest', 'training', 'posttest'
   const [authMode, setAuthMode] = useState('login');
   const [currentStimulus, setCurrentStimulus] = useState(0);
   const [userResponse, setUserResponse] = useState('');
@@ -19,6 +19,7 @@ const App = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [canProceedToday, setCanProceedToday] = useState(true);
   const [lastTrainingDate, setLastTrainingDate] = useState(null);
+  const [currentPhase, setCurrentPhase] = useState('pretest');
 
   // Sample stimuli data structure
   const stimuli = {
@@ -59,8 +60,9 @@ const App = () => {
         localStorage.setItem('token', data.token);
         setCanProceedToday(data.canProceedToday);
         setLastTrainingDate(data.lastTrainingDate);
-        setPhase(data.currentPhase);
+        setCurrentPhase(data.currentPhase);
         setTrainingDay(data.trainingDay);
+        setPhase('selection'); // Go to selection screen instead of directly to pretest
       } else {
         setError(data.error || 'Login failed');
       }
@@ -68,6 +70,14 @@ const App = () => {
       console.error('Login error:', error);
       setError('Login failed. Please try again.');
     }
+  };
+
+  // Add handler for phase selection
+  const handlePhaseSelect = (selectedPhase, dayNumber = null) => {
+    if (selectedPhase === 'training') {
+      setTrainingDay(dayNumber);
+    }
+    setPhase(selectedPhase);
   };
 
   // Add this component to display when user can't proceed
@@ -418,6 +428,13 @@ const App = () => {
         <>
           {phase === 'auth' ? (
             renderAuth()
+          ) : phase === 'selection' ? (
+            <PhaseSelection
+              currentPhase={currentPhase}
+              trainingDay={trainingDay}
+              lastTrainingDate={lastTrainingDate}
+              onSelectPhase={handlePhaseSelect}
+            />
           ) : !canProceedToday ? (
             <NotAvailableMessage />
           ) : (
