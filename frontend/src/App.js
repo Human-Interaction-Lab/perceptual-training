@@ -54,16 +54,6 @@ const App = () => {
     ],
   };
 
-  useEffect(() => {
-    console.log('State Update:', {
-      phase,
-      currentPhase,
-      trainingDay,
-      currentStimulus,
-      stimuliLength: getCurrentStimuli()?.length
-    });
-  }, [phase, currentPhase, trainingDay, currentStimulus]);
-
   const getCurrentStimuli = () => {
     let currentStimuli;
 
@@ -89,6 +79,16 @@ const App = () => {
     return currentStimuli;
   };
 
+  useEffect(() => {
+    console.log('State Update:', {
+      phase,
+      currentPhase,
+      trainingDay,
+      currentStimulus,
+      stimuliLength: getCurrentStimuli()?.length
+    });
+  }, [phase, currentPhase, trainingDay, currentStimulus]);
+
   // This helper function gets the text to display for training phases
   const getCurrentStimulusText = () => {
     const currentStimuli = getCurrentStimuli();
@@ -99,11 +99,11 @@ const App = () => {
   };
 
   // This helper function gets the correct response for scoring
-  const getCurrentStimulusCorrect = () => {
-    const currentStimuli = getCurrentStimuli();
-    if (!currentStimuli || currentStimuli.length === 0) return '';
-    return currentStimuli[currentStimulus]?.correct || '';
-  };
+  //const getCurrentStimulusCorrect = () => {
+  //  const currentStimuli = getCurrentStimuli();
+  //  if (!currentStimuli || currentStimuli.length === 0) return '';
+  //  return currentStimuli[currentStimulus]?.correct || '';
+  //};
 
   const handleLogin = async () => {
     try {
