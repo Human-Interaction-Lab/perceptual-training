@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Admin from './Admin';
 import AdminLogin from './AdminLogin';
 import PhaseSelection from './PhaseSelection';
@@ -39,11 +39,70 @@ const App = () => {
         { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
         { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
       ],
+      3: [
+        { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
+        { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
+      ],
+      4: [
+        { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
+        { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
+      ],
     },
     posttest: [
       { id: 1, audioUrl: 'http://localhost:3000/audio/Posttest/post1.wav', correct: 'post word one' },
       { id: 2, audioUrl: 'http://localhost:3000/audio/Posttest/post2.wav', correct: 'post word two' },
     ],
+  };
+
+  useEffect(() => {
+    console.log('State Update:', {
+      phase,
+      currentPhase,
+      trainingDay,
+      currentStimulus,
+      stimuliLength: getCurrentStimuli()?.length
+    });
+  }, [phase, currentPhase, trainingDay, currentStimulus]);
+
+  const getCurrentStimuli = () => {
+    let currentStimuli;
+
+    switch (phase) {
+      case 'pretest':
+        currentStimuli = stimuli.pretest;
+        break;
+      case 'training':
+        currentStimuli = stimuli.training[trainingDay];
+        break;
+      case 'posttest':
+        currentStimuli = stimuli.posttest;
+        break;
+      default:
+        currentStimuli = [];
+    }
+
+    if (!currentStimuli || currentStimuli.length === 0) {
+      console.warn(`No stimuli found for phase: ${phase}${phase === 'training' ? `, day: ${trainingDay}` : ''}`);
+      return [];
+    }
+
+    return currentStimuli;
+  };
+
+  // This helper function gets the text to display for training phases
+  const getCurrentStimulusText = () => {
+    const currentStimuli = getCurrentStimuli();
+    if (!currentStimuli || currentStimuli.length === 0) return '';
+    return phase === 'training'
+      ? currentStimuli[currentStimulus]?.text
+      : '';
+  };
+
+  // This helper function gets the correct response for scoring
+  const getCurrentStimulusCorrect = () => {
+    const currentStimuli = getCurrentStimuli();
+    if (!currentStimuli || currentStimuli.length === 0) return '';
+    return currentStimuli[currentStimulus]?.correct || '';
   };
 
   const handleLogin = async () => {
@@ -133,22 +192,43 @@ const App = () => {
       });
 
       if (response.ok) {
-        if (currentStimulus < getCurrentStimuli().length - 1) {
+        const currentStimuli = getCurrentStimuli();
+        const isLastStimulus = currentStimulus === currentStimuli.length - 1;
+
+        if (!isLastStimulus) {
+          // If not the last stimulus, move to next one
           setCurrentStimulus(curr => curr + 1);
           setUserResponse('');
         } else {
-          if (phase === 'pretest') {
-            setShowComplete(true);
-          } else if (phase === 'training') {
-            if (trainingDay < 4) {
-              setShowComplete(true);
-            } else {
-              setPhase('posttest');
+          // If it's the last stimulus, show completion and handle phase transition
+          setShowComplete(true);
+          setUserResponse('');
+
+          // Handle phase transitions after a delay
+          setTimeout(() => {
+            setShowComplete(false);
+            setCurrentStimulus(0); // Reset for next session
+
+            // Handle different phase transitions
+            if (phase === 'pretest') {
+              setCurrentPhase('training');
+              setPhase('selection');
+            } else if (phase === 'training') {
+              if (trainingDay < 4) {
+                setTrainingDay(prev => prev + 1);
+              } else {
+                setCurrentPhase('posttest');
+              }
+              setPhase('selection');
+            } else if (phase === 'posttest') {
+              setCurrentPhase('completed');
+              setPhase('selection');
             }
-          } else if (phase === 'posttest') {
-            setShowComplete(true);
-          }
+          }, 2000);
         }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to submit response');
       }
     } catch (error) {
       console.error('Submit response error:', error);
@@ -156,16 +236,26 @@ const App = () => {
     }
   };
 
-  const getCurrentStimuli = () => {
-    if (phase === 'pretest') return stimuli.pretest;
-    if (phase === 'training') return stimuli.training[trainingDay];
-    if (phase === 'posttest') return stimuli.posttest;
-    return [];
-  };
-
   const handlePlayAudio = () => {
-    const audio = new Audio(getCurrentStimuli()[currentStimulus].audioUrl);
-    audio.play();
+    const currentStimuli = getCurrentStimuli();
+    if (!currentStimuli || currentStimuli.length === 0) return;
+
+    const audioUrl = currentStimuli[currentStimulus]?.audioUrl;
+    if (!audioUrl) {
+      console.error('No audio URL found for current stimulus');
+      return;
+    }
+
+    const audio = new Audio(audioUrl);
+    audio.onerror = (e) => {
+      console.error('Error playing audio:', e);
+      alert('Error playing audio. Please try again.');
+    };
+
+    audio.play().catch(error => {
+      console.error('Error playing audio:', error);
+      alert('Error playing audio. Please try again.');
+    });
   };
 
   // Handle admin login success
@@ -334,11 +424,15 @@ const App = () => {
             <div className="space-y-6">
               {/* Progress Indicator */}
               <div className="flex items-center justify-between text-sm text-gray-600 mb-8">
-                <span>Progress: {currentStimulus + 1} of {getCurrentStimuli().length}</span>
+                <span>
+                  Progress: {currentStimulus + 1} of {getCurrentStimuli().length}
+                </span>
                 <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-600 rounded-full"
-                    style={{ width: `${(currentStimulus + 1) / getCurrentStimuli().length * 100}%` }}
+                    style={{
+                      width: `${((currentStimulus + 1) / getCurrentStimuli().length) * 100}%`
+                    }}
                   />
                 </div>
               </div>
@@ -347,7 +441,9 @@ const App = () => {
               <div className="text-center">
                 <button
                   onClick={handlePlayAudio}
-                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center mx-auto space-x-2"
+                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
+                           transition-colors duration-200 flex items-center justify-center mx-auto space-x-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
@@ -356,11 +452,11 @@ const App = () => {
                 </button>
               </div>
 
-              {/* Training Text */}
-              {phase === 'training' && (
+              {/* Training Text - only show during training phase */}
+              {phase === 'training' && getCurrentStimulusText() && (
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-center">
                   <p className="text-blue-800 text-lg">
-                    {getCurrentStimuli()[currentStimulus].text}
+                    {getCurrentStimulusText()}
                   </p>
                 </div>
               )}
@@ -375,12 +471,15 @@ const App = () => {
                   placeholder="Type what you hear..."
                   value={userResponse}
                   onChange={(e) => setUserResponse(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 
+                           focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 />
 
                 <button
                   onClick={handleSubmitResponse}
-                  className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                  className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 
+                           focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 
+                           transition-colors duration-200"
                 >
                   Submit Response
                 </button>
@@ -395,26 +494,25 @@ const App = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Phase Complete
+              {phase === 'pretest' ? 'Pre-test Complete' :
+                phase === 'training' ? `Training Day ${trainingDay} Complete` :
+                  'Post-test Complete'}
             </h3>
             <p className="text-gray-600 mb-6">
               {phase === 'pretest'
-                ? "Excellent work! You've completed the pre-test. Your training phase will begin tomorrow."
+                ? "Excellent work! You've completed the pre-test. Returning to selection screen to begin your training."
                 : phase === 'training'
-                  ? "Great job! You've completed today's training session. Please return tomorrow for your next session."
-                  : "Congratulations! You've successfully completed the training."}
+                  ? trainingDay < 4
+                    ? `Great job! You've completed training day ${trainingDay}. Returning to selection screen for day ${trainingDay + 1}.`
+                    : "Congratulations! You've completed all training sessions. Returning to selection screen for your final assessment."
+                  : "Congratulations! You've successfully completed the study. Returning to selection screen."}
             </p>
-            <button
-              onClick={() => {
-                setShowComplete(false);
-                if (phase === 'training') {
-                  setTrainingDay(prev => prev + 1);
-                }
-              }}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-            >
-              Continue
-            </button>
+            <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-500 h-full transition-all duration-1000 ease-out"
+                style={{ width: "100%" }}
+              />
+            </div>
           </div>
         </div>
       )}
