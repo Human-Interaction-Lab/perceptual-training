@@ -16,6 +16,9 @@ db.users.find({ currentPhase: "training" })
 # Find admin users
 db.users.find({ isAdmin: true })
 
+# delete
+db.users.drop()
+
 # create user (non admin)
 db.users.insertOne({
     userId: "user123",

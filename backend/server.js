@@ -10,23 +10,36 @@ const app = express();
 //const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
 
 // helper fun to check correct day
-const isCorrectDay = (user) => {
-  if (!user.lastTrainingDate) return true;
+const isCorrectDay = (user, phase) => {
+  // Always allow pretest completion
+  if (phase === 'pretest') return true;
 
-  const lastDate = new Date(user.lastTrainingDate);
+  // If pretest hasn't been completed yet, no other phases are allowed
+  if (!user.pretestDate) return false;
+
+  const pretest = new Date(user.pretestDate);
   const today = new Date();
 
   // Reset time portions to compare dates only
-  lastDate.setHours(0, 0, 0, 0);
+  pretest.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
 
-  // Calculate the expected date based on the phase and training day
-  let expectedDate = new Date(user.lastTrainingDate);
-  expectedDate.setHours(0, 0, 0, 0);
-  expectedDate.setDate(expectedDate.getDate() + 1);
+  // Calculate days since pretest
+  const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
 
-  return today.getTime() === expectedDate.getTime();
+  // For training phase, check if it's the correct day based on training day
+  if (phase === 'training') {
+    return daysSincePretest === user.trainingDay;
+  }
+
+  // For posttest, check if it's 5 days after pretest
+  if (phase === 'posttest') {
+    return daysSincePretest === 5;
+  }
+
+  return false;
 };
+
 
 
 
@@ -105,10 +118,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   currentPhase: { type: String, enum: ['pretest', 'training', 'posttest'], default: 'pretest' },
   trainingDay: { type: Number, default: 1 },
-  lastTrainingDate: { type: Date },
+  pretestDate: { type: Date }, // Changed from lastTrainingDate
   completed: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
-  isAdmin: { type: Boolean, default: false },  // Add this line
+  isAdmin: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -126,6 +139,8 @@ const responseSchema = new mongoose.Schema({
 });
 
 const Response = mongoose.model('Response', responseSchema);
+
+
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -200,23 +215,45 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid password' });
     }
 
-    const token = jwt.sign({ userId: user.userId, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || 'your_jwt_secret');
+    // Calculate canProceedToday based on current phase
+    let canProceedToday = true;
+    if (user.currentPhase === 'pretest') {
+      canProceedToday = true; // Always allow pretest
+    } else if (user.pretestDate) {
+      const pretest = new Date(user.pretestDate);
+      const today = new Date();
+      pretest.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+
+      const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
+
+      if (user.currentPhase === 'training') {
+        canProceedToday = daysSincePretest === user.trainingDay;
+      } else if (user.currentPhase === 'posttest') {
+        canProceedToday = daysSincePretest === 5;
+      }
+    }
+
+    const token = jwt.sign(
+      { userId: user.userId, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET || 'your_jwt_secret'
+    );
 
     res.json({
       token,
       isAdmin: user.isAdmin,
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
-      lastTrainingDate: user.lastTrainingDate,
+      pretestDate: user.pretestDate,
       completed: user.completed,
-      canProceedToday: true // You'll want to implement your date logic here
+      canProceedToday
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
+
 
 // Response Routes
 app.post('/api/response', authenticateToken, async (req, res) => {
@@ -225,9 +262,9 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     const user = await User.findOne({ userId: req.user.userId });
 
     // Check if user is attempting on the correct day
-    if (!isCorrectDay(user)) {
+    if (!isCorrectDay(user, phase)) {
       return res.status(403).json({
-        error: 'Please return tomorrow to continue your training'
+        error: 'Please return on the correct day to continue your training'
       });
     }
 
@@ -235,8 +272,8 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       userId: req.user.userId,
       phase,
       stimulusId,
-      response,
-      trainingDay
+      response: phase === 'training' ? 'training_completed' : response,
+      trainingDay: phase === 'training' ? trainingDay : undefined
     });
 
     await newResponse.save();
@@ -244,23 +281,34 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     // Update user progress
     if (phase === 'pretest' && user.currentPhase === 'pretest') {
       user.currentPhase = 'training';
-      user.lastTrainingDate = new Date();
+      user.trainingDay = 1;
+      user.pretestDate = new Date(); // Set pretest date when completing pretest
     } else if (phase === 'training') {
-      user.lastTrainingDate = new Date();
       if (trainingDay === 4) {
         user.currentPhase = 'posttest';
+      } else {
+        user.trainingDay = trainingDay + 1;
       }
     } else if (phase === 'posttest') {
       user.completed = true;
     }
 
     await user.save();
-    res.status(201).json({ message: 'Response saved successfully' });
+
+    // Return updated user state
+    res.status(201).json({
+      message: 'Response saved successfully',
+      currentPhase: user.currentPhase,
+      trainingDay: user.trainingDay,
+      pretestDate: user.pretestDate,
+      completed: user.completed
+    });
   } catch (error) {
     console.error('Error saving response:', error);
     res.status(500).json({ error: 'Failed to save response' });
   }
 });
+
 
 // Admin Routes
 app.get('/api/admin/users', async (req, res) => {

@@ -6,38 +6,48 @@ import { CheckCircleIcon, LockClosedIcon, ClockIcon, ArrowRightIcon } from '@her
 const PhaseSelection = ({
   currentPhase,
   trainingDay,
-  lastTrainingDate,
+  pretestDate, // Changed from lastTrainingDate
   onSelectPhase
 }) => {
-
   // Helper function to determine if a phase is available
   const isPhaseAvailable = (phaseName, dayNumber = null) => {
-    if (!lastTrainingDate && phaseName !== 'pretest') return false;
+    // Pretest is available if it hasn't been completed yet
+    if (phaseName === 'pretest') {
+      return currentPhase === 'pretest';
+    }
 
-    const lastDate = lastTrainingDate ? new Date(lastTrainingDate) : null;
+    // If pretest hasn't been completed, no other phases are available
+    if (!pretestDate) return false;
+
+    const pretest = new Date(pretestDate);
     const today = new Date();
+
     // Reset time portions to compare dates only
+    pretest.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
-    if (lastDate) lastDate.setHours(0, 0, 0, 0);
+
+    // Calculate days since pretest
+    const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
 
     switch (phaseName) {
-      case 'pretest':
-        return currentPhase === 'pretest';
       case 'training':
         if (currentPhase !== 'training') return false;
-        const daysSinceStart = lastDate ?
-          Math.floor((today - lastDate) / (1000 * 60 * 60 * 24)) : 0;
-        return dayNumber === trainingDay && daysSinceStart === dayNumber - 1;
+
+        // Each training day should be available on its specific day
+        // Day 1: 1 day after pretest
+        // Day 2: 2 days after pretest
+        // Day 3: 3 days after pretest
+        // Day 4: 4 days after pretest
+        return dayNumber === trainingDay && daysSincePretest === dayNumber;
+
       case 'posttest':
-        return currentPhase === 'posttest' &&
-          lastDate &&
-          Math.floor((today - lastDate) / (1000 * 60 * 60 * 24)) === 1;
+        // Posttest should be available 5 days after pretest
+        return currentPhase === 'posttest' && daysSincePretest === 5;
+
       default:
         return false;
     }
   };
-
-
 
   // Helper to get the status of a phase
   const getPhaseStatus = (phaseName, dayNumber = null) => {
@@ -63,6 +73,24 @@ const PhaseSelection = ({
     });
   };
 
+  // Get expected date for a phase
+  const getExpectedDate = (phaseName, dayNumber = null) => {
+    if (!pretestDate) return 'Complete pretest to unlock';
+
+    const baseDate = new Date(pretestDate);
+    let daysToAdd = 0;
+
+    if (phaseName === 'training') {
+      daysToAdd = dayNumber;
+    } else if (phaseName === 'posttest') {
+      daysToAdd = 5;
+    }
+
+    const expectedDate = new Date(baseDate);
+    expectedDate.setDate(expectedDate.getDate() + daysToAdd);
+    return formatDate(expectedDate);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -73,6 +101,11 @@ const PhaseSelection = ({
           <p className="text-gray-600">
             Select a phase to begin or continue your training
           </p>
+          {pretestDate && (
+            <p className="text-sm text-gray-500 mt-2">
+              Pretest completed: {formatDate(pretestDate)}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-6">
@@ -82,7 +115,7 @@ const PhaseSelection = ({
             description="Complete this assessment before starting your training"
             status={getPhaseStatus('pretest')}
             onClick={() => onSelectPhase('pretest')}
-            date={formatDate(lastTrainingDate)}
+            date={pretestDate ? formatDate(pretestDate) : 'Not started'}
           />
 
           {/* Training Days */}
@@ -93,7 +126,7 @@ const PhaseSelection = ({
                 day={day}
                 status={getPhaseStatus('training', day)}
                 onClick={() => onSelectPhase('training', day)}
-                date={formatDate(lastTrainingDate)}
+                date={getExpectedDate('training', day)}
               />
             ))}
           </div>
@@ -104,7 +137,7 @@ const PhaseSelection = ({
             description="Final assessment to measure your progress"
             status={getPhaseStatus('posttest')}
             onClick={() => onSelectPhase('posttest')}
-            date={formatDate(lastTrainingDate)}
+            date={getExpectedDate('posttest')}
           />
         </div>
       </div>
