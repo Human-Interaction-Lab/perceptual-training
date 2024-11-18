@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
+import { CheckCircleIcon, LockClosedIcon, ClockIcon, ArrowRightIcon } from '@heroicons/react/24/solid';
 
 const PhaseSelection = ({
   currentPhase,
@@ -9,6 +9,7 @@ const PhaseSelection = ({
   lastTrainingDate,
   onSelectPhase
 }) => {
+
   // Helper function to determine if a phase is available
   const isPhaseAvailable = (phaseName, dayNumber = null) => {
     if (!lastTrainingDate && phaseName !== 'pretest') return false;
@@ -35,6 +36,8 @@ const PhaseSelection = ({
         return false;
     }
   };
+
+
 
   // Helper to get the status of a phase
   const getPhaseStatus = (phaseName, dayNumber = null) => {
@@ -122,11 +125,11 @@ const PhaseCard = ({ title, description, status, onClick, date }) => {
           </div>
           <div className="ml-4">
             {isCompleted ? (
-              <CheckCircle className="h-6 w-6 text-green-500" />
+              <CheckCircleIcon className="h-6 w-6 text-green-500" />
             ) : isAvailable ? (
-              <Clock className="h-6 w-6 text-blue-500" />
+              <ClockIcon className="h-6 w-6 text-blue-500" />
             ) : (
-              <Lock className="h-6 w-6 text-gray-400" />
+              <LockClosedIcon className="h-6 w-6 text-gray-400" />
             )}
           </div>
         </div>
@@ -144,8 +147,8 @@ const PhaseCard = ({ title, description, status, onClick, date }) => {
           variant={isAvailable ? "default" : "secondary"}
           onClick={onClick}
         >
-          {isCompleted ? 'Completed' : isAvailable ? 'Begin Session' : 'Locked'}
-          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+          <span>{isCompleted ? 'Completed' : isAvailable ? 'Begin Session' : 'Locked'}</span>
+          {isAvailable && <ArrowRightIcon className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>
@@ -163,11 +166,11 @@ const TrainingDayCard = ({ day, status, onClick, date }) => {
         </h3>
         <div className="flex justify-center mt-2">
           {isCompleted ? (
-            <CheckCircle className="h-8 w-8 text-green-500" />
+            <CheckCircleIcon className="h-8 w-8 text-green-500" />
           ) : isAvailable ? (
-            <Clock className="h-8 w-8 text-blue-500" />
+            <ClockIcon className="h-8 w-8 text-blue-500" />
           ) : (
-            <Lock className="h-8 w-8 text-gray-400" />
+            <LockClosedIcon className="h-8 w-8 text-gray-400" />
           )}
         </div>
       </CardHeader>
@@ -184,8 +187,8 @@ const TrainingDayCard = ({ day, status, onClick, date }) => {
           variant={isAvailable ? "default" : "secondary"}
           onClick={onClick}
         >
-          {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
-          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+          <span>{isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}</span>
+          {isAvailable && <ArrowRightIcon className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>

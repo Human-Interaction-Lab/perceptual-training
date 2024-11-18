@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Admin from './Admin';
 import AdminLogin from './AdminLogin';
 import PhaseSelection from './PhaseSelection';
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
+import { Button } from './components/ui/button';
+import { Label } from './components/ui/label';
+import { Input } from './components/ui/input';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
