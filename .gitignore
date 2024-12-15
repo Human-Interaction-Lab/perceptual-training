@@ -26,3 +26,5 @@ yarn-error.log*
 
 # secrets
 .env
+/.env
+/backend/.env
