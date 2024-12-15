@@ -16,6 +16,7 @@ const App = () => {
   const [showComplete, setShowComplete] = useState(false);
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -164,6 +165,12 @@ const App = () => {
   const handleRegister = async () => {
     try {
       setError('');
+      // Add password match validation
+      if (authMode === 'register' && password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+
       if (!email.includes('@')) {
         setError('Please enter a valid email address');
         return;
@@ -183,6 +190,7 @@ const App = () => {
         alert('Registration successful! Please log in.');
         setAuthMode('login');
         setPassword('');
+        setConfirmPassword(''); // Clear confirm password as well
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -383,6 +391,23 @@ const App = () => {
               />
             </div>
 
+            {authMode === 'register' && (
+              <div>
+                <Label htmlFor="confirmPassword">
+                  Confirm Password
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+
             <Button
               onClick={authMode === 'login' ? handleLogin : handleRegister}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
@@ -398,6 +423,7 @@ const App = () => {
                 setAuthMode(authMode === 'login' ? 'register' : 'login');
                 setError('');
                 setPassword('');
+                setConfirmPassword('');
               }}
               className="text-blue-600 hover:text-blue-800"
             >
