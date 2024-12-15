@@ -8,6 +8,10 @@ const json2csv = require('json2csv').parse;
 const fs = require('fs');
 const app = express();
 //const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
+const { scheduleReminders } = require('./emailScheduler');
+const User = require('./models/User');
+const Response = require('./models/Response');
+
 
 // helper fun to check correct day
 const isCorrectDay = (user, phase) => {
@@ -109,37 +113,6 @@ app.get('/api/check-audio-structure', async (req, res) => {
     });
   }
 });
-
-
-// User Schema
-const userSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  currentPhase: { type: String, enum: ['pretest', 'training', 'posttest'], default: 'pretest' },
-  trainingDay: { type: Number, default: 1 },
-  pretestDate: { type: Date }, // Changed from lastTrainingDate
-  completed: { type: Boolean, default: false },
-  isActive: { type: Boolean, default: true },
-  isAdmin: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// Response Schema
-const responseSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  phase: { type: String, required: true },
-  trainingDay: { type: Number },
-  stimulusId: { type: String, required: true },
-  response: { type: String, required: true },
-  correct: { type: Boolean },
-  timestamp: { type: Date, default: Date.now }
-});
-
-const Response = mongoose.model('Response', responseSchema);
-
 
 
 // Authentication Middleware
@@ -564,3 +537,6 @@ async function listFiles(dir) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// schedule email reminders
+scheduleReminders();
