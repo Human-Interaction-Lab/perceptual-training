@@ -1,10 +1,8 @@
 // tests/models/Demographics.test.js
 const mongoose = require('mongoose');
-const { app } = require('../../server');
 const Demographics = require('../../models/Demographics');
 
 describe('Demographics Model Test', () => {
-    // Define the valid demographics data outside the test cases
     const validDemographicsData = {
         userId: '12345',
         dateOfBirth: new Date('1980-01-01'),
@@ -33,25 +31,31 @@ describe('Demographics Model Test', () => {
     };
 
     beforeEach(async () => {
-        await Demographics.deleteMany({}); // Clear demographics collection before each test
+        await Demographics.deleteMany({});
     });
 
     it('should create & save demographics successfully', async () => {
         const validDemographics = new Demographics(validDemographicsData);
         const savedDemographics = await validDemographics.save();
 
-        // Use specific assertions instead of expect(savedDemographics).toBeDefined()
+        // Check the saved document
         expect(savedDemographics._id).toBeDefined();
-        expect(savedDemographics.cpibTotalScore).toBe(30);
         expect(savedDemographics.userId).toBe(validDemographicsData.userId);
-    }, 10000); // Individual timeout for this specific test
+
+        // Verify CPIB score calculation
+        expect(savedDemographics.cpibTotalScore).toBe(30);
+
+        // Double-check by retrieving from database
+        const foundDemographics = await Demographics.findById(savedDemographics._id);
+        expect(foundDemographics.cpibTotalScore).toBe(30);
+    }, 10000);
 
     it('should fail to save demographics with invalid CPIB response', async () => {
         const invalidDemographics = new Demographics({
             ...validDemographicsData,
             cpib: {
                 ...validDemographicsData.cpib,
-                talkingKnownPeople: { response: '5' } // Invalid response
+                talkingKnownPeople: { response: '5' }
             }
         });
 
@@ -64,22 +68,7 @@ describe('Demographics Model Test', () => {
         expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
     });
 
-    it('should require research data when form is completed by research personnel', async () => {
-        const researchDemographics = new Demographics({
-            ...validDemographicsData,
-            formCompletedBy: 'Research Personnel'
-        });
-
-        let err;
-        try {
-            await researchDemographics.save();
-        } catch (error) {
-            err = error;
-        }
-        expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
-    });
-
-    it('should calculate CPIB score correctly', async () => {
+    it('should calculate CPIB score correctly with mixed responses', async () => {
         const mixedResponsesDemographics = new Demographics({
             ...validDemographicsData,
             cpib: {

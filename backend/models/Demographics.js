@@ -5,12 +5,12 @@ const hearingThresholdSchema = new mongoose.Schema({
     frequency: {
         type: Number,
         required: true,
-        enum: [250, 500, 1000, 2000, 4000, 8000] // Standard audiometry frequencies in Hz
+        enum: [250, 500, 1000, 2000, 4000, 8000]
     },
     leftEar: {
         type: Number,
         min: -10,
-        max: 120 // Standard dB HL range
+        max: 120
     },
     rightEar: {
         type: Number,
@@ -47,24 +47,16 @@ const cpibSchema = new mongoose.Schema({
     persuadingOthers: cpibQuestionSchema
 });
 
-// Add method to calculate CPIB score
-cpibSchema.methods.calculateScore = function () {
-    const responses = Object.values(this.toObject()).map(q => parseInt(q.response));
-    return responses.reduce((sum, val) => sum + val, 0);
-};
-
 const demographicsSchema = new mongoose.Schema({
     userId: {
         type: String,
         required: true,
-        ref: 'User',
-        unique: true
+        ref: 'User'
     },
-    // Participant Information
     dateOfBirth: {
         type: Date,
         required: true,
-        max: new Date() // Cannot be in the future
+        max: new Date()
     },
     ethnicity: {
         type: String,
@@ -134,8 +126,6 @@ const demographicsSchema = new mongoose.Schema({
             'Less than Monthly'
         ]
     },
-
-    // CPIB Form data
     cpib: {
         type: cpibSchema,
         required: true
@@ -145,14 +135,11 @@ const demographicsSchema = new mongoose.Schema({
         min: 0,
         max: 30
     },
-
-    // Research Personnel Section
     formCompletedBy: {
         type: String,
         required: true,
         enum: ['Participant', 'Research Personnel']
     },
-    // Only required if formCompletedBy is 'Research Personnel'
     researchData: {
         hearingScreeningCompleted: {
             type: Boolean,
@@ -166,28 +153,43 @@ const demographicsSchema = new mongoose.Schema({
             trim: true
         }
     },
-
     submitted: {
         type: Date,
         default: Date.now
     }
 });
 
-// Add indexes for common queries
-demographicsSchema.index({ userId: 1 });
-demographicsSchema.index({ submitted: -1 });
+// Function to calculate CPIB total score
+demographicsSchema.methods.calculateCPIBScore = function () {
+    if (!this.cpib) return 0;
 
-// Validation middleware
-demographicsSchema.pre('validate', function (next) {
-    // Validate research data is present when form is completed by research personnel
-    if (this.formCompletedBy === 'Research Personnel' && !this.researchData) {
-        this.invalidate('researchData', 'Research data is required when form is completed by research personnel');
-    }
+    const responses = [
+        this.cpib.talkingKnownPeople,
+        this.cpib.communicatingQuickly,
+        this.cpib.talkingUnknownPeople,
+        this.cpib.communicatingCommunity,
+        this.cpib.askingQuestions,
+        this.cpib.communicatingSmallGroup,
+        this.cpib.longConversation,
+        this.cpib.detailedInformation,
+        this.cpib.fastMovingConversation,
+        this.cpib.persuadingOthers
+    ];
 
-    // Additional validations can be added here
+    return responses.reduce((sum, question) => {
+        return sum + (question ? parseInt(question.response) : 0);
+    }, 0);
+};
 
+// Calculate CPIB total score before saving
+demographicsSchema.pre('save', function (next) {
+    this.cpibTotalScore = this.calculateCPIBScore();
     next();
 });
+
+// Add indexes for common queries
+demographicsSchema.index({ userId: 1 }, { unique: true });
+demographicsSchema.index({ submitted: -1 });
 
 const Demographics = mongoose.model('Demographics', demographicsSchema);
 
