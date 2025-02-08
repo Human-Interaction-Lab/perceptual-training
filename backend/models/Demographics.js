@@ -19,6 +19,40 @@ const hearingThresholdSchema = new mongoose.Schema({
     }
 });
 
+// Define CPIB question schema
+const cpibQuestionSchema = new mongoose.Schema({
+    response: {
+        type: String,
+        required: true,
+        enum: ['0', '1', '2', '3'], // 0: Very much, 1: Quite a bit, 2: A little, 3: Not at all
+        validate: {
+            validator: function (v) {
+                return ['0', '1', '2', '3'].includes(v);
+            },
+            message: props => `${props.value} is not a valid CPIB response`
+        }
+    }
+});
+
+const cpibSchema = new mongoose.Schema({
+    talkingKnownPeople: cpibQuestionSchema,
+    communicatingQuickly: cpibQuestionSchema,
+    talkingUnknownPeople: cpibQuestionSchema,
+    communicatingCommunity: cpibQuestionSchema,
+    askingQuestions: cpibQuestionSchema,
+    communicatingSmallGroup: cpibQuestionSchema,
+    longConversation: cpibQuestionSchema,
+    detailedInformation: cpibQuestionSchema,
+    fastMovingConversation: cpibQuestionSchema,
+    persuadingOthers: cpibQuestionSchema
+});
+
+// Add method to calculate CPIB score
+cpibSchema.methods.calculateScore = function () {
+    const responses = Object.values(this.toObject()).map(q => parseInt(q.response));
+    return responses.reduce((sum, val) => sum + val, 0);
+};
+
 const demographicsSchema = new mongoose.Schema({
     userId: {
         type: String,
@@ -84,7 +118,7 @@ const demographicsSchema = new mongoose.Schema({
     },
     relationshipOther: {
         type: String,
-        required: function() {
+        required: function () {
             return this.relationshipToPartner === 'Other';
         },
         trim: true
@@ -100,12 +134,18 @@ const demographicsSchema = new mongoose.Schema({
             'Less than Monthly'
         ]
     },
-    // CPIB Form data (placeholder - structure to be added based on form details)
-    cpibData: {
-        type: Map,
-        of: mongoose.Schema.Types.Mixed
+
+    // CPIB Form data
+    cpib: {
+        type: cpibSchema,
+        required: true
     },
-    
+    cpibTotalScore: {
+        type: Number,
+        min: 0,
+        max: 30
+    },
+
     // Research Personnel Section
     formCompletedBy: {
         type: String,
@@ -116,7 +156,7 @@ const demographicsSchema = new mongoose.Schema({
     researchData: {
         hearingScreeningCompleted: {
             type: Boolean,
-            required: function() {
+            required: function () {
                 return this.formCompletedBy === 'Research Personnel';
             }
         },
@@ -126,7 +166,7 @@ const demographicsSchema = new mongoose.Schema({
             trim: true
         }
     },
-    
+
     submitted: {
         type: Date,
         default: Date.now
@@ -138,14 +178,14 @@ demographicsSchema.index({ userId: 1 });
 demographicsSchema.index({ submitted: -1 });
 
 // Validation middleware
-demographicsSchema.pre('validate', function(next) {
+demographicsSchema.pre('validate', function (next) {
     // Validate research data is present when form is completed by research personnel
     if (this.formCompletedBy === 'Research Personnel' && !this.researchData) {
         this.invalidate('researchData', 'Research data is required when form is completed by research personnel');
     }
-    
+
     // Additional validations can be added here
-    
+
     next();
 });
 
