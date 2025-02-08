@@ -8,9 +8,10 @@ const json2csv = require('json2csv').parse;
 const fs = require('fs');
 const app = express();
 //const { generateToken, validateInput, asyncHandler, formatError, getAudioPath } = require('./utils');
-const { scheduleReminders } = require('./emailScheduler');
+//const { scheduleReminders } = require('./emailScheduler');
 const User = require('./models/User');
 const Response = require('./models/Response');
+const Response = require('./models/Demographics');
 
 
 // helper fun to check correct day
@@ -539,4 +540,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // schedule email reminders
-scheduleReminders();
+// scheduleReminders();
