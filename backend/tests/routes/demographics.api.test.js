@@ -1,32 +1,51 @@
 // tests/routes/demographics.test.js
 const request = require('supertest');
 const mongoose = require('mongoose');
-const { app, startServer } = require('../../server');
+const { app } = require('../../server');  // Don't import startServer
 const Demographics = require('../../models/Demographics');
 const User = require('../../models/User');
 const jwt = require('jsonwebtoken');
 
 describe('Demographics API', () => {
+    let server;
     let token;
     let userId;
-    let testServer;
 
     beforeAll(async () => {
-        testServer = await startServer();
-    });
-
-    afterAll(async () => {
-        if (testServer) {
-            await new Promise((resolve) => {
-                testServer.close(() => {
-                    resolve();
-                });
-            });
-        }
+        expect(mongoose.connection.readyState).toBe(1); // Verify connection
+        server = app.listen(0);
     });
 
     beforeEach(async () => {
-        // Create a test user with unique ID
+        try {
+            // Create test user
+            const uniqueId = `testuser_${Date.now()}`;
+            const user = await User.create({
+                userId: uniqueId,
+                email: `${uniqueId}@test.com`,
+                password: 'password123'
+            });
+
+            userId = user.userId;
+            token = jwt.sign(
+                { userId: user.userId },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
+        } catch (err) {
+            console.error('Error in test setup:', err);
+            throw err;
+        }
+    });
+
+    afterAll(async () => {
+        await new Promise(resolve => server.close(resolve));
+    });
+
+    beforeEach(async () => {
+        await User.deleteMany({});
+        await Demographics.deleteMany({});
+
+        // Create a test user
         const uniqueId = `testuser_${Date.now()}`;
         const user = await User.create({
             userId: uniqueId,

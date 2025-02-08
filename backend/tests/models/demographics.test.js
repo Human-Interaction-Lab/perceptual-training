@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const Demographics = require('../../models/Demographics');
 
 describe('Demographics Model Test', () => {
-    jest.setTimeout(30000); // Increase timeout for all tests in this file
 
     const validDemographicsData = {
         userId: '12345',
@@ -32,35 +31,17 @@ describe('Demographics Model Test', () => {
         }
     };
 
-    beforeAll(async () => {
-        try {
-            await mongoose.connect(global.__MONGO_URI__, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
-            });
-        } catch (err) {
-            console.error('Error connecting to the database', err);
-        }
-    });
-
     afterAll(async () => {
-        try {
-            await mongoose.connection.close();
-        } catch (err) {
-            console.error('Error closing the database connection', err);
-        }
+        await mongoose.connection.close();
     });
 
     beforeEach(async () => {
-        try {
-            // No need to connect here - already handled in setup.js
-            await Demographics.deleteMany({});
-        } catch (err) {
-            throw err; // Rethrow to fail tests if cleanup fails
-        }
+        await Demographics.deleteMany({});
     });
 
     it('should create & save demographics successfully', async () => {
+        expect(mongoose.connection.readyState).toBe(1); // Verify connection before test
+
         const validDemographics = new Demographics(validDemographicsData);
         const savedDemographics = await validDemographics.save();
 

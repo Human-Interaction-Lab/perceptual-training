@@ -600,8 +600,6 @@ async function listFiles(dir) {
   }
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // schedule email reminders
 // scheduleReminders();
@@ -781,8 +779,9 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 
 
 
+
 // Call initialize
 initialize().catch(console.error);
 
 // Export for testing
-module.exports = { app, server, startServer };
+module.exports = { app, startServer };
