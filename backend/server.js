@@ -181,6 +181,42 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      console.log('No token provided');
+      return res.status(401).json({ error: 'Access denied' });
+    }
+
+    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    console.log('Token verified:', verified); // Log the decoded token
+
+    // Find the user and verify admin status
+    const user = await User.findOne({ userId: verified.userId });
+    console.log('Found user:', user ? {
+      userId: user.userId,
+      isAdmin: user.isAdmin,
+      email: user.email
+    } : null); // Log user details
+
+    if (!user || !user.isAdmin) {
+      console.log('User not found or not admin');
+      return res.status(403).json({ error: 'Access denied - Admin only' });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('Admin authentication error:', err);
+    res.status(403).json({ error: 'Invalid token or insufficient permissions' });
+  }
+};
+
+
+
 // 
 // REGISTER POST
 //
@@ -352,8 +388,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 // ADMIN ROUTES
 //
 
-// Admin Routes
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find({}, {
       password: 0,
@@ -367,7 +402,7 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const usersByPhase = await User.aggregate([
@@ -392,7 +427,7 @@ app.get('/api/admin/stats', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/users/:userId', async (req, res) => {
+app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
@@ -411,7 +446,7 @@ app.delete('/api/admin/users/:userId', async (req, res) => {
   }
 });
 
-app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
+app.post('/api/admin/users/:userId/reset-password', authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const { newPassword } = req.body;
@@ -434,7 +469,7 @@ app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
   }
 });
 
-app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
+app.post('/api/admin/users/:userId/toggle-status', authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
@@ -458,7 +493,7 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
 
 
 // exporting
-app.get('/api/admin/export/responses', async (req, res) => {
+app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
   try {
     // Fetch all responses with user information
     const responses = await Response.aggregate([
@@ -516,35 +551,30 @@ app.get('/api/admin/export/responses', async (req, res) => {
 });
 
 // Route to download user data
-app.get('/api/admin/export/users', async (req, res) => {
+app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find({}, {
-      password: 0, // Exclude password
-      __v: 0 // Exclude version key
+      password: 0,
+      _id: 0
     });
 
-    // Define fields for CSV
     const fields = [
       'userId',
       'email',
       'currentPhase',
       'trainingDay',
-      'lastTrainingDate',
       'completed',
       'isActive',
       'createdAt'
     ];
 
-    // Convert to CSV
     const csv = json2csv(users, { fields });
 
     // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
 
-    // Send CSV
     res.send(csv);
-
   } catch (error) {
     console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export data' });
@@ -552,7 +582,7 @@ app.get('/api/admin/export/users', async (req, res) => {
 });
 
 // Route to download all data (both users and responses)
-app.get('/api/admin/export/all', async (req, res) => {
+app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
   try {
     // Fetch all users and responses
     const [users, responses] = await Promise.all([

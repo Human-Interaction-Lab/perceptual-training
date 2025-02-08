@@ -1,54 +1,69 @@
 // tests/routes/admin.test.js
 const request = require('supertest');
-const { mongoose } = require('../setup');
+const { mongoose } = require('../setup');  // Use shared mongoose connection
 const { app } = require('../../server');
-const User = require('../../models/User');
-const Response = require('../../models/Response');
 const jwt = require('jsonwebtoken');
+
+// Get the models using the shared mongoose connection
+const User = mongoose.model('User');
+const Response = mongoose.model('Response');
 
 describe('Admin API', () => {
     let server;
     let adminToken;
     let regularUserToken;
     let testUser;
+    let adminUser;
 
     beforeAll(async () => {
-        server = app.listen(0);
+        try {
+            // Clear any existing users using the shared connection
+            await User.deleteMany({});
 
-        // Create admin user
-        const admin = await User.create({
-            userId: 'admin',
-            email: 'admin@test.com',
-            password: 'admin123',
-            isAdmin: true
-        });
+            // Create admin user using the shared connection
+            adminUser = await User.create({
+                userId: 'adminuser',
+                email: 'admin@test.com',
+                password: 'admin123',
+                isAdmin: true
+            });
 
-        // Create regular user
-        testUser = await User.create({
-            userId: 'regularuser',
-            email: 'user@test.com',
-            password: 'user123'
-        });
+            // Create regular user
+            testUser = await User.create({
+                userId: 'regularuser',
+                email: 'user@test.com',
+                password: 'user123',
+                isAdmin: false
+            });
 
-        adminToken = jwt.sign(
-            { userId: admin.userId, isAdmin: true },
-            process.env.JWT_SECRET || 'your_jwt_secret'
-        );
+            // Create tokens
+            adminToken = jwt.sign(
+                { userId: adminUser.userId, isAdmin: true },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
 
-        regularUserToken = jwt.sign(
-            { userId: testUser.userId },
-            process.env.JWT_SECRET || 'your_jwt_secret'
-        );
-    });
+            regularUserToken = jwt.sign(
+                { userId: testUser.userId, isAdmin: false },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
 
-    afterAll(async () => {
-        if (server) {
-            await new Promise(resolve => server.close(resolve));
+            server = app.listen(0);
+
+        } catch (error) {
+            console.error('Setup failed:', error);
+            throw error;
         }
     });
 
-    beforeEach(async () => {
-        await Response.deleteMany({});
+    afterAll(async () => {
+        try {
+            await User.deleteMany({});
+            if (server) {
+                await new Promise(resolve => server.close(resolve));
+            }
+        } catch (error) {
+            console.error('Cleanup failed:', error);
+        }
     });
 
     describe('GET /api/admin/users', () => {
@@ -68,6 +83,30 @@ describe('Admin API', () => {
                 .set('Authorization', `Bearer ${regularUserToken}`);
 
             expect(response.status).toBe(403);
+            expect(response.body).toHaveProperty('error');
+        });
+    });
+
+    describe('POST /api/admin/users/:userId/toggle-status', () => {
+        it('should allow admin to toggle user status', async () => {
+            const response = await request(app)
+                .post(`/api/admin/users/${testUser.userId}/toggle-status`)
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('isActive');
+        });
+    });
+
+    describe('GET /api/admin/export/users', () => {
+        it('should export user data in CSV format', async () => {
+            const response = await request(app)
+                .get('/api/admin/export/users')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(response.status).toBe(200);
+            expect(response.header['content-type']).toBe('text/csv; charset=utf-8');
+            expect(response.header['content-disposition']).toContain('attachment; filename=users.csv');
         });
     });
 
@@ -82,27 +121,14 @@ describe('Admin API', () => {
             expect(response.body).toHaveProperty('usersByPhase');
             expect(response.body).toHaveProperty('completedUsers');
         });
-    });
 
-    describe('POST /api/admin/users/:userId/toggle-status', () => {
-        it('should allow admin to toggle user status', async () => {
+        it('should not allow regular users to access stats', async () => {
             const response = await request(app)
-                .post(`/api/admin/users/${testUser.userId}/toggle-status`)
-                .set('Authorization', `Bearer ${adminToken}`);
+                .get('/api/admin/stats')
+                .set('Authorization', `Bearer ${regularUserToken}`);
 
-            expect(response.status).toBe(200);
-            expect(response.body).toHaveProperty('isActive', false);
-        });
-    });
-
-    describe('GET /api/admin/export/users', () => {
-        it('should export user data in CSV format', async () => {
-            const response = await request(app)
-                .get('/api/admin/export/users')
-                .set('Authorization', `Bearer ${adminToken}`);
-
-            expect(response.status).toBe(200);
-            expect(response.header['content-type']).toBe('text/csv');
+            expect(response.status).toBe(403);
+            expect(response.body).toHaveProperty('error');
         });
     });
 });
