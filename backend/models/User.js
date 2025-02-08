@@ -75,7 +75,7 @@ userSchema.methods.needsReminder = function () {
     if (daysSincePretest >= 0 && daysSincePretest < 4) {
         return {
             type: 'training',
-            day: daysSincePretest + 2
+            day: daysSincePretest + 1
         };
     }
 
