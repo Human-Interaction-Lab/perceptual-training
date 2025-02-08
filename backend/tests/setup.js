@@ -11,15 +11,17 @@ beforeAll(async () => {
 
     await mongoose.connect(mongoUri, {
         useNewUrlParser: true,
-        useUnifiedTopology: true,
+        useUnifiedTopology: true
     });
 });
 
 // Clear all test data after every test
 afterEach(async () => {
-    const collections = mongoose.connection.collections;
-    for (const key in collections) {
-        await collections[key].deleteMany();
+    if (mongoose.connection.readyState === 1) {
+        const collections = mongoose.connection.collections;
+        for (const key in collections) {
+            await collections[key].deleteMany();
+        }
     }
 });
 

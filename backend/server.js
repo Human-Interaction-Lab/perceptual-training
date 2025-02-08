@@ -12,50 +12,7 @@ const app = express();
 const User = require('./models/User');
 const Response = require('./models/Response');
 const Demographics = require('./models/Demographics');
-
-
-// allow test environment
 let server;
-
-// Modified server startup
-const startServer = () => {
-  const PORT = process.env.PORT || 3000;
-  server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  return server;
-};
-
-
-// helper fun to check correct day
-const isCorrectDay = (user, phase) => {
-  // Always allow pretest completion
-  if (phase === 'pretest') return true;
-
-  // If pretest hasn't been completed yet, no other phases are allowed
-  if (!user.pretestDate) return false;
-
-  const pretest = new Date(user.pretestDate);
-  const today = new Date();
-
-  // Reset time portions to compare dates only
-  pretest.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-
-  // Calculate days since pretest
-  const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
-
-  // For training phase, check if it's the correct day based on training day
-  if (phase === 'training') {
-    return daysSincePretest === user.trainingDay;
-  }
-
-  // For posttest, check if it's 5 days after pretest
-  if (phase === 'posttest') {
-    return daysSincePretest === 5;
-  }
-
-  return false;
-};
-
 
 //
 // MIDDLEWARE
@@ -131,6 +88,38 @@ app.get('/api/check-audio-structure', async (req, res) => {
     });
   }
 });
+
+
+// helper fun to check correct day
+const isCorrectDay = (user, phase) => {
+  // Always allow pretest completion
+  if (phase === 'pretest') return true;
+
+  // If pretest hasn't been completed yet, no other phases are allowed
+  if (!user.pretestDate) return false;
+
+  const pretest = new Date(user.pretestDate);
+  const today = new Date();
+
+  // Reset time portions to compare dates only
+  pretest.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate days since pretest
+  const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
+
+  // For training phase, check if it's the correct day based on training day
+  if (phase === 'training') {
+    return daysSincePretest === user.trainingDay;
+  }
+
+  // For posttest, check if it's 5 days after pretest
+  if (phase === 'posttest') {
+    return daysSincePretest === 5;
+  }
+
+  return false;
+};
 
 
 // Authentication Middleware
@@ -751,12 +740,46 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 });
 
 
-// Only start the server if we're not in a test environment
-if (process.env.NODE_ENV !== 'test') {
-  startServer();
-  // schedule email reminders
-  // scheduleReminders();
-}
+//
+// Database connection
+//
+
+const connectDB = async () => {
+  try {
+    // Use test database if in test environment
+    const dbURI = process.env.NODE_ENV === 'test'
+      ? 'mongodb://localhost/audio-perception-test'
+      : 'mongodb://localhost/audio-perception';
+
+    await mongoose.connect(dbURI);
+    console.log('MongoDB connected...');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  }
+};
+
+// Server startup function
+const startServer = async () => {
+  const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
+  server = app.listen(PORT, () => {
+    const actualPort = server.address().port;
+    console.log(`Server running on port ${actualPort}`);
+  });
+  return server;
+};
+
+// Initialize if not in test environment
+const initialize = async () => {
+  await connectDB();
+  if (process.env.NODE_ENV !== 'test') {
+    await startServer();
+    // scheduleReminders();
+  }
+};
+
+// Call initialize
+initialize().catch(console.error);
 
 // Export for testing
 module.exports = { app, server, startServer };

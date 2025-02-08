@@ -1,6 +1,7 @@
 // tests/routes/demographics.test.js
 const request = require('supertest');
-const app = require('../../server'); // Update path as needed
+const mongoose = require('mongoose');
+const { app, startServer } = require('../../server');
 const Demographics = require('../../models/Demographics');
 const User = require('../../models/User');
 const jwt = require('jsonwebtoken');
@@ -8,12 +9,25 @@ const jwt = require('jsonwebtoken');
 describe('Demographics API', () => {
     let token;
     let userId;
+    let testServer;
+
+    beforeAll(async () => {
+        testServer = await startServer();
+    });
+
+    afterAll(async () => {
+        if (testServer) {
+            await new Promise((resolve) => {
+                testServer.close(() => {
+                    resolve();
+                });
+            });
+        }
+    });
 
     beforeEach(async () => {
-        // Generate a unique user ID using timestamp
+        // Create a test user with unique ID
         const uniqueId = `testuser_${Date.now()}`;
-
-        // Create a test user and generate token
         const user = await User.create({
             userId: uniqueId,
             email: `${uniqueId}@test.com`,
@@ -27,7 +41,6 @@ describe('Demographics API', () => {
     });
 
     afterEach(async () => {
-        // Clean up test data
         await User.deleteMany({});
         await Demographics.deleteMany({});
     });
