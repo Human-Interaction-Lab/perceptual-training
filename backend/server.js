@@ -11,7 +11,7 @@ const app = express();
 //const { scheduleReminders } = require('./emailScheduler');
 const User = require('./models/User');
 const Response = require('./models/Response');
-const Response = require('./models/Demographics');
+const Demographics = require('./models/Demographics');
 
 
 // helper fun to check correct day
@@ -46,7 +46,13 @@ const isCorrectDay = (user, phase) => {
 };
 
 
-
+//
+// MIDDLEWARE
+//
+// SET UP
+// AUDIO CHECKS
+// TRAINING DAY CHECK
+// AUDIO FILE STRUCTURE --> probably change to get from Box 
 
 // Middleware
 app.use(cors({
@@ -132,6 +138,10 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// 
+// REGISTER POST
+//
+
 // Auth Routes
 app.post('/api/register', async (req, res) => {
   try {
@@ -170,6 +180,11 @@ app.post('/api/register', async (req, res) => {
     res.status(500).json({ error: 'Registration failed' });
   }
 });
+
+
+//
+// LOGIN POST
+//
 
 app.post('/api/login', async (req, res) => {
   try {
@@ -229,6 +244,11 @@ app.post('/api/login', async (req, res) => {
 });
 
 
+
+//
+// RESPONSE POST
+//
+
 // Response Routes
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
@@ -283,6 +303,11 @@ app.post('/api/response', authenticateToken, async (req, res) => {
   }
 });
 
+
+
+//
+// ADMIN ROUTES
+//
 
 // Admin Routes
 app.get('/api/admin/users', async (req, res) => {
@@ -541,3 +566,175 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // schedule email reminders
 // scheduleReminders();
+
+
+
+
+//
+// DEMOGRAPHICS and CPIB POST, GET, PUT
+//
+
+// Create demographics entry
+app.post('/api/demographics', authenticateToken, async (req, res) => {
+  try {
+    // Add userId from authenticated token to the demographics data
+    const demographicsData = {
+      ...req.body,
+      userId: req.user.userId
+    };
+
+    // Check if demographics already exist for this user
+    const existingDemographics = await Demographics.findOne({ userId: req.user.userId });
+    if (existingDemographics) {
+      return res.status(400).json({ error: 'Demographics already exist for this user' });
+    }
+
+    // Create new demographics entry
+    const demographics = new Demographics(demographicsData);
+    await demographics.save();
+
+    res.status(201).json(demographics);
+  } catch (error) {
+    console.error('Error saving demographics:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to save demographics' });
+  }
+});
+
+// Get demographics for a user
+app.get('/api/demographics/:userId', authenticateToken, async (req, res) => {
+  try {
+    const demographics = await Demographics.findOne({ userId: req.params.userId });
+    if (!demographics) {
+      return res.status(404).json({ error: 'Demographics not found' });
+    }
+    res.json(demographics);
+  } catch (error) {
+    console.error('Error fetching demographics:', error);
+    res.status(500).json({ error: 'Failed to fetch demographics' });
+  }
+});
+
+// Update demographics (for research personnel only)
+app.put('/api/demographics/:userId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: 'Only research personnel can update demographics' });
+    }
+
+    const demographics = await Demographics.findOneAndUpdate(
+      { userId: req.params.userId },
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!demographics) {
+      return res.status(404).json({ error: 'Demographics not found' });
+    }
+
+    res.json(demographics);
+  } catch (error) {
+    console.error('Error updating demographics:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to update demographics' });
+  }
+});
+
+// Admin route to get all demographics
+app.get('/api/admin/demographics', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const demographics = await Demographics.find({});
+    res.json(demographics);
+  } catch (error) {
+    console.error('Error fetching all demographics:', error);
+    res.status(500).json({ error: 'Failed to fetch demographics' });
+  }
+});
+
+// Export demographics data to CSV with full CPIB responses
+app.get('/api/admin/export/demographics', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const demographics = await Demographics.find({}).lean();
+
+    // Transform the data to flatten CPIB responses
+    const flattenedData = demographics.map(record => {
+      const flatRecord = {
+        userId: record.userId,
+        dateOfBirth: record.dateOfBirth,
+        ethnicity: record.ethnicity,
+        race: record.race,
+        sexAssignedAtBirth: record.sexAssignedAtBirth,
+        isEnglishPrimary: record.isEnglishPrimary,
+        cognitiveImpairment: record.cognitiveImpairment,
+        hearingLoss: record.hearingLoss,
+        hearingAids: record.hearingAids,
+        relationshipToPartner: record.relationshipToPartner,
+        relationshipOther: record.relationshipOther,
+        communicationFrequency: record.communicationFrequency,
+
+        // CPIB Individual Responses
+        cpib_talkingKnownPeople: record.cpib?.talkingKnownPeople?.response,
+        cpib_communicatingQuickly: record.cpib?.communicatingQuickly?.response,
+        cpib_talkingUnknownPeople: record.cpib?.talkingUnknownPeople?.response,
+        cpib_communicatingCommunity: record.cpib?.communicatingCommunity?.response,
+        cpib_askingQuestions: record.cpib?.askingQuestions?.response,
+        cpib_communicatingSmallGroup: record.cpib?.communicatingSmallGroup?.response,
+        cpib_longConversation: record.cpib?.longConversation?.response,
+        cpib_detailedInformation: record.cpib?.detailedInformation?.response,
+        cpib_fastMovingConversation: record.cpib?.fastMovingConversation?.response,
+        cpib_persuadingOthers: record.cpib?.persuadingOthers?.response,
+
+        // CPIB Total Score
+        cpibTotalScore: record.cpibTotalScore,
+
+        formCompletedBy: record.formCompletedBy,
+        submitted: record.submitted,
+
+        // Research Data (if available)
+        hearingScreeningCompleted: record.researchData?.hearingScreeningCompleted,
+        researchNotes: record.researchData?.notes
+      };
+
+      // Add hearing thresholds if they exist
+      if (record.researchData?.hearingThresholds) {
+        record.researchData.hearingThresholds.forEach(threshold => {
+          flatRecord[`threshold_${threshold.frequency}Hz_left`] = threshold.leftEar;
+          flatRecord[`threshold_${threshold.frequency}Hz_right`] = threshold.rightEar;
+        });
+      }
+
+      return flatRecord;
+    });
+
+    // Define fields for CSV based on first record's keys
+    const fields = Object.keys(flattenedData[0] || {});
+
+    // Convert to CSV with all fields
+    const csv = json2csv(flattenedData, { fields });
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=demographics_full.csv');
+
+    // Send CSV
+    res.send(csv);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export demographics data' });
+  }
+});
