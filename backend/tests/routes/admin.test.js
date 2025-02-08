@@ -17,15 +17,25 @@ describe('Admin API', () => {
 
     beforeAll(async () => {
         try {
-            // Clear any existing users using the shared connection
-            await User.deleteMany({});
+            console.log('Setting up admin test...');
 
-            // Create admin user using the shared connection
+            // Clear any existing users
+            await User.deleteMany({});
+            console.log('Cleared existing users');
+
+            // Create admin user
             adminUser = await User.create({
                 userId: 'adminuser',
                 email: 'admin@test.com',
                 password: 'admin123',
                 isAdmin: true
+            });
+
+            // Verify admin user was created correctly
+            const verifyAdmin = await User.findOne({ userId: 'adminuser' });
+            console.log('Admin user created:', {
+                userId: verifyAdmin.userId,
+                isAdmin: verifyAdmin.isAdmin
             });
 
             // Create regular user
@@ -36,11 +46,22 @@ describe('Admin API', () => {
                 isAdmin: false
             });
 
-            // Create tokens
+            // Create tokens with explicit payload
+            const adminPayload = {
+                userId: adminUser.userId,
+                isAdmin: true
+            };
             adminToken = jwt.sign(
-                { userId: adminUser.userId, isAdmin: true },
+                adminPayload,
                 process.env.JWT_SECRET || 'your_jwt_secret'
             );
+
+            // Verify token can be decoded correctly
+            const decodedToken = jwt.verify(
+                adminToken,
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
+            console.log('Admin token decoded:', decodedToken);
 
             regularUserToken = jwt.sign(
                 { userId: testUser.userId, isAdmin: false },
@@ -48,6 +69,7 @@ describe('Admin API', () => {
             );
 
             server = app.listen(0);
+            console.log('Test setup complete');
 
         } catch (error) {
             console.error('Setup failed:', error);
