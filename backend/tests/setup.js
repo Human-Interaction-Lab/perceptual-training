@@ -1,56 +1,51 @@
-// tests/setup.js
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongoServer;
 
-// Connect to a new in-memory database before running any tests
 beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
+    jest.setTimeout(60000); // Increase timeout to 60 seconds
 
-    await mongoose.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    });
+    try {
+        mongoServer = await MongoMemoryServer.create();
+        const mongoUri = mongoServer.getUri();
+
+        // Make the URI available globally for other test files
+        global.__MONGO_URI__ = mongoUri;
+
+        await mongoose.connect(mongoUri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+    } catch (err) {
+        console.error('Error in test setup:', err);
+        throw err; // Rethrow to fail tests if setup fails
+    }
 });
 
-// Clear all test data after every test
 afterEach(async () => {
-    if (mongoose.connection.readyState === 1) {
-        const collections = mongoose.connection.collections;
-        for (const key in collections) {
-            await collections[key].deleteMany();
+    try {
+        if (mongoose.connection.readyState === 1) {
+            await Promise.all(
+                Object.values(mongoose.connection.collections).map(collection =>
+                    collection.deleteMany({})
+                )
+            );
         }
+    } catch (err) {
+        console.error('Error cleaning up test data:', err);
+        throw err;
     }
 });
 
-// Remove and close the db and server
 afterAll(async () => {
-    if (mongoose.connection.readyState !== 0) {
+    try {
         await mongoose.disconnect();
-    }
-    if (mongoServer) {
-        await mongoServer.stop();
+        if (mongoServer) {
+            await mongoServer.stop();
+        }
+    } catch (err) {
+        console.error('Error cleaning up test server:', err);
+        throw err;
     }
 });
-
-// Handle test environment cleanup
-process.on('SIGTERM', async () => {
-    await cleanup();
-    process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-    await cleanup();
-    process.exit(0);
-});
-
-async function cleanup() {
-    if (mongoose.connection.readyState !== 0) {
-        await mongoose.disconnect();
-    }
-    if (mongoServer) {
-        await mongoServer.stop();
-    }
-}

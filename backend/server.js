@@ -746,16 +746,23 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 
 const connectDB = async () => {
   try {
-    // Use test database if in test environment
-    const dbURI = process.env.NODE_ENV === 'test'
-      ? 'mongodb://localhost/audio-perception-test'
-      : 'mongodb://localhost/audio-perception';
+    // Skip connection if we're testing (handled by test setup)
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
 
-    await mongoose.connect(dbURI);
+    const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
+    await mongoose.connect(dbURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     console.log('MongoDB connected...');
   } catch (err) {
     console.error('MongoDB connection error:', err);
-    process.exit(1);
+    // Don't exit process during tests
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
   }
 };
 

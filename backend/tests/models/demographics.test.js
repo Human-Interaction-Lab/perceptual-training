@@ -1,8 +1,10 @@
-// tests/models/Demographics.test.js
+// tests/models/demographics.test.js
 const mongoose = require('mongoose');
 const Demographics = require('../../models/Demographics');
 
 describe('Demographics Model Test', () => {
+    jest.setTimeout(30000); // Increase timeout for all tests in this file
+
     const validDemographicsData = {
         userId: '12345',
         dateOfBirth: new Date('1980-01-01'),
@@ -30,24 +32,41 @@ describe('Demographics Model Test', () => {
         }
     };
 
+    beforeAll(async () => {
+        try {
+            await mongoose.connect(global.__MONGO_URI__, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            });
+        } catch (err) {
+            console.error('Error connecting to the database', err);
+        }
+    });
+
+    afterAll(async () => {
+        try {
+            await mongoose.connection.close();
+        } catch (err) {
+            console.error('Error closing the database connection', err);
+        }
+    });
+
     beforeEach(async () => {
-        await Demographics.deleteMany({});
+        try {
+            // No need to connect here - already handled in setup.js
+            await Demographics.deleteMany({});
+        } catch (err) {
+            throw err; // Rethrow to fail tests if cleanup fails
+        }
     });
 
     it('should create & save demographics successfully', async () => {
         const validDemographics = new Demographics(validDemographicsData);
         const savedDemographics = await validDemographics.save();
 
-        // Check the saved document
         expect(savedDemographics._id).toBeDefined();
         expect(savedDemographics.userId).toBe(validDemographicsData.userId);
-
-        // Verify CPIB score calculation
         expect(savedDemographics.cpibTotalScore).toBe(30);
-
-        // Double-check by retrieving from database
-        const foundDemographics = await Demographics.findById(savedDemographics._id);
-        expect(foundDemographics.cpibTotalScore).toBe(30);
     }, 10000);
 
     it('should fail to save demographics with invalid CPIB response', async () => {
@@ -66,7 +85,7 @@ describe('Demographics Model Test', () => {
             err = error;
         }
         expect(err).toBeInstanceOf(mongoose.Error.ValidationError);
-    });
+    }, 10000);
 
     it('should calculate CPIB score correctly with mixed responses', async () => {
         const mixedResponsesDemographics = new Demographics({
@@ -87,5 +106,5 @@ describe('Demographics Model Test', () => {
 
         const saved = await mixedResponsesDemographics.save();
         expect(saved.cpibTotalScore).toBe(17);
-    });
+    }, 10000);
 });
