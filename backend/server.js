@@ -32,8 +32,47 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public')); // For serving audio files
 
-// MongoDB connection
-mongoose.connect('mongodb://localhost/audio-perception');
+// Database connection
+const connectDB = async () => {
+  try {
+    // Skip connection if we're testing (handled by test setup)
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
+    await mongoose.connect(dbURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    console.log('MongoDB connected...');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    // Don't exit process during tests
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
+  }
+};
+
+// Server startup function
+const startServer = async () => {
+  const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
+  server = app.listen(PORT, () => {
+    const actualPort = server.address().port;
+    console.log(`Server running on port ${actualPort}`);
+  });
+  return server;
+};
+
+// Initialize if not in test environment
+const initialize = async () => {
+  await connectDB();
+  if (process.env.NODE_ENV !== 'test') {
+    await startServer();
+    // scheduleReminders();
+  }
+};
 
 // Serve static files from the public directory
 app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
@@ -740,50 +779,7 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 });
 
 
-//
-// Database connection
-//
 
-const connectDB = async () => {
-  try {
-    // Skip connection if we're testing (handled by test setup)
-    if (process.env.NODE_ENV === 'test') {
-      return;
-    }
-
-    const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
-    await mongoose.connect(dbURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-    console.log('MongoDB connected...');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-    // Don't exit process during tests
-    if (process.env.NODE_ENV !== 'test') {
-      process.exit(1);
-    }
-  }
-};
-
-// Server startup function
-const startServer = async () => {
-  const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
-  server = app.listen(PORT, () => {
-    const actualPort = server.address().port;
-    console.log(`Server running on port ${actualPort}`);
-  });
-  return server;
-};
-
-// Initialize if not in test environment
-const initialize = async () => {
-  await connectDB();
-  if (process.env.NODE_ENV !== 'test') {
-    await startServer();
-    // scheduleReminders();
-  }
-};
 
 // Call initialize
 initialize().catch(console.error);
