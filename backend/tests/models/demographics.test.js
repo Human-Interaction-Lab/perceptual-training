@@ -1,8 +1,10 @@
 // tests/models/Demographics.test.js
 const mongoose = require('mongoose');
+const { app } = require('../../server');
 const Demographics = require('../../models/Demographics');
 
 describe('Demographics Model Test', () => {
+    // Define the valid demographics data outside the test cases
     const validDemographicsData = {
         userId: '12345',
         dateOfBirth: new Date('1980-01-01'),
@@ -30,14 +32,19 @@ describe('Demographics Model Test', () => {
         }
     };
 
+    beforeEach(async () => {
+        await Demographics.deleteMany({}); // Clear demographics collection before each test
+    });
+
     it('should create & save demographics successfully', async () => {
         const validDemographics = new Demographics(validDemographicsData);
         const savedDemographics = await validDemographics.save();
-        
+
+        // Use specific assertions instead of expect(savedDemographics).toBeDefined()
         expect(savedDemographics._id).toBeDefined();
-        expect(savedDemographics.cpibTotalScore).toBe(30); // All responses are '3'
+        expect(savedDemographics.cpibTotalScore).toBe(30);
         expect(savedDemographics.userId).toBe(validDemographicsData.userId);
-    });
+    }, 10000); // Individual timeout for this specific test
 
     it('should fail to save demographics with invalid CPIB response', async () => {
         const invalidDemographics = new Demographics({
@@ -90,6 +97,6 @@ describe('Demographics Model Test', () => {
         });
 
         const saved = await mixedResponsesDemographics.save();
-        expect(saved.cpibTotalScore).toBe(17); // Sum of all responses
+        expect(saved.cpibTotalScore).toBe(17);
     });
 });

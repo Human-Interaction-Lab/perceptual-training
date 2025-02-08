@@ -10,10 +10,13 @@ describe('Demographics API', () => {
     let userId;
 
     beforeEach(async () => {
+        // Generate a unique user ID using timestamp
+        const uniqueId = `testuser_${Date.now()}`;
+
         // Create a test user and generate token
         const user = await User.create({
-            userId: 'testuser',
-            email: 'test@test.com',
+            userId: uniqueId,
+            email: `${uniqueId}@test.com`,
             password: 'password123'
         });
         userId = user.userId;
@@ -21,6 +24,12 @@ describe('Demographics API', () => {
             { userId: user.userId },
             process.env.JWT_SECRET || 'your_jwt_secret'
         );
+    });
+
+    afterEach(async () => {
+        // Clean up test data
+        await User.deleteMany({});
+        await Demographics.deleteMany({});
     });
 
     const validDemographicsData = {
@@ -58,6 +67,7 @@ describe('Demographics API', () => {
 
             expect(response.status).toBe(201);
             expect(response.body.cpibTotalScore).toBe(30);
+            expect(response.body.userId).toBe(userId);
         });
 
         it('should reject invalid CPIB data', async () => {

@@ -14,6 +14,17 @@ const Response = require('./models/Response');
 const Demographics = require('./models/Demographics');
 
 
+// allow test environment
+let server;
+
+// Modified server startup
+const startServer = () => {
+  const PORT = process.env.PORT || 3000;
+  server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  return server;
+};
+
+
 // helper fun to check correct day
 const isCorrectDay = (user, phase) => {
   // Always allow pretest completion
@@ -738,3 +749,14 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
     res.status(500).json({ error: 'Failed to export demographics data' });
   }
 });
+
+
+// Only start the server if we're not in a test environment
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+  // schedule email reminders
+  // scheduleReminders();
+}
+
+// Export for testing
+module.exports = { app, server, startServer };

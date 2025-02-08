@@ -8,7 +8,11 @@ let mongoServer;
 beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
+
+    await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    });
 });
 
 // Clear all test data after every test
@@ -21,6 +25,30 @@ afterEach(async () => {
 
 // Remove and close the db and server
 afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+    }
+    if (mongoServer) {
+        await mongoServer.stop();
+    }
 });
+
+// Handle test environment cleanup
+process.on('SIGTERM', async () => {
+    await cleanup();
+    process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+    await cleanup();
+    process.exit(0);
+});
+
+async function cleanup() {
+    if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+    }
+    if (mongoServer) {
+        await mongoServer.stop();
+    }
+}
