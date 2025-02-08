@@ -387,8 +387,9 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 //
 // ADMIN ROUTES
 //
+app.use('/api/admin', authenticateAdmin)
 
-app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/users', async (req, res) => {
   try {
     const users = await User.find({}, {
       password: 0,
@@ -402,7 +403,7 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/stats', async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const usersByPhase = await User.aggregate([
@@ -427,7 +428,7 @@ app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
+app.delete('/api/admin/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
@@ -446,7 +447,7 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/admin/users/:userId/reset-password', authenticateAdmin, async (req, res) => {
+app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
   try {
     const { userId } = req.params;
     const { newPassword } = req.body;
@@ -469,7 +470,7 @@ app.post('/api/admin/users/:userId/reset-password', authenticateAdmin, async (re
   }
 });
 
-app.post('/api/admin/users/:userId/toggle-status', authenticateAdmin, async (req, res) => {
+app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findOne({ userId });
@@ -493,7 +494,7 @@ app.post('/api/admin/users/:userId/toggle-status', authenticateAdmin, async (req
 
 
 // exporting
-app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/export/responses', async (req, res) => {
   try {
     // Fetch all responses with user information
     const responses = await Response.aggregate([
@@ -551,7 +552,7 @@ app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
 });
 
 // Route to download user data
-app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/export/users', async (req, res) => {
   try {
     const users = await User.find({}, {
       password: 0,
@@ -582,7 +583,7 @@ app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
 });
 
 // Route to download all data (both users and responses)
-app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/export/all', async (req, res) => {
   try {
     // Fetch all users and responses
     const [users, responses] = await Promise.all([
