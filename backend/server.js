@@ -35,8 +35,15 @@ app.use(express.static('public')); // For serving audio files
 // Database connection
 const connectDB = async () => {
   try {
+    // Skip connection if already connected
+    if (mongoose.connection.readyState === 1) {
+      console.log('MongoDB already connected');
+      return;
+    }
+
     // Skip connection if we're testing (handled by test setup)
     if (process.env.NODE_ENV === 'test') {
+      console.log('Test environment detected, skipping DB connection');
       return;
     }
 
@@ -48,7 +55,6 @@ const connectDB = async () => {
     console.log('MongoDB connected...');
   } catch (err) {
     console.error('MongoDB connection error:', err);
-    // Don't exit process during tests
     if (process.env.NODE_ENV !== 'test') {
       process.exit(1);
     }
@@ -57,22 +63,20 @@ const connectDB = async () => {
 
 // Server startup function
 const startServer = async () => {
+  await connectDB(); // Ensure DB is connected before starting server
+
   const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
-  server = app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     const actualPort = server.address().port;
     console.log(`Server running on port ${actualPort}`);
   });
   return server;
 };
 
-// Initialize if not in test environment
-const initialize = async () => {
-  await connectDB();
-  if (process.env.NODE_ENV !== 'test') {
-    await startServer();
-    // scheduleReminders();
-  }
-};
+// Only auto-start if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  startServer().catch(console.error);
+}
 
 // Serve static files from the public directory
 app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
@@ -778,10 +782,5 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 
 
 
-
-
-// Call initialize
-initialize().catch(console.error);
-
 // Export for testing
-module.exports = { app, startServer };
+module.exports = { app, startServer, connectDB };

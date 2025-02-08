@@ -1,57 +1,37 @@
 // tests/routes/demographics.test.js
 const request = require('supertest');
-const mongoose = require('mongoose');
+const { mongoose } = require('../setup');  // Import mongoose from setup
 const { app } = require('../../server');  // Don't import startServer
 const Demographics = require('../../models/Demographics');
 const User = require('../../models/User');
 const jwt = require('jsonwebtoken');
 
 describe('Demographics API', () => {
-    let server;
     let token;
     let userId;
+    let server;
 
     beforeAll(async () => {
-        expect(mongoose.connection.readyState).toBe(1); // Verify connection
+        // Verify connection is already established by setup.js
+        console.log('Current connection state:', mongoose.connection.readyState);
         server = app.listen(0);
     });
 
-    beforeEach(async () => {
-        try {
-            // Create test user
-            const uniqueId = `testuser_${Date.now()}`;
-            const user = await User.create({
-                userId: uniqueId,
-                email: `${uniqueId}@test.com`,
-                password: 'password123'
-            });
-
-            userId = user.userId;
-            token = jwt.sign(
-                { userId: user.userId },
-                process.env.JWT_SECRET || 'your_jwt_secret'
-            );
-        } catch (err) {
-            console.error('Error in test setup:', err);
-            throw err;
+    afterAll(async () => {
+        if (server) {
+            await new Promise(resolve => server.close(resolve));
         }
     });
 
-    afterAll(async () => {
-        await new Promise(resolve => server.close(resolve));
-    });
-
     beforeEach(async () => {
-        await User.deleteMany({});
-        await Demographics.deleteMany({});
-
-        // Create a test user
+        // Create test user
         const uniqueId = `testuser_${Date.now()}`;
         const user = await User.create({
             userId: uniqueId,
             email: `${uniqueId}@test.com`,
             password: 'password123'
         });
+
         userId = user.userId;
         token = jwt.sign(
             { userId: user.userId },

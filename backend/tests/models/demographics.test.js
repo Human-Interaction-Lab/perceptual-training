@@ -1,5 +1,5 @@
 // tests/models/demographics.test.js
-const mongoose = require('mongoose');
+const { mongoose } = require('../setup');  // Import mongoose from setup
 const Demographics = require('../../models/Demographics');
 
 describe('Demographics Model Test', () => {

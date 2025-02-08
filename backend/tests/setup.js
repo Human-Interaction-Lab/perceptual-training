@@ -1,79 +1,52 @@
+// tests/setup.js
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongoServer;
 
-// Increase timeout for the entire test suite
-jest.setTimeout(60000);
-
+// This ensures the database is connected before any tests run
 beforeAll(async () => {
-    try {
-        // Create MongoDB Memory Server
-        mongoServer = await MongoMemoryServer.create({
-            binary: {
-                version: '6.0.4'  // Specify a stable version
-            }
-        });
+    console.log('Setting up test database connection...');
 
+    try {
+        mongoServer = await MongoMemoryServer.create();
         const mongoUri = mongoServer.getUri();
 
-        // Configure Mongoose
-        const mongooseOpts = {
+        await mongoose.connect(mongoUri, {
             useNewUrlParser: true,
-            useUnifiedTopology: true,
-            maxPoolSize: 10,
-            serverSelectionTimeoutMS: 5000,
-            socketTimeoutMS: 45000,
-            family: 4  // Use IPv4, skip trying IPv6
-        };
-
-        // Connect to the in-memory database
-        await mongoose.connect(mongoUri, mongooseOpts);
+            useUnifiedTopology: true
+        });
 
         // Verify connection
         await mongoose.connection.db.admin().ping();
         console.log('Successfully connected to MongoDB Memory Server');
+        console.log('Connection State:', mongoose.connection.readyState);
 
     } catch (err) {
-        console.error('MongoDB Memory Server setup failed:', err);
+        console.error('Failed to connect to test database:', err);
         throw err;
     }
 });
 
-beforeEach(async () => {
-    if (mongoose.connection.readyState !== 1) {
-        throw new Error('MongoDB connection is not ready');
-    }
-
-    try {
-        // Get all collections
+afterEach(async () => {
+    if (mongoose.connection.readyState === 1) {
         const collections = mongoose.connection.collections;
-
-        // Clear all collections in parallel
         await Promise.all(
             Object.values(collections).map(collection =>
                 collection.deleteMany({})
             )
         );
-    } catch (err) {
-        console.error('Error clearing collections:', err);
-        throw err;
     }
 });
 
 afterAll(async () => {
-    try {
-        // Close Mongoose connection
-        if (mongoose.connection.readyState !== 0) {
-            await mongoose.disconnect();
-        }
-
-        // Stop MongoDB Memory Server
-        if (mongoServer) {
-            await mongoServer.stop({ doCleanup: true });
-        }
-    } catch (err) {
-        console.error('Cleanup failed:', err);
-        throw err;
+    if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+    }
+    if (mongoServer) {
+        await mongoServer.stop();
     }
 });
+
+// Export the connection for test files to use
+module.exports = { mongoose };
