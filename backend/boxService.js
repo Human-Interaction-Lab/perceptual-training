@@ -22,7 +22,7 @@ class BoxService {
         code: 'Comp',
         hasVersion: true,
         pattern: (username, version, sentence) =>
-          `${username}_Comp_${version}_${String(sentence).padStart(2, '0')}`
+          `${username}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`
       },
       EFFORT: {
         code: 'EFF',
@@ -87,6 +87,10 @@ class BoxService {
       throw new Error(`Invalid test type: ${testType}`);
     }
 
+    if (typeConfig.hasVersion && !version) {
+      throw new Error(`Version required for ${testType}`);
+    }
+
     const filename = typeConfig.pattern(userId, version, sentence);
     return this.getFileStream(userId, filename);
   }
@@ -144,13 +148,12 @@ class BoxService {
       return {
         username,
         type: 'comprehension',
-        version: parts[2],
+        version: parseInt(parts[2]),
         sentence: parseInt(parts[3])
       };
     }
 
     // Handle effort and intelligibility files
-    // These end with a number, like EFF01 or Int01
     if (typeIndicator.startsWith('EFF') || typeIndicator.startsWith('Int')) {
       const type = typeIndicator.substring(0, 3);
       const sentence = parseInt(typeIndicator.substring(3));

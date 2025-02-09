@@ -13,15 +13,15 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     // Sample files with correct naming convention
     const sampleFiles = [
-        'Grace Norman_Comp_01_01.wav',  // Comprehension version 01, sentence 1
-        'Grace Norman_Comp_01_02.wav',  // Comprehension version 01, sentence 2
-        'Grace Norman_Comp_02_01.wav',  // Comprehension version 02, sentence 1
-        'Grace Norman_EFF01.wav',      // Effort sentence 1
-        'Grace Norman_EFF02.wav',      // Effort sentence 2
-        'Grace Norman_Int01.wav',      // Intelligibility sentence 1
-        'Grace Norman_Int02.wav',      // Intelligibility sentence 2
-        'Grace Norman_Trn_01_01.wav',  // Training day 1, sentence 1
-        'Grace Norman_Trn_01_02.wav'   // Training day 1, sentence 2
+        'Grace Norman_Comp_01_01.wav',  // Comprehension version 1, sentence 1
+        'Grace Norman_Comp_01_02.wav',  // Comprehension version 1, sentence 2
+        'Grace Norman_Comp_02_01.wav',  // Comprehension version 2, sentence 1
+        'Grace Norman_EFF01.wav',       // Effort sentence 1
+        'Grace Norman_EFF02.wav',       // Effort sentence 2
+        'Grace Norman_Int01.wav',       // Intelligibility sentence 1
+        'Grace Norman_Int02.wav',       // Intelligibility sentence 2
+        'Grace Norman_Trn_01_01.wav',   // Training day 1, sentence 1
+        'Grace Norman_Trn_01_02.wav'    // Training day 1, sentence 2
     ];
 
     beforeAll(async () => {
@@ -64,7 +64,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             expect(result).toEqual({
                 username: 'Grace Norman',
                 type: 'comprehension',
-                version: '01',
+                version: 1,
                 sentence: 1
             });
         });
@@ -99,9 +99,9 @@ describe('Box Service Integration Tests - Grace Norman', () => {
     });
 
     describe('File Access Tests', () => {
-        it('should access comprehension files with version', async () => {
+        it('should access comprehension files with numeric version', async () => {
             const response = await request(app)
-                .get('/audio/comprehension/A/1')
+                .get('/audio/comprehension/1/1')
                 .set('Authorization', `Bearer ${token}`);
 
             expect(response.status).toBe(200);
@@ -129,7 +129,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     describe('File Pattern Generation', () => {
         it('should generate correct comprehension file pattern', () => {
-            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', '01', 1);
+            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', 1, 1);
             expect(pattern).toBe('Grace Norman_Comp_01_01');
         });
 
@@ -141,6 +141,11 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         it('should generate correct intelligibility file pattern', () => {
             const pattern = BoxService.getFilePattern('INTELLIGIBILITY', 'Grace Norman', null, 1);
             expect(pattern).toBe('Grace Norman_Int01');
+        });
+
+        it('should handle version numbers correctly', () => {
+            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', 2, 1);
+            expect(pattern).toBe('Grace Norman_Comp_02_01');
         });
     });
 });
