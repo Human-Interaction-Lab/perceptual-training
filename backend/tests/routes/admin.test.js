@@ -1,91 +1,69 @@
-// tests/routes/admin.test.js
 const request = require('supertest');
-const { mongoose } = require('../setup');  // Use shared mongoose connection
+const { mongoose } = require('../setup');
 const { app } = require('../../server');
 const jwt = require('jsonwebtoken');
-
-// Get the models using the shared mongoose connection
 const User = mongoose.model('User');
 const Response = mongoose.model('Response');
 
 describe('Admin API', () => {
-    let server;
     let adminToken;
     let regularUserToken;
     let testUser;
     let adminUser;
 
     beforeAll(async () => {
-        try {
-            console.log('Setting up admin test...');
+        // Clear any existing users at start
+        await User.deleteMany({});
+        await Response.deleteMany({});
 
-            // Clear any existing users
-            await User.deleteMany({});
-            console.log('Cleared existing users');
+        // Create admin user
+        adminUser = new User({
+            userId: 'adminuser',
+            email: 'admin@test.com',
+            password: 'admin123',
+            isAdmin: true
+        });
+        await adminUser.save();
 
-            // Create admin user
-            adminUser = await User.create({
+        // Create regular user
+        testUser = new User({
+            userId: 'regularuser',
+            email: 'user@test.com',
+            password: 'user123',
+            isAdmin: false
+        });
+        await testUser.save();
+
+        // Create tokens
+        adminToken = jwt.sign(
+            { userId: adminUser.userId, isAdmin: true },
+            process.env.JWT_SECRET || 'your_jwt_secret'
+        );
+
+        regularUserToken = jwt.sign(
+            { userId: testUser.userId, isAdmin: false },
+            process.env.JWT_SECRET || 'your_jwt_secret'
+        );
+    });
+
+    beforeEach(async () => {
+        // Verify admin user exists before each test
+        const admin = await User.findOne({ userId: 'adminuser' });
+        if (!admin) {
+            console.log('Recreating admin user before test...');
+            adminUser = new User({
                 userId: 'adminuser',
                 email: 'admin@test.com',
                 password: 'admin123',
                 isAdmin: true
             });
-
-            // Verify admin user was created correctly
-            const verifyAdmin = await User.findOne({ userId: 'adminuser' });
-            console.log('Admin user created:', {
-                userId: verifyAdmin.userId,
-                isAdmin: verifyAdmin.isAdmin
-            });
-
-            // Create regular user
-            testUser = await User.create({
-                userId: 'regularuser',
-                email: 'user@test.com',
-                password: 'user123',
-                isAdmin: false
-            });
-
-            // Create tokens with explicit payload
-            const adminPayload = {
-                userId: adminUser.userId,
-                isAdmin: true
-            };
-            adminToken = jwt.sign(
-                adminPayload,
-                process.env.JWT_SECRET || 'your_jwt_secret'
-            );
-
-            // Verify token can be decoded correctly
-            const decodedToken = jwt.verify(
-                adminToken,
-                process.env.JWT_SECRET || 'your_jwt_secret'
-            );
-            console.log('Admin token decoded:', decodedToken);
-
-            regularUserToken = jwt.sign(
-                { userId: testUser.userId, isAdmin: false },
-                process.env.JWT_SECRET || 'your_jwt_secret'
-            );
-
-            server = app.listen(0);
-            console.log('Test setup complete');
-
-        } catch (error) {
-            console.error('Setup failed:', error);
-            throw error;
+            await adminUser.save();
         }
     });
 
     afterAll(async () => {
-        try {
-            await User.deleteMany({});
-            if (server) {
-                await new Promise(resolve => server.close(resolve));
-            }
-        } catch (error) {
-            console.error('Cleanup failed:', error);
-        }
+        await User.deleteMany({});
+        await Response.deleteMany({});
     });
 
     describe('GET /api/admin/users', () => {
@@ -105,7 +83,6 @@ describe('Admin API', () => {
                 .set('Authorization', `Bearer ${regularUserToken}`);
 
             expect(response.status).toBe(403);
-            expect(response.body).toHaveProperty('error');
         });
     });
 

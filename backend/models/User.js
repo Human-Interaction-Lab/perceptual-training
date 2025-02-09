@@ -1,3 +1,5 @@
+// models/User.js
+
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -6,20 +8,16 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    password: {
-        type: String,
-        required: true
-    },
     email: {
         type: String,
         required: true,
         unique: true,
-        validate: {
-            validator: function (v) {
-                return /\S+@\S+\.\S+/.test(v);
-            },
-            message: props => `${props.value} is not a valid email address!`
-        }
+        match: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/
+    },
+    password: {
+        type: String,
+        required: true,
+        minlength: 8
     },
     currentPhase: {
         type: String,
@@ -28,12 +26,13 @@ const userSchema = new mongoose.Schema({
     },
     trainingDay: {
         type: Number,
-        default: 1,
         min: 1,
-        max: 4
+        max: 4,
+        default: 1
     },
     pretestDate: {
-        type: Date
+        type: Date,
+        default: null
     },
     completed: {
         type: Boolean,
@@ -46,47 +45,44 @@ const userSchema = new mongoose.Schema({
     isAdmin: {
         type: Boolean,
         default: false
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    lastEmailSent: {  // New field to track email sending
-        type: Date
     }
+}, {
+    timestamps: true
 });
 
-// Add an index for efficient querying of users needing reminders
-userSchema.index({
-    pretestDate: 1,
-    completed: 1,
-    currentPhase: 1
-});
-
-// Add a method to check if user needs a reminder
 userSchema.methods.needsReminder = function () {
-    if (!this.pretestDate || this.completed) return false;
+    if (!this.pretestDate) {
+        return null;
+    }
+
+    // Create dates with time set to start of day for consistent comparison
+    const pretest = new Date(this.pretestDate);
+    pretest.setHours(0, 0, 0, 0);
 
     const today = new Date();
-    const pretest = new Date(this.pretestDate);
-    const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
+    today.setHours(0, 0, 0, 0);
 
-    // Check if we should send a training reminder (days 1-4)
-    if (daysSincePretest >= 0 && daysSincePretest < 4) {
+    // Calculate full days between dates
+    const msDiff = today.getTime() - pretest.getTime();
+    const daysDiff = Math.floor(msDiff / (1000 * 60 * 60 * 24));
+
+    // Training phase logic (days 1-4)
+    if (daysDiff >= 1 && daysDiff <= 4) {
         return {
             type: 'training',
-            day: daysSincePretest + 1
+            day: daysDiff
         };
     }
 
-    // Check if we should send a posttest reminder (day 5)
-    if (daysSincePretest === 4) {
+    // Posttest reminder (day 5)
+    if (daysDiff === 5) {
         return {
-            type: 'posttest'
+            type: 'posttest',
+            day: null
         };
     }
 
-    return false;
+    return null;
 };
 
 const User = mongoose.model('User', userSchema);
