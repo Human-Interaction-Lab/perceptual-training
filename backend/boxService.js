@@ -22,19 +22,19 @@ class BoxService {
         code: 'Comp',
         hasVersion: true,
         pattern: (username, version, sentence) =>
-          `${username}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`
+          `${username}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`
       },
       EFFORT: {
         code: 'EFF',
         hasVersion: false,
         pattern: (username, _, sentence) =>
-          `${username}_EFF${String(sentence).padStart(2, '0')}`
+          `${username}_EFF${String(sentence).padStart(2, '0')}.wav`
       },
       INTELLIGIBILITY: {
         code: 'Int',
         hasVersion: false,
         pattern: (username, _, sentence) =>
-          `${username}_Int${String(sentence).padStart(2, '0')}`
+          `${username}_Int${String(sentence).padStart(2, '0')}.wav`
       }
     };
   }
@@ -97,7 +97,7 @@ class BoxService {
 
   // Get training file
   async getTrainingFile(userId, day, sentence) {
-    const pattern = `${userId}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    const pattern = `${userId}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
     return this.getFileStream(userId, pattern);
   }
 
@@ -117,7 +117,7 @@ class BoxService {
       const files = await this.client.folders.getItems(userFolder.id);
 
       return files.entries
-        .filter(entry => entry.type === 'file')
+        .filter(entry => entry.type === 'file' && entry.name.endsWith('.wav'))
         .map(entry => entry.name);
     } catch (error) {
       console.error(`Error listing files for user ${userId}:`, error);
@@ -127,7 +127,8 @@ class BoxService {
 
   // Parse filename to get test information
   parseFileName(filename) {
-    const parts = filename.split('_');
+    const noExt = filename.replace('.wav', '');
+    const parts = noExt.split('_');
     if (parts.length < 2) return null;
 
     const username = parts[0];
