@@ -20,7 +20,7 @@ describe('Admin API', () => {
         adminUser = new User({
             userId: 'adminuser',
             email: 'admin@test.com',
-            password: 'admin123',
+            password: 'adminpass123',
             isAdmin: true
         });
         await adminUser.save();
@@ -29,7 +29,7 @@ describe('Admin API', () => {
         testUser = new User({
             userId: 'regularuser',
             email: 'user@test.com',
-            password: 'user123',
+            password: 'userpass123',
             isAdmin: false
         });
         await testUser.save();
