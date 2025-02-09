@@ -12,6 +12,8 @@ const app = express();
 const User = require('./models/User');
 const Response = require('./models/Response');
 const Demographics = require('./models/Demographics');
+const boxService = require('./boxService');
+
 let server;
 
 //
@@ -78,50 +80,127 @@ if (process.env.NODE_ENV !== 'test') {
   startServer().catch(console.error);
 }
 
-// Serve static files from the public directory
-app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 
-// Add a route to check if audio files exist
-app.get('/audio/:phase/:filename', (req, res, next) => {
-  const { phase, filename } = req.params;
-  const filepath = path.join(__dirname, 'public', 'audio', phase, filename);
+//
+// Box integration
+//
 
-  // Check if file exists before serving
-  if (!require('fs').existsSync(filepath)) {
-    return res.status(404).json({ error: `Audio file ${filename} not found in ${phase} phase` });
-  }
-  next();
-});
-
-// Add a route to check if training day audio files exist
-app.get('/audio/training/day:day/:filename', (req, res, next) => {
-  const { day, filename } = req.params;
-  const filepath = path.join(__dirname, 'public', 'audio', 'training', `day${day}`, filename);
-
-  if (!require('fs').existsSync(filepath)) {
-    return res.status(404).json({ error: `Audio file ${filename} not found in training day ${day}` });
-  }
-  next();
-});
-
-// Add a utility route to check audio directory structure
-app.get('/api/check-audio-structure', async (req, res) => {
+// Route for pretest and posttest files
+// Route for pretest and posttest files with test types
+app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res) => {
   try {
-    const audioDir = path.join(__dirname, 'public', 'audio');
-    const structure = {
-      pretest: await listFiles(path.join(audioDir, 'pretest')),
-      training: {},
-      posttest: await listFiles(path.join(audioDir, 'posttest'))
-    };
+    const { phase, testType, sentence } = req.params;
+    const userId = req.user.userId;
 
-    // Get training days
-    for (let day = 1; day <= 4; day++) {
-      const dayPath = path.join(audioDir, 'training', `day${day}`);
-      structure.training[`day${day}`] = await listFiles(dayPath);
+    // Validate phase
+    if (phase !== 'pretest' && phase !== 'posttest') {
+      return res.status(400).json({ error: 'Invalid phase specified' });
     }
 
+    // Validate test type
+    const validTestTypes = Object.values(boxService.testTypes);
+    if (!validTestTypes.includes(testType)) {
+      return res.status(400).json({
+        error: `Invalid test type. Must be one of: ${validTestTypes.join(', ')}`
+      });
+    }
+
+    // Check if file exists
+    const prefix = phase === 'pretest' ? 'Pre' : 'Post';
+    const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
+    const exists = await boxService.fileExists(userId, pattern);
+
+    if (!exists) {
+      return res.status(404).json({
+        error: `${phase} ${testType} file ${sentence} not found`
+      });
+    }
+
+    // Get and stream the file
+    const fileStream = await boxService.getTestFile(userId, phase, testType, sentence);
+
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Cache-Control', 'no-cache');
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error streaming audio:', error);
+    res.status(500).json({ error: 'Failed to stream audio file' });
+  }
+});
+
+// Route for training files (unchanged)
+app.get('/audio/training/day:day/:sentence', authenticateToken, async (req, res) => {
+  try {
+    const { day, sentence } = req.params;
+    const userId = req.user.userId;
+
+    const pattern = `Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+
+    const exists = await boxService.fileExists(userId, pattern);
+    if (!exists) {
+      return res.status(404).json({
+        error: `Training file for day ${day}, sentence ${sentence} not found`
+      });
+    }
+
+    const fileStream = await boxService.getTrainingFile(userId, day, sentence);
+
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Cache-Control', 'no-cache');
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error streaming audio:', error);
+    res.status(500).json({ error: 'Failed to stream audio file' });
+  }
+});
+
+// Modified audio structure check route
+app.get('/api/check-audio-structure', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const files = await boxService.listUserFiles(userId);
+
+    // Organize files by phase, test type, and training day
+    const structure = {
+      pretest: {
+        comprehension: [],
+        effort: [],
+        intelligibility: []
+      },
+      training: {
+        day1: [], day2: [], day3: [], day4: []
+      },
+      posttest: {
+        comprehension: [],
+        effort: [],
+        intelligibility: []
+      }
+    };
+
+    files.forEach(filename => {
+      const info = boxService.parseFileName(filename);
+      if (!info) return;
+
+      if (info.phase === 'pretest' || info.phase === 'posttest') {
+        const testCategory = info.testType.toLowerCase();
+        switch (testCategory) {
+          case 'comp':
+            structure[info.phase].comprehension.push(filename);
+            break;
+          case 'eff':
+            structure[info.phase].effort.push(filename);
+            break;
+          case 'int':
+            structure[info.phase].intelligibility.push(filename);
+            break;
+        }
+      } else if (info.phase === 'training') {
+        structure.training[`day${info.day}`].push(filename);
+      }
+    });
+
     res.json({
-      message: 'Audio directory structure',
+      message: 'Audio files available',
       structure
     });
   } catch (error) {

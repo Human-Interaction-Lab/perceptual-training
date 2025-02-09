@@ -13,6 +13,7 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
+    "box-node-sdk": "^3.7.1",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "debug": "^4.3.4",
