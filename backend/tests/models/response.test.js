@@ -149,23 +149,24 @@ describe('Response Model Test', () => {
     describe('Response Indexes', () => {
         it('should have compound index for userId and phase', async () => {
             const indexes = await Response.collection.getIndexes();
-            const indexKeys = Object.values(indexes).map(index => index.key);
-            const hasUserPhaseIndex = indexKeys.some(key =>
-                key.userId === 1 && key.phase === 1
-            );
+            const hasUserPhaseIndex = indexes.hasOwnProperty('userId_1_phase_1');
             expect(hasUserPhaseIndex).toBe(true);
+
+            // Verify the index structure
+            const indexDef = indexes['userId_1_phase_1'];
+            expect(indexDef).toEqual([['userId', 1], ['phase', 1]]);
         });
 
         it('should have compound index for userId and timestamp', async () => {
             const indexes = await Response.collection.getIndexes();
-            const indexKeys = Object.values(indexes).map(index => index.key);
-            const hasUserTimestampIndex = indexKeys.some(key =>
-                key.userId === 1 && key.timestamp === -1
-            );
+            const hasUserTimestampIndex = indexes.hasOwnProperty('userId_1_timestamp_-1');
             expect(hasUserTimestampIndex).toBe(true);
+
+            // Verify the index structure
+            const indexDef = indexes['userId_1_timestamp_-1'];
+            expect(indexDef).toEqual([['userId', 1], ['timestamp', -1]]);
         });
 
-        // Add a helper test to see what indexes actually exist
         it('should list all indexes', async () => {
             const indexes = await Response.collection.getIndexes();
             console.log('Available indexes:', indexes);
