@@ -13,9 +13,9 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     // Sample files with correct naming convention
     const sampleFiles = [
-        'Grace Norman_Comp_A_01.wav',  // Comprehension version A, sentence 1
-        'Grace Norman_Comp_A_02.wav',  // Comprehension version A, sentence 2
-        'Grace Norman_Comp_B_01.wav',  // Comprehension version B, sentence 1
+        'Grace Norman_Comp_01_01.wav',  // Comprehension version 01, sentence 1
+        'Grace Norman_Comp_01_02.wav',  // Comprehension version 01, sentence 2
+        'Grace Norman_Comp_02_01.wav',  // Comprehension version 02, sentence 1
         'Grace Norman_EFF01.wav',      // Effort sentence 1
         'Grace Norman_EFF02.wav',      // Effort sentence 2
         'Grace Norman_Int01.wav',      // Intelligibility sentence 1
@@ -60,11 +60,11 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     describe('Filename Pattern Tests', () => {
         it('should correctly parse comprehension filenames', () => {
-            const result = BoxService.parseFileName('Grace Norman_Comp_A_01.wav');
+            const result = BoxService.parseFileName('Grace Norman_Comp_01_01.wav');
             expect(result).toEqual({
                 username: 'Grace Norman',
                 type: 'comprehension',
-                version: 'A',
+                version: '01',
                 sentence: 1
             });
         });
@@ -129,8 +129,8 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     describe('File Pattern Generation', () => {
         it('should generate correct comprehension file pattern', () => {
-            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', 'A', 1);
-            expect(pattern).toBe('Grace Norman_Comp_A_01');
+            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', '01', 1);
+            expect(pattern).toBe('Grace Norman_Comp_01_01');
         });
 
         it('should generate correct effort file pattern', () => {
