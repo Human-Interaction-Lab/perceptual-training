@@ -13,7 +13,11 @@ class BoxService {
       }
     });
 
-    this.client = this.sdk.getAppAuthClient('enterprise');
+    if (!process.env.BOX_ENTERPRISE_ID) {
+      throw new Error('BOX_ENTERPRISE_ID must be set in environment variables');
+    }
+
+    this.client = this.sdk.getAppAuthClient('enterprise', process.env.BOX_ENTERPRISE_ID);
     this.rootFolderId = process.env.BOX_ROOT_FOLDER_ID;
 
     // Define test types and their filename patterns
