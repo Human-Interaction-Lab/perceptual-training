@@ -24,7 +24,7 @@ let server;
 // TRAINING DAY CHECK
 // AUDIO FILE STRUCTURE --> probably change to get from Box 
 
-// Middleware
+// Basic middleware
 app.use(cors({
   origin: 'http://localhost:3001',
   credentials: true,
@@ -32,18 +32,82 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
-app.use(express.static('public')); // For serving audio files
+app.use(express.static('public'));
+
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Access denied' });
+
+  try {
+    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid token' });
+  }
+};
+
+// Admin Authentication Middleware
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      console.log('No token provided');
+      return res.status(401).json({ error: 'Access denied' });
+    }
+
+    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const user = await User.findOne({ userId: verified.userId });
+
+    if (!user || !user.isAdmin) {
+      console.log('User not found or not admin');
+      return res.status(403).json({ error: 'Access denied - Admin only' });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('Admin authentication error:', err);
+    res.status(403).json({ error: 'Invalid token or insufficient permissions' });
+  }
+};
+
+// Helper Functions
+const isCorrectDay = (user, phase) => {
+  if (phase === 'pretest') return true;
+  if (!user.pretestDate) return false;
+
+  const pretest = new Date(user.pretestDate);
+  const today = new Date();
+  pretest.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
+
+  if (phase === 'training') {
+    return daysSincePretest === user.trainingDay;
+  }
+
+  if (phase === 'posttest') {
+    return daysSincePretest === 5;
+  }
+
+  return false;
+};
 
 // Database connection
 const connectDB = async () => {
   try {
-    // Skip connection if already connected
     if (mongoose.connection.readyState === 1) {
       console.log('MongoDB already connected');
       return;
     }
 
-    // Skip connection if we're testing (handled by test setup)
     if (process.env.NODE_ENV === 'test') {
       console.log('Test environment detected, skipping DB connection');
       return;
@@ -65,8 +129,7 @@ const connectDB = async () => {
 
 // Server startup function
 const startServer = async () => {
-  await connectDB(); // Ensure DB is connected before starting server
-
+  await connectDB();
   const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
   const server = app.listen(PORT, () => {
     const actualPort = server.address().port;
@@ -75,10 +138,8 @@ const startServer = async () => {
   return server;
 };
 
-// Only auto-start if not in test environment
-if (process.env.NODE_ENV !== 'test') {
-  startServer().catch(console.error);
-}
+// Routes start here
+app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 
 
 //
@@ -210,89 +271,6 @@ app.get('/api/check-audio-structure', authenticateToken, async (req, res) => {
     });
   }
 });
-
-
-// helper fun to check correct day
-const isCorrectDay = (user, phase) => {
-  // Always allow pretest completion
-  if (phase === 'pretest') return true;
-
-  // If pretest hasn't been completed yet, no other phases are allowed
-  if (!user.pretestDate) return false;
-
-  const pretest = new Date(user.pretestDate);
-  const today = new Date();
-
-  // Reset time portions to compare dates only
-  pretest.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-
-  // Calculate days since pretest
-  const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
-
-  // For training phase, check if it's the correct day based on training day
-  if (phase === 'training') {
-    return daysSincePretest === user.trainingDay;
-  }
-
-  // For posttest, check if it's 5 days after pretest
-  if (phase === 'posttest') {
-    return daysSincePretest === 5;
-  }
-
-  return false;
-};
-
-
-// Authentication Middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).json({ error: 'Access denied' });
-
-  try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    req.user = verified;
-    next();
-  } catch (err) {
-    res.status(400).json({ error: 'Invalid token' });
-  }
-};
-
-const authenticateAdmin = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      console.log('No token provided');
-      return res.status(401).json({ error: 'Access denied' });
-    }
-
-    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    console.log('Token verified:', verified); // Log the decoded token
-
-    // Find the user and verify admin status
-    const user = await User.findOne({ userId: verified.userId });
-    console.log('Found user:', user ? {
-      userId: user.userId,
-      isAdmin: user.isAdmin,
-      email: user.email
-    } : null); // Log user details
-
-    if (!user || !user.isAdmin) {
-      console.log('User not found or not admin');
-      return res.status(403).json({ error: 'Access denied - Admin only' });
-    }
-
-    req.user = user;
-    next();
-  } catch (err) {
-    console.error('Admin authentication error:', err);
-    res.status(403).json({ error: 'Invalid token or insufficient permissions' });
-  }
-};
 
 
 
@@ -891,6 +869,11 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 });
 
 
+
+// Only auto-start if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  startServer().catch(console.error);
+}
 
 // Export for testing
 module.exports = { app, startServer, connectDB };
