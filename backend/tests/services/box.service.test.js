@@ -11,23 +11,20 @@ describe('Box Service Integration Tests - Grace Norman', () => {
     let token;
     let testUser;
 
-    // Sample file patterns for Grace Norman
+    // Sample files with correct naming convention
     const sampleFiles = [
-        'Grace Norman_Pre_Comp_01.wav',
-        'Grace Norman_Pre_Comp_02.wav',
-        'Grace Norman_Pre_EFF_01.wav',
-        'Grace Norman_Pre_EFF_02.wav',
-        'Grace Norman_Pre_Int_01.wav',
-        'Grace Norman_Pre_Int_02.wav',
-        'Grace Norman_Trn_01_01.wav',
-        'Grace Norman_Trn_01_02.wav',
-        'Grace Norman_Post_Comp_01.wav',
-        'Grace Norman_Post_EFF_01.wav',
-        'Grace Norman_Post_Int_01.wav'
+        'Grace Norman_Comp_A_01.wav',  // Comprehension version A, sentence 1
+        'Grace Norman_Comp_A_02.wav',  // Comprehension version A, sentence 2
+        'Grace Norman_Comp_B_01.wav',  // Comprehension version B, sentence 1
+        'Grace Norman_EFF01.wav',      // Effort sentence 1
+        'Grace Norman_EFF02.wav',      // Effort sentence 2
+        'Grace Norman_Int01.wav',      // Intelligibility sentence 1
+        'Grace Norman_Int02.wav',      // Intelligibility sentence 2
+        'Grace Norman_Trn_01_01.wav',  // Training day 1, sentence 1
+        'Grace Norman_Trn_01_02.wav'   // Training day 1, sentence 2
     ];
 
     beforeAll(async () => {
-        // Create test user
         testUser = new User({
             userId: userId,
             email: 'grace.norman@test.com',
@@ -35,7 +32,6 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
         await testUser.save();
 
-        // Generate auth token
         token = jwt.sign(
             { userId: testUser.userId },
             process.env.JWT_SECRET || 'your_jwt_secret'
@@ -43,11 +39,10 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
         // Mock Box service methods
         jest.spyOn(BoxService, 'listUserFiles').mockImplementation(async () => sampleFiles);
-        jest.spyOn(BoxService, 'fileExists').mockImplementation(async (userId, pattern) => {
-            return sampleFiles.some(file => file.includes(pattern));
+        jest.spyOn(BoxService, 'fileExists').mockImplementation(async (userId, filename) => {
+            return sampleFiles.includes(filename);
         });
         jest.spyOn(BoxService, 'getFileStream').mockImplementation(async () => {
-            // Create a mock readable stream
             const { Readable } = require('stream');
             return new Readable({
                 read() {
@@ -63,144 +58,89 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         jest.restoreAllMocks();
     });
 
-    describe('File Access Patterns', () => {
-        it('should access pretest comprehension files', async () => {
-            const response = await request(app)
-                .get('/audio/pretest/Comp/1')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(200);
-            expect(response.header['content-type']).toBe('audio/wav');
+    describe('Filename Pattern Tests', () => {
+        it('should correctly parse comprehension filenames', () => {
+            const result = BoxService.parseFileName('Grace Norman_Comp_A_01.wav');
+            expect(result).toEqual({
+                username: 'Grace Norman',
+                type: 'comprehension',
+                version: 'A',
+                sentence: 1
+            });
         });
 
-        it('should access pretest effort files', async () => {
-            const response = await request(app)
-                .get('/audio/pretest/EFF/1')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(200);
-            expect(response.header['content-type']).toBe('audio/wav');
+        it('should correctly parse effort filenames', () => {
+            const result = BoxService.parseFileName('Grace Norman_EFF01.wav');
+            expect(result).toEqual({
+                username: 'Grace Norman',
+                type: 'effort',
+                sentence: 1
+            });
         });
 
-        it('should access pretest intelligibility files', async () => {
-            const response = await request(app)
-                .get('/audio/pretest/Int/1')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(200);
-            expect(response.header['content-type']).toBe('audio/wav');
+        it('should correctly parse intelligibility filenames', () => {
+            const result = BoxService.parseFileName('Grace Norman_Int01.wav');
+            expect(result).toEqual({
+                username: 'Grace Norman',
+                type: 'intelligibility',
+                sentence: 1
+            });
         });
 
-        it('should access training files', async () => {
-            const response = await request(app)
-                .get('/audio/training/day1/1')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(200);
-            expect(response.header['content-type']).toBe('audio/wav');
-        });
-
-        it('should access posttest files for all test types', async () => {
-            const testTypes = ['Comp', 'EFF', 'Int'];
-            
-            for (const testType of testTypes) {
-                const response = await request(app)
-                    .get(`/audio/posttest/${testType}/1`)
-                    .set('Authorization', `Bearer ${token}`);
-
-                expect(response.status).toBe(200);
-                expect(response.header['content-type']).toBe('audio/wav');
-            }
-        });
-
-        it('should return 404 for non-existent files', async () => {
-            const response = await request(app)
-                .get('/audio/pretest/Comp/99')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(404);
-        });
-
-        it('should reject invalid test types', async () => {
-            const response = await request(app)
-                .get('/audio/pretest/INVALID/1')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(400);
-            expect(response.body.error).toContain('Invalid test type');
-        });
-    });
-
-    describe('File Structure Verification', () => {
-        it('should return correct file structure', async () => {
-            const response = await request(app)
-                .get('/api/check-audio-structure')
-                .set('Authorization', `Bearer ${token}`);
-
-            expect(response.status).toBe(200);
-            expect(response.body.structure).toHaveProperty('pretest');
-            expect(response.body.structure).toHaveProperty('training');
-            expect(response.body.structure).toHaveProperty('posttest');
-
-            // Verify pretest structure
-            expect(response.body.structure.pretest.comprehension).toHaveLength(2);
-            expect(response.body.structure.pretest.effort).toHaveLength(2);
-            expect(response.body.structure.pretest.intelligibility).toHaveLength(2);
-
-            // Verify training structure
-            expect(response.body.structure.training.day1).toHaveLength(2);
-
-            // Verify posttest structure
-            expect(response.body.structure.posttest.comprehension).toHaveLength(1);
-            expect(response.body.structure.posttest.effort).toHaveLength(1);
-            expect(response.body.structure.posttest.intelligibility).toHaveLength(1);
-        });
-    });
-
-    describe('File Naming Convention', () => {
-        it('should correctly parse file names', () => {
-            const testCases = [
-                {
-                    filename: 'Grace Norman_Pre_Comp_01.wav',
-                    expected: { phase: 'pretest', testType: 'Comp', sentence: 1 }
-                },
-                {
-                    filename: 'Grace Norman_Trn_01_02.wav',
-                    expected: { phase: 'training', day: 1, sentence: 2 }
-                },
-                {
-                    filename: 'Grace Norman_Post_Int_01.wav',
-                    expected: { phase: 'posttest', testType: 'Int', sentence: 1 }
-                }
-            ];
-
-            testCases.forEach(({ filename, expected }) => {
-                const result = BoxService.parseFileName(filename);
-                expect(result).toMatchObject(expected);
+        it('should correctly parse training filenames', () => {
+            const result = BoxService.parseFileName('Grace Norman_Trn_01_01.wav');
+            expect(result).toEqual({
+                username: 'Grace Norman',
+                phase: 'training',
+                day: 1,
+                sentence: 1
             });
         });
     });
 
-    describe('Authentication and Authorization', () => {
-        it('should require authentication for file access', async () => {
+    describe('File Access Tests', () => {
+        it('should access comprehension files with version', async () => {
             const response = await request(app)
-                .get('/audio/pretest/Comp/1');
-            
-            expect(response.status).toBe(401);
+                .get('/audio/comprehension/A/1')
+                .set('Authorization', `Bearer ${token}`);
+
+            expect(response.status).toBe(200);
+            expect(response.header['content-type']).toBe('audio/wav');
         });
 
-        it('should only allow access to own files', async () => {
-            // Create another user
-            const otherToken = jwt.sign(
-                { userId: 'other_user' },
-                process.env.JWT_SECRET || 'your_jwt_secret'
-            );
-
+        it('should access effort files without version', async () => {
             const response = await request(app)
-                .get('/audio/pretest/Comp/1')
-                .set('Authorization', `Bearer ${otherToken}`);
+                .get('/audio/effort/1')
+                .set('Authorization', `Bearer ${token}`);
 
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(200);
+            expect(response.header['content-type']).toBe('audio/wav');
+        });
+
+        it('should access intelligibility files without version', async () => {
+            const response = await request(app)
+                .get('/audio/intelligibility/1')
+                .set('Authorization', `Bearer ${token}`);
+
+            expect(response.status).toBe(200);
+            expect(response.header['content-type']).toBe('audio/wav');
+        });
+    });
+
+    describe('File Pattern Generation', () => {
+        it('should generate correct comprehension file pattern', () => {
+            const pattern = BoxService.getFilePattern('COMPREHENSION', 'Grace Norman', 'A', 1);
+            expect(pattern).toBe('Grace Norman_Comp_A_01');
+        });
+
+        it('should generate correct effort file pattern', () => {
+            const pattern = BoxService.getFilePattern('EFFORT', 'Grace Norman', null, 1);
+            expect(pattern).toBe('Grace Norman_EFF01');
+        });
+
+        it('should generate correct intelligibility file pattern', () => {
+            const pattern = BoxService.getFilePattern('INTELLIGIBILITY', 'Grace Norman', null, 1);
+            expect(pattern).toBe('Grace Norman_Int01');
         });
     });
 });

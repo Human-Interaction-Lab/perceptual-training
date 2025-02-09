@@ -16,11 +16,26 @@ class BoxService {
     this.client = this.sdk.getAppAuthClient('enterprise');
     this.rootFolderId = process.env.BOX_ROOT_FOLDER_ID;
 
-    // Valid test types
+    // Define test types and their filename patterns
     this.testTypes = {
-      COMPREHENSION: 'Comp',
-      EFFORT: 'EFF',
-      INTELLIGIBILITY: 'Int'
+      COMPREHENSION: {
+        code: 'Comp',
+        hasVersion: true,
+        pattern: (username, version, sentence) =>
+          `${username}_Comp_${version}_${String(sentence).padStart(2, '0')}`
+      },
+      EFFORT: {
+        code: 'EFF',
+        hasVersion: false,
+        pattern: (username, _, sentence) =>
+          `${username}_EFF${String(sentence).padStart(2, '0')}`
+      },
+      INTELLIGIBILITY: {
+        code: 'Int',
+        hasVersion: false,
+        pattern: (username, _, sentence) =>
+          `${username}_Int${String(sentence).padStart(2, '0')}`
+      }
     };
   }
 
@@ -51,11 +66,11 @@ class BoxService {
       const files = await this.client.folders.getItems(userFolder.id);
 
       const file = files.entries.find(entry =>
-        entry.type === 'file' && entry.name.startsWith(`${userId}_${filePattern}`)
+        entry.type === 'file' && entry.name === filePattern
       );
 
       if (!file) {
-        throw new Error(`File matching pattern ${filePattern} not found for user ${userId}`);
+        throw new Error(`File ${filePattern} not found for user ${userId}`);
       }
 
       return this.client.files.getReadStream(file.id);
@@ -65,27 +80,27 @@ class BoxService {
     }
   }
 
-  // Get test file (pretest or posttest) with specific test type
-  async getTestFile(userId, phase, testType, sentence) {
-    if (!Object.values(this.testTypes).includes(testType)) {
+  // Get test file based on type
+  async getTestFile(userId, testType, version, sentence) {
+    const typeConfig = this.testTypes[testType.toUpperCase()];
+    if (!typeConfig) {
       throw new Error(`Invalid test type: ${testType}`);
     }
 
-    const prefix = phase === 'pretest' ? 'Pre' : 'Post';
-    const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
-    return this.getFileStream(userId, pattern);
+    const filename = typeConfig.pattern(userId, version, sentence);
+    return this.getFileStream(userId, filename);
   }
 
   // Get training file
   async getTrainingFile(userId, day, sentence) {
-    const pattern = `Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    const pattern = `${userId}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
     return this.getFileStream(userId, pattern);
   }
 
-  async fileExists(userId, filePattern) {
+  async fileExists(userId, filename) {
     try {
       const files = await this.listUserFiles(userId);
-      return files.some(filename => filename.startsWith(`${userId}_${filePattern}`));
+      return files.includes(filename);
     } catch (error) {
       console.error('Box verification error:', error);
       throw error;
@@ -111,42 +126,52 @@ class BoxService {
     const parts = filename.split('_');
     if (parts.length < 2) return null;
 
-    const type = parts[1].toLowerCase();
-
-    // Handle different test types for pre/post tests
-    if (type === 'pre' || type === 'post') {
-      return {
-        phase: type === 'pre' ? 'pretest' : 'posttest',
-        testType: parts[2],
-        sentence: parseInt(parts[3])
-      };
-    }
+    const username = parts[0];
+    const typeIndicator = parts[1];
 
     // Handle training files
-    if (type === 'trn') {
+    if (typeIndicator === 'Trn') {
       return {
+        username,
         phase: 'training',
         day: parseInt(parts[2]),
         sentence: parseInt(parts[3])
       };
     }
 
+    // Handle comprehension files
+    if (typeIndicator === 'Comp') {
+      return {
+        username,
+        type: 'comprehension',
+        version: parts[2],
+        sentence: parseInt(parts[3])
+      };
+    }
+
+    // Handle effort and intelligibility files
+    // These end with a number, like EFF01 or Int01
+    if (typeIndicator.startsWith('EFF') || typeIndicator.startsWith('Int')) {
+      const type = typeIndicator.substring(0, 3);
+      const sentence = parseInt(typeIndicator.substring(3));
+      return {
+        username,
+        type: type === 'EFF' ? 'effort' : 'intelligibility',
+        sentence
+      };
+    }
+
     return null;
   }
 
-  // Get all files for a specific test type
-  async getTestTypeFiles(userId, phase, testType) {
-    try {
-      const files = await this.listUserFiles(userId);
-      const prefix = phase === 'pretest' ? 'Pre' : 'Post';
-
-      return files.filter(filename =>
-        filename.startsWith(`${userId}_${prefix}_${testType}_`)
-      );
-    } catch (error) {
-      console.error(`Error getting ${testType} files:`, error);
-      throw error;
+  // Get pattern for a specific test type
+  getFilePattern(testType, username, version = null, sentence) {
+    const typeConfig = this.testTypes[testType.toUpperCase()];
+    if (!typeConfig) {
+      throw new Error(`Invalid test type: ${testType}`);
     }
+
+    return typeConfig.pattern(username, version, sentence);
   }
 }
 
