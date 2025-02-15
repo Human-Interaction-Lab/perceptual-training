@@ -32,6 +32,7 @@ describe('Response Model Test', () => {
         phase: 'pretest',
         stimulusId: 'stimulus_1',
         response: 'user_response',
+        rating: 10,
         correct: true
     };
 
@@ -45,6 +46,7 @@ describe('Response Model Test', () => {
             expect(savedResponse.phase).toBe(validResponseData.phase);
             expect(savedResponse.stimulusId).toBe(validResponseData.stimulusId);
             expect(savedResponse.response).toBe(validResponseData.response);
+            expect(savedResponse.rating).toBe(validResponseData.rating);
             expect(savedResponse.correct).toBe(validResponseData.correct);
             expect(savedResponse.timestamp).toBeDefined();
         });
