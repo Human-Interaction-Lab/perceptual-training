@@ -91,11 +91,11 @@ const isCorrectDay = (user, phase) => {
   const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
 
   if (phase === 'training') {
-    return daysSincePretest === user.trainingDay;
+    return daysSincePretest >= user.trainingDay;  // Allow catching up
   }
 
   if (phase === 'posttest') {
-    return daysSincePretest === 5;
+    return daysSincePretest >= 4;  // Allow posttest on or after day 4
   }
 
   return false;
@@ -418,7 +418,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       user.trainingDay = 1;
       user.pretestDate = new Date(); // Set pretest date when completing pretest
     } else if (phase === 'training') {
-      if (trainingDay === 4) {
+      if (trainingDay >= 4) {
         user.currentPhase = 'posttest';
       } else {
         user.trainingDay = trainingDay + 1;

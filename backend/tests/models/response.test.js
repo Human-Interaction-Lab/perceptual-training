@@ -2,6 +2,9 @@
 const { mongoose } = require('../setup');
 const Response = require('../../models/Response');
 const User = require('../../models/User');
+const jwt = require('jsonwebtoken');
+const request = require('supertest');
+const { app } = require('../../server');
 
 describe('Response Model Test', () => {
     let testUser;
@@ -170,6 +173,70 @@ describe('Response Model Test', () => {
         it('should list all indexes', async () => {
             const indexes = await Response.collection.getIndexes();
             console.log('Available indexes:', indexes);
+        });
+    });
+
+    describe('Late Training Transitions', () => {
+        it('should allow transition to posttest after day 4', async () => {
+            // Create user in training phase
+            const user = await User.create({
+                userId: 'lateuser',
+                email: 'late@test.com',
+                password: 'password123',
+                currentPhase: 'training',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+            });
+
+            const token = jwt.sign(
+                { userId: user.userId },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
+
+            // Submit training response for day 4
+            const response = await request(app)
+                .post('/api/response')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    phase: 'training',
+                    stimulusId: 'stimulus_1',
+                    response: 'user_response',
+                    trainingDay: 4
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.currentPhase).toBe('posttest');
+        });
+
+        it('should allow catching up on missed training days', async () => {
+            // Create user who missed a day
+            const user = await User.create({
+                userId: 'catchupuser',
+                email: 'catchup@test.com',
+                password: 'password123',
+                currentPhase: 'training',
+                trainingDay: 2,
+                pretestDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) // 4 days ago
+            });
+
+            const token = jwt.sign(
+                { userId: user.userId },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
+
+            // Submit training response for day 2 late
+            const response = await request(app)
+                .post('/api/response')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    phase: 'training',
+                    stimulusId: 'stimulus_1',
+                    response: 'user_response',
+                    trainingDay: 2
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.trainingDay).toBe(3);
         });
     });
 });
