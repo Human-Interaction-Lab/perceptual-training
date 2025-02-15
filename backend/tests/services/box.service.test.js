@@ -4,11 +4,20 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
 
-// Mock Box SDK first
+// Mock environment variables before requiring BoxService
+process.env.BOX_CLIENT_ID = 'mock_client_id';
+process.env.BOX_CLIENT_SECRET = 'mock_client_secret';
+process.env.BOX_KEY_ID = 'mock_key_id';
+process.env.BOX_PRIVATE_KEY = 'mock_private_key';
+process.env.BOX_PASSPHRASE = 'mock_passphrase';
+process.env.BOX_ENTERPRISE_ID = 'mock_enterprise_id';
+process.env.BOX_ROOT_FOLDER_ID = 'mock_root_folder_id';
+
+// Mock Box SDK before requiring BoxService
 jest.mock('box-node-sdk', () => {
-    function MockBoxSDK() {
-        return {
-            getAppAuthClient: jest.fn().mockReturnValue({
+    return class MockBoxSDK {
+        constructor() {
+            this.getAppAuthClient = jest.fn().mockReturnValue({
                 folders: {
                     getItems: jest.fn().mockResolvedValue({
                         entries: [
@@ -33,45 +42,14 @@ jest.mock('box-node-sdk', () => {
                         });
                     })
                 }
-            })
-        };
-    }
-    return MockBoxSDK;
-});
-
-// Mock server with proper jest.mock syntax
-jest.mock('../../server', () => {
-    const express = require('express');
-    const mockJwt = require('jsonwebtoken');
-    const app = express();
-
-    // Mock middleware that uses jwt from within the mock
-    const authenticateToken = (req, res, next) => {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-
-        if (!token) {
-            return res.status(401).json({ error: 'Access denied' });
-        }
-
-        try {
-            const verified = mockJwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-            req.user = verified;
-            next();
-        } catch (err) {
-            res.status(401).json({ error: 'Invalid token' });
+            });
         }
     };
-
-    app.get('/audio/:phase/:testType/:sentence', authenticateToken, (req, res) => {
-        res.status(200).send('mock audio data');
-    });
-
-    return { app, authenticateToken };
 });
 
-const { app } = require('../../server');
+// Now require BoxService after mocks are in place
 const BoxService = require('../../boxService');
+const { app } = require('../../server');
 
 describe('Box Service Integration Tests - Grace Norman', () => {
     const userId = 'Grace Norman';
@@ -82,7 +60,10 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         testUser = new User({
             userId: userId,
             email: 'grace.norman@test.com',
-            password: 'password123'
+            password: 'password123',
+            currentPhase: 'pretest',
+            pretestDate: new Date(),
+            trainingDay: 1
         });
         await testUser.save();
 
@@ -150,15 +131,36 @@ describe('Box Service Integration Tests - Grace Norman', () => {
     describe('API Integration', () => {
         it('should require authentication for file access', async () => {
             const response = await request(app)
-                .get('/audio/comprehension/1/1');
+                .get('/audio/pretest/COMPREHENSION/1');
             expect(response.status).toBe(401);
         });
 
         it('should access files with valid authentication', async () => {
             const response = await request(app)
-                .get('/audio/comprehension/1/1')
+                .get('/audio/pretest/COMPREHENSION/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(200);
+        });
+
+        it('should access training files with valid authentication', async () => {
+            const response = await request(app)
+                .get('/audio/training/day1/1')
+                .set('Authorization', `Bearer ${token}`);
+            expect(response.status).toBe(200);
+        });
+
+        it('should return 404 for non-existent files', async () => {
+            const response = await request(app)
+                .get('/audio/pretest/COMPREHENSION/999')
+                .set('Authorization', `Bearer ${token}`);
+            expect(response.status).toBe(404);
+        });
+
+        it('should return 400 for invalid test type', async () => {
+            const response = await request(app)
+                .get('/audio/pretest/INVALID/1')
+                .set('Authorization', `Bearer ${token}`);
+            expect(response.status).toBe(400);
         });
     });
 });
