@@ -28,6 +28,11 @@ const responseSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    rating: {
+        type: Number,
+        min: 1,
+        max: 100
+    },
     correct: {
         type: Boolean,
         default: null

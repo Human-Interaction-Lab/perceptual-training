@@ -578,6 +578,7 @@ app.get('/api/admin/export/responses', async (req, res) => {
           trainingDay: 1,
           stimulusId: 1,
           response: 1,
+          rating: 1,
           correct: 1,
           timestamp: 1
         }
@@ -592,6 +593,7 @@ app.get('/api/admin/export/responses', async (req, res) => {
       'trainingDay',
       'stimulusId',
       'response',
+      'rating',
       'correct',
       'timestamp'
     ];
@@ -657,7 +659,7 @@ app.get('/api/admin/export/all', async (req, res) => {
       fields: ['userId', 'email', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
     });
     const responsesCsv = json2csv(responses, {
-      fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'correct', 'timestamp']
+      fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
     });
 
     // Create a zip file containing both CSVs
