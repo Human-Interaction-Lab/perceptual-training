@@ -190,7 +190,7 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
 });
 
 // Route for training files (unchanged)
-app.get('/audio/training/day:day/:sentence', authenticateToken, async (req, res) => {
+app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
   try {
     const { day, sentence } = req.params;
     const userId = req.user.userId;
@@ -815,6 +815,7 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
         relationshipToPartner: record.relationshipToPartner,
         relationshipOther: record.relationshipOther,
         communicationFrequency: record.communicationFrequency,
+        communicationType: record.communicationType,
 
         // CPIB Individual Responses
         cpib_talkingKnownPeople: record.cpib?.talkingKnownPeople?.response,

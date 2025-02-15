@@ -1,4 +1,6 @@
 // tests/routes/demographics.test.js
+jest.mock('../../boxService', () => require('../__mocks__/boxService'));
+
 const request = require('supertest');
 const { mongoose } = require('../setup');  // Import mongoose from setup
 const { app } = require('../../server');  // Don't import startServer

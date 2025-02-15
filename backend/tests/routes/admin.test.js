@@ -1,3 +1,5 @@
+jest.mock('../../boxService', () => require('../__mocks__/boxService'));
+
 const request = require('supertest');
 const { mongoose } = require('../setup');
 const { app } = require('../../server');

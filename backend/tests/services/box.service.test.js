@@ -13,40 +13,6 @@ process.env.BOX_PASSPHRASE = 'mock_passphrase';
 process.env.BOX_ENTERPRISE_ID = 'mock_enterprise_id';
 process.env.BOX_ROOT_FOLDER_ID = 'mock_root_folder_id';
 
-// Mock Box SDK before requiring BoxService
-jest.mock('box-node-sdk', () => {
-    return class MockBoxSDK {
-        constructor() {
-            this.getAppAuthClient = jest.fn().mockReturnValue({
-                folders: {
-                    getItems: jest.fn().mockResolvedValue({
-                        entries: [
-                            { type: 'folder', name: 'GraceNorman', id: 'folder123' },
-                            { type: 'file', name: 'GraceNorman_Comp_01_01.wav', id: 'file1' },
-                            { type: 'file', name: 'GraceNorman_Comp_01_02.wav', id: 'file2' },
-                            { type: 'file', name: 'GraceNorman_EFF01.wav', id: 'file3' },
-                            { type: 'file', name: 'GraceNorman_Int01.wav', id: 'file4' },
-                            { type: 'file', name: 'GraceNorman_Trn_01_01.wav', id: 'file5' }
-                        ]
-                    }),
-                    create: jest.fn().mockResolvedValue({ id: 'newfolder123' })
-                },
-                files: {
-                    getReadStream: jest.fn().mockImplementation(() => {
-                        const { Readable } = require('stream');
-                        return new Readable({
-                            read() {
-                                this.push(Buffer.from('mock audio data'));
-                                this.push(null);
-                            }
-                        });
-                    })
-                }
-            });
-        }
-    };
-});
-
 // Create a mock BoxService class that mirrors the actual implementation
 class MockBoxService {
     constructor() {
@@ -136,14 +102,15 @@ class MockBoxService {
     }
 }
 
-// Mock the entire BoxService module
-jest.mock('../../boxService', () => new MockBoxService());
+// Mock the BoxService module with our implementation
+const mockBoxService = new MockBoxService();
+jest.mock('../../boxService', () => mockBoxService);
 
 const BoxService = require('../../boxService');
 const { app } = require('../../server');
 
 describe('Box Service Integration Tests - Grace Norman', () => {
-    const userId = 'GraceNorman';  // Changed to match file naming convention
+    const userId = 'GraceNorman';
     let token;
     let testUser;
 
@@ -162,6 +129,13 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             { userId: testUser.userId },
             process.env.JWT_SECRET || 'your_jwt_secret'
         );
+    });
+
+    beforeEach(() => {
+        // Reset all mocks before each test
+        jest.clearAllMocks();
+        // Reset fileExists to default behavior
+        mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
     });
 
     afterAll(async () => {
@@ -237,6 +211,8 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should access files with valid authentication', async () => {
+            mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
+
             const response = await request(app)
                 .get('/audio/pretest/COMPREHENSION/1')
                 .set('Authorization', `Bearer ${token}`);
@@ -244,21 +220,37 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should access training files with valid authentication', async () => {
-            // First update user to be in training phase
-            await User.findOneAndUpdate(
+            // Set pretest date to yesterday to allow training today
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            // Update user to be in training phase
+            testUser = await User.findOneAndUpdate(
                 { userId },
-                { currentPhase: 'training', trainingDay: 1 }
+                {
+                    currentPhase: 'training',
+                    trainingDay: 1,
+                    pretestDate: yesterday
+                },
+                { new: true }
             );
 
+            // Create new token with updated user state
+            token = jwt.sign(
+                { userId: testUser.userId },
+                process.env.JWT_SECRET || 'your_jwt_secret'
+            );
+
+            mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
+
             const response = await request(app)
-                .get('/audio/training/day1/1')
+                .get('/audio/training/day/1/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(200);
         });
 
         it('should return 404 for non-existent files', async () => {
-            // Temporarily override fileExists for this test
-            jest.spyOn(BoxService, 'fileExists').mockResolvedValueOnce(false);
+            mockBoxService.fileExists = jest.fn().mockResolvedValue(false);
 
             const response = await request(app)
                 .get('/audio/pretest/COMPREHENSION/999')
