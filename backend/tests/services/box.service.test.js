@@ -21,12 +21,12 @@ jest.mock('box-node-sdk', () => {
                 folders: {
                     getItems: jest.fn().mockResolvedValue({
                         entries: [
-                            { type: 'folder', name: 'Grace Norman', id: 'folder123' },
-                            { type: 'file', name: 'Grace Norman_Comp_01_01.wav', id: 'file1' },
-                            { type: 'file', name: 'Grace Norman_Comp_01_02.wav', id: 'file2' },
-                            { type: 'file', name: 'Grace Norman_EFF01.wav', id: 'file3' },
-                            { type: 'file', name: 'Grace Norman_Int01.wav', id: 'file4' },
-                            { type: 'file', name: 'Grace Norman_Trn_01_01.wav', id: 'file5' }
+                            { type: 'folder', name: 'GraceNorman', id: 'folder123' },
+                            { type: 'file', name: 'GraceNorman_Comp_01_01.wav', id: 'file1' },
+                            { type: 'file', name: 'GraceNorman_Comp_01_02.wav', id: 'file2' },
+                            { type: 'file', name: 'GraceNorman_EFF01.wav', id: 'file3' },
+                            { type: 'file', name: 'GraceNorman_Int01.wav', id: 'file4' },
+                            { type: 'file', name: 'GraceNorman_Trn_01_01.wav', id: 'file5' }
                         ]
                     }),
                     create: jest.fn().mockResolvedValue({ id: 'newfolder123' })
@@ -47,7 +47,7 @@ jest.mock('box-node-sdk', () => {
     };
 });
 
-// Create a mock BoxService class
+// Create a mock BoxService class that mirrors the actual implementation
 class MockBoxService {
     constructor() {
         this.testTypes = {
@@ -80,55 +80,55 @@ class MockBoxService {
     }
 
     async fileExists(userId, filename) {
-        // Return true by default, can be mocked in individual tests
         return true;
     }
 
     async listUserFiles(userId) {
         return [
-            'Grace Norman_Comp_01_01.wav',
-            'Grace Norman_Comp_01_02.wav',
-            'Grace Norman_EFF01.wav',
-            'Grace Norman_Int01.wav',
-            'Grace Norman_Trn_01_01.wav'
+            'GraceNorman_Comp_01_01.wav',
+            'GraceNorman_Comp_01_02.wav',
+            'GraceNorman_EFF01.wav',
+            'GraceNorman_Int01.wav',
+            'GraceNorman_Trn_01_01.wav'
         ];
     }
 
     parseFileName(filename) {
-        const parts = filename.replace('.wav', '').split('_');
-        const username = parts.slice(0, 2).join(' ');
+        const noExt = filename.replace('.wav', '');
+        const parts = noExt.split('_');
+        if (parts.length < 2) return null;
 
-        if (parts[2] === 'Trn') {
+        const username = parts[0];
+        const typeIndicator = parts[1];
+
+        // Handle training files
+        if (typeIndicator === 'Trn') {
             return {
                 username,
                 phase: 'training',
-                day: parseInt(parts[3]),
-                sentence: parseInt(parts[4])
+                day: parseInt(parts[2]),
+                sentence: parseInt(parts[3])
             };
         }
 
-        if (parts[2] === 'Comp') {
+        // Handle comprehension files
+        if (typeIndicator === 'Comp') {
             return {
                 username,
                 type: 'comprehension',
-                version: parseInt(parts[3]),
-                sentence: parseInt(parts[4])
+                version: parseInt(parts[2]),
+                sentence: parseInt(parts[3])
             };
         }
 
-        if (parts[2].startsWith('EFF')) {
+        // Handle effort and intelligibility files
+        if (typeIndicator.startsWith('EFF') || typeIndicator.startsWith('Int')) {
+            const type = typeIndicator.substring(0, 3);
+            const sentence = parseInt(typeIndicator.substring(3));
             return {
                 username,
-                type: 'effort',
-                sentence: parseInt(parts[2].substring(3))
-            };
-        }
-
-        if (parts[2].startsWith('Int')) {
-            return {
-                username,
-                type: 'intelligibility',
-                sentence: parseInt(parts[2].substring(3))
+                type: type === 'EFF' ? 'effort' : 'intelligibility',
+                sentence
             };
         }
 
@@ -143,7 +143,7 @@ const BoxService = require('../../boxService');
 const { app } = require('../../server');
 
 describe('Box Service Integration Tests - Grace Norman', () => {
-    const userId = 'Grace Norman';
+    const userId = 'GraceNorman';  // Changed to match file naming convention
     let token;
     let testUser;
 
@@ -171,9 +171,9 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     describe('Filename Pattern Tests', () => {
         it('should correctly parse comprehension filenames', () => {
-            const result = BoxService.parseFileName('Grace Norman_Comp_01_01.wav');
+            const result = BoxService.parseFileName('GraceNorman_Comp_01_01.wav');
             expect(result).toEqual({
-                username: 'Grace Norman',
+                username: 'GraceNorman',
                 type: 'comprehension',
                 version: 1,
                 sentence: 1
@@ -181,27 +181,27 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should correctly parse effort filenames', () => {
-            const result = BoxService.parseFileName('Grace Norman_EFF01.wav');
+            const result = BoxService.parseFileName('GraceNorman_EFF01.wav');
             expect(result).toEqual({
-                username: 'Grace Norman',
+                username: 'GraceNorman',
                 type: 'effort',
                 sentence: 1
             });
         });
 
         it('should correctly parse intelligibility filenames', () => {
-            const result = BoxService.parseFileName('Grace Norman_Int01.wav');
+            const result = BoxService.parseFileName('GraceNorman_Int01.wav');
             expect(result).toEqual({
-                username: 'Grace Norman',
+                username: 'GraceNorman',
                 type: 'intelligibility',
                 sentence: 1
             });
         });
 
         it('should correctly parse training filenames', () => {
-            const result = BoxService.parseFileName('Grace Norman_Trn_01_01.wav');
+            const result = BoxService.parseFileName('GraceNorman_Trn_01_01.wav');
             expect(result).toEqual({
-                username: 'Grace Norman',
+                username: 'GraceNorman',
                 phase: 'training',
                 day: 1,
                 sentence: 1
@@ -218,7 +218,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should check if a file exists', async () => {
-            const exists = await BoxService.fileExists(userId, 'Grace Norman_Comp_01_01.wav');
+            const exists = await BoxService.fileExists(userId, 'GraceNorman_Comp_01_01.wav');
             expect(exists).toBe(true);
         });
 
@@ -244,6 +244,12 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should access training files with valid authentication', async () => {
+            // First update user to be in training phase
+            await User.findOneAndUpdate(
+                { userId },
+                { currentPhase: 'training', trainingDay: 1 }
+            );
+
             const response = await request(app)
                 .get('/audio/training/day1/1')
                 .set('Authorization', `Bearer ${token}`);
