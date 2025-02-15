@@ -114,7 +114,7 @@ const connectDB = async () => {
       return;
     }
 
-    const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
+    const dbURI = process.env.MONGODB_URI;
     await mongoose.connect(dbURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true

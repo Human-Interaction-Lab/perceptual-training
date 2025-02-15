@@ -1,13 +1,11 @@
-// save as initAdmin.js
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const User = require('./models/User');
+const User = require('../models/User');
 
 const initializeAdmin = async () => {
     try {
         // Check if admin user exists
         const adminExists = await User.findOne({ isAdmin: true });
-        
+
         if (!adminExists) {
             // Admin credentials - should be changed after first login
             const adminData = {
@@ -21,7 +19,7 @@ const initializeAdmin = async () => {
             // Hash password
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(adminData.password, salt);
-            
+
             // Create admin user
             const adminUser = new User({
                 ...adminData,
