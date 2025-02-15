@@ -126,6 +126,15 @@ const demographicsSchema = new mongoose.Schema({
             'Less than Monthly'
         ]
     },
+    communicationType: {
+        type: String,
+        required: true,
+        enum: [
+            'Face to face',
+            'Phone (audio only)',
+            'Video chat'
+        ]
+    },
     cpib: {
         type: cpibSchema,
         required: true

@@ -16,6 +16,7 @@ describe('Demographics Model Test', () => {
         hearingAids: false,
         relationshipToPartner: 'Spouse/Partner',
         communicationFrequency: 'Daily',
+        communicationType: 'Face to face',
         formCompletedBy: 'Participant',
         cpib: {
             talkingKnownPeople: { response: '3' },
