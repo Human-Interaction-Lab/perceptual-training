@@ -114,10 +114,7 @@ const connectDB = async () => {
     }
 
     const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
-    await mongoose.connect(dbURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(dbURI);
     console.log('MongoDB connected...');
   } catch (err) {
     console.error('MongoDB connection error:', err);

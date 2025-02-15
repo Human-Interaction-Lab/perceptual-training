@@ -1,5 +1,6 @@
 // boxService.js
 const BoxSDK = require('box-node-sdk');
+require('dotenv').config();
 
 class BoxService {
   constructor() {
