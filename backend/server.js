@@ -375,7 +375,8 @@ app.post('/api/login', async (req, res) => {
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
       completed: user.completed,
-      canProceedToday
+      canProceedToday,
+      completedTests: Object.fromEntries(user.completedTests) || {}
     });
   } catch (error) {
     console.error('Login error:', error);
