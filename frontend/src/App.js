@@ -5,6 +5,9 @@ import PhaseSelection from './PhaseSelection';
 import { Button } from './components/ui/button';
 import { Label } from './components/ui/label';
 import { Input } from './components/ui/input';
+import IntelligibilityTest from './components/intelligibilityTest';
+import ListeningEffortTest from './components/listeningEffortTest';
+import ComprehensionTest from './components/comprehensionTest';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -24,6 +27,9 @@ const App = () => {
   const [pretestDate, setPretestDate] = useState(null);
   const [canProceedToday, setCanProceedToday] = useState(true);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [rating, setRating] = useState(null);
+  const [currentTestType, setCurrentTestType] = useState(null); // 'intelligibility', 'effort', 'comprehension'
+  const [multipleChoiceAnswers, setMultipleChoiceAnswers] = useState([]);
 
   // Reset states when phase changes
   useEffect(() => {
@@ -46,32 +52,63 @@ const App = () => {
 
   // Sample stimuli data structure
   const stimuli = {
-    pretest: [
-      { id: 1, audioUrl: 'http://localhost:3000/audio/Pretest/pre1.wav', correct: 'sample word one' },
-      { id: 2, audioUrl: 'http://localhost:3000/audio/Pretest/pre2.wav', correct: 'sample word two' },
-    ],
-    training: {
-      1: [
-        { id: 1, audioUrl: 'http://localhost:3000/audio/Training/day1/training1.wav', text: 'training word one' },
-        { id: 2, audioUrl: 'http://localhost:3000/audio/Training/day1/training2.wav', text: 'training word two' },
-      ],
-      2: [
-        { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
-        { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
-      ],
-      3: [
-        { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
-        { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
-      ],
-      4: [
-        { id: 1, audioUrl: 'http://localhost:3000/audio/training/day2/training1.wav', text: 'training word one' },
-        { id: 2, audioUrl: 'http://localhost:3000/audio/training/day2/training2.wav', text: 'training word two' },
-      ],
+    pretest: {
+      intelligibility: Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/pretest/intelligibility/${String(i + 1).padStart(2, '0')}`,
+        type: 'Int',
+        responseType: 'full-phrase'
+      })),
+      effort: Array.from({ length: 30 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/pretest/effort/${String(i + 1).padStart(2, '0')}`,
+        type: 'Eff',
+        responseType: 'final-word',
+        isHighPredictability: i < 15 // First 15 are high predictability
+      })),
+      comprehension: Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/pretest/comprehension/${Math.floor(i / 10) + 1}/${String(i % 10 + 1).padStart(2, '0')}`,
+        type: 'Comp',
+        responseType: 'multiple-choice',
+        storyNumber: Math.floor(i / 10) + 1
+      }))
     },
-    posttest: [
-      { id: 1, audioUrl: 'http://localhost:3000/audio/Posttest/post1.wav', correct: 'post word one' },
-      { id: 2, audioUrl: 'http://localhost:3000/audio/Posttest/post2.wav', correct: 'post word two' },
-    ],
+    training: {
+      // Four training days, each with their own set of stimuli
+      ...Array.from({ length: 4 }, (_, day) => ({
+        [`day${day + 1}`]: Array.from({ length: 20 }, (_, i) => ({
+          id: i + 1,
+          audioUrl: `/audio/training/day${day + 1}/${String(i + 1).padStart(2, '0')}`,
+          type: 'Trn',
+          responseType: 'training',
+          day: day + 1
+        }))
+      })).reduce((acc, curr) => ({ ...acc, ...curr }), {})
+    },
+    posttest: {
+      // Same structure as pretest
+      intelligibility: Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/posttest/intelligibility/${String(i + 1).padStart(2, '0')}`,
+        type: 'Int',
+        responseType: 'full-phrase'
+      })),
+      effort: Array.from({ length: 30 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/posttest/effort/${String(i + 1).padStart(2, '0')}`,
+        type: 'Eff',
+        responseType: 'final-word',
+        isHighPredictability: i < 15
+      })),
+      comprehension: Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        audioUrl: `/audio/posttest/comprehension/${Math.floor(i / 10) + 1}/${String(i % 10 + 1).padStart(2, '0')}`,
+        type: 'Comp',
+        responseType: 'multiple-choice',
+        storyNumber: Math.floor(i / 10) + 1
+      }))
+    }
   };
 
   const getCurrentStimuli = () => {
@@ -202,60 +239,36 @@ const App = () => {
 
   const handleSubmitResponse = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Validate response based on test type
+      if (!validateResponse()) {
+        return;
+      }
+
       const currentStimuli = getCurrentStimuli();
-      const isLastStimulus = currentStimulus === currentStimuli.length - 1;
+      const stimulus = currentStimuli[currentStimulus];
+
+      const responseData = {
+        phase,
+        stimulusId: stimulus.id,
+        testType: stimulus.type,
+        trainingDay: phase === 'training' ? trainingDay : undefined,
+        storyNumber: stimulus.storyNumber, // For comprehension tests
+        response: formatResponse(userResponse, stimulus.type),
+        rating: stimulus.type === 'Eff' ? rating : undefined,
+      };
 
       const response = await fetch('http://localhost:3000/api/response', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({
-          phase,
-          stimulusId: currentStimuli[currentStimulus].id,
-          response: userResponse,
-          trainingDay: phase === 'training' ? trainingDay : undefined,
-        }),
+        body: JSON.stringify(responseData),
       });
 
       if (response.ok) {
         const data = await response.json();
-
-        if (!isLastStimulus) {
-          // If not the last stimulus, move to next one
-          setCurrentStimulus(curr => curr + 1);
-          setUserResponse('');
-        } else {
-          // If it's the last stimulus, show completion and handle phase transition
-          setShowComplete(true);
-          setUserResponse('');
-
-          // Update state with server response
-          if (data.currentPhase) setCurrentPhase(data.currentPhase);
-          if (data.trainingDay) setTrainingDay(data.trainingDay);
-
-          // Handle phase transitions
-          if (phase === 'pretest') {
-            // Immediately go to selection screen for pretest
-            setPhase('selection');
-            setShowComplete(false);
-            setCurrentStimulus(0);
-          } else if (phase === 'training') {
-            // Show completion screen briefly for training
-            setTimeout(() => {
-              setShowComplete(false);
-              setCurrentStimulus(0);
-              setPhase('selection');
-            }, 2000);
-          } else if (phase === 'posttest') {
-            // Immediately go to selection screen for posttest
-            setPhase('selection');
-            setShowComplete(false);
-            setCurrentStimulus(0);
-          }
-        }
+        handleResponseSuccess(data);
       } else {
         const errorData = await response.json();
         alert(errorData.error || 'Failed to submit response');
@@ -266,26 +279,150 @@ const App = () => {
     }
   };
 
-  const handlePlayAudio = () => {
+  const validateResponse = () => {
     const currentStimuli = getCurrentStimuli();
-    if (!currentStimuli || currentStimuli.length === 0) return;
+    const stimulus = currentStimuli[currentStimulus];
 
-    const audioUrl = currentStimuli[currentStimulus]?.audioUrl;
-    if (!audioUrl) {
-      console.error('No audio URL found for current stimulus');
-      return;
+    switch (stimulus.type) {
+      case 'Int':
+        if (!userResponse.trim()) {
+          alert('Please enter the phrase you heard.');
+          return false;
+        }
+        break;
+
+      case 'Eff':
+        if (!userResponse.trim()) {
+          alert('Please enter the final word you heard.');
+          return false;
+        }
+        if (rating === null) {
+          alert('Please rate your listening effort.');
+          return false;
+        }
+        break;
+
+      case 'Comp':
+        if (!userResponse) {
+          alert('Please select an answer.');
+          return false;
+        }
+        break;
+
+      case 'Trn':
+        // Training might not need validation
+        return true;
     }
 
-    const audio = new Audio(audioUrl);
-    audio.onerror = (e) => {
-      console.error('Error playing audio:', e);
-      alert('Error playing audio. Please try again.');
-    };
+    return true;
+  };
 
-    audio.play().catch(error => {
+  const formatResponse = (response, type) => {
+    switch (type) {
+      case 'Int':
+        return response.trim().toLowerCase();
+
+      case 'Eff':
+        return response.trim().toLowerCase();
+
+      case 'Comp':
+        return response; // Already formatted as multiple choice selection
+
+      case 'Trn':
+        return 'completed'; // Training just needs completion status
+
+      default:
+        return response;
+    }
+  };
+
+  // Handle successful response submission
+  const handleResponseSuccess = (data) => {
+    const currentStimuli = getCurrentStimuli();
+    const isLastStimulus = currentStimulus === currentStimuli.length - 1;
+
+    // Reset response fields
+    setUserResponse('');
+    setRating(null);
+
+    if (!isLastStimulus) {
+      setCurrentStimulus(prev => prev + 1);
+    } else {
+      handlePhaseCompletion(data);
+    }
+  };
+
+  // Handle phase completion
+  const handlePhaseCompletion = (data) => {
+    setShowComplete(true);
+
+    // Update user progress
+    if (data.currentPhase) setCurrentPhase(data.currentPhase);
+    if (data.trainingDay) setTrainingDay(data.trainingDay);
+
+    // Handle different phase transitions
+    if (phase === 'pretest') {
+      setTimeout(() => {
+        setPhase('selection');
+        setShowComplete(false);
+        setCurrentStimulus(0);
+      }, 2000);
+    } else if (phase === 'training') {
+      setTimeout(() => {
+        setPhase('selection');
+        setShowComplete(false);
+        setCurrentStimulus(0);
+      }, 2000);
+    } else if (phase === 'posttest') {
+      setTimeout(() => {
+        setPhase('selection');
+        setShowComplete(false);
+        setCurrentStimulus(0);
+      }, 2000);
+    }
+  };
+
+
+  const handlePlayAudio = async () => {
+    try {
+      const currentStimuli = getCurrentStimuli();
+      if (!currentStimuli || currentStimuli.length === 0) return;
+
+      const stimulus = currentStimuli[currentStimulus];
+      if (!stimulus) {
+        console.error('No stimulus found for current index');
+        return;
+      }
+
+      // Get the user ID from local storage or state
+      const userId = localStorage.getItem('userId'); // You'll need to store this during login
+
+      // Construct filename based on type
+      let filename;
+      if (stimulus.type === 'Comp' || stimulus.type === 'Trn') {
+        // Format: userid_type_test_Num (e.g. test1_Comp_01_02.wav)
+        const storyNum = String(stimulus.storyNumber || '01').padStart(2, '0');
+        const questionNum = String(stimulus.id).padStart(2, '0');
+        filename = `${userId}_${stimulus.type}_${storyNum}_${questionNum}.wav`;
+      } else {
+        // Format: userid_typeNum (e.g. test1_Int01.wav)
+        filename = `${userId}_${stimulus.type}${String(stimulus.id).padStart(2, '0')}.wav`;
+      }
+
+      // Construct the full URL
+      const audioUrl = `http://localhost:3000/audio/${phase}/${filename}`;
+
+      const audio = new Audio(audioUrl);
+      audio.onerror = (e) => {
+        console.error('Error playing audio:', e);
+        alert('Error playing audio. Please try again.');
+      };
+
+      await audio.play();
+    } catch (error) {
       console.error('Error playing audio:', error);
       alert('Error playing audio. Please try again.');
-    });
+    }
   };
 
   // Handle admin login success
@@ -317,6 +454,7 @@ const App = () => {
     setIsAdminLoggedIn(false);
     setShowAdminLogin(false);
   };
+
 
   // renderAuth() updated
   const renderAuth = () => (
@@ -451,154 +589,87 @@ const App = () => {
 
 
 
-  const renderAudioTest = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-blue-600 text-white px-6 py-4">
-            <h2 className="text-xl font-semibold">
-              {phase === 'pretest' ? 'Pre-test Assessment' :
-                phase === 'training' ? `Training Session - Day ${trainingDay}` :
-                  'Post-test Assessment'}
-            </h2>
-          </div>
+  const renderAudioTest = () => {
+    const currentStimuli = getCurrentStimuli();
+    const stimulus = currentStimuli[currentStimulus];
 
-          {/* Content */}
-          <div className="p-6">
-            <div className="space-y-6">
-              {/* Progress Indicator */}
-              <div className="flex items-center justify-between text-sm text-gray-600 mb-8">
-                <span>
-                  Progress: {currentStimulus + 1} of {getCurrentStimuli().length}
-                </span>
-                <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full"
-                    style={{
-                      width: `${((currentStimulus + 1) / getCurrentStimuli().length) * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
+    const commonProps = {
+      currentStimulus,
+      totalStimuli: currentStimuli.length,
+      onPlayAudio: handlePlayAudio,
+      userResponse,
+      onResponseChange: setUserResponse,
+      onSubmit: handleSubmitResponse
+    };
 
-              {/* Audio Controls */}
-              <div className="text-center">
-                <button
-                  onClick={handlePlayAudio}
-                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
-                           transition-colors duration-200 flex items-center justify-center mx-auto space-x-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                  <span>Play Audio</span>
-                </button>
-              </div>
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+            <div className="bg-blue-600 text-white px-6 py-4">
+              <h2 className="text-xl font-semibold">
+                {phase === 'pretest' ? 'Pre-test Assessment' :
+                  phase === 'training' ? `Training Session - Day ${trainingDay}` :
+                    'Post-test Assessment'}
+              </h2>
+            </div>
 
-              {/* Training Text - only show during training phase */}
-              {phase === 'training' && getCurrentStimulusText() && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-center">
-                  <p className="text-blue-800 text-lg">
-                    {getCurrentStimulusText()}
-                  </p>
-                </div>
+            <div className="p-6">
+              {/* Render appropriate test component based on type */}
+              {stimulus.type === 'Int' && (
+                <IntelligibilityTest {...commonProps} />
               )}
 
-              {/* Response Input - only show for pretest and posttest */}
-              {phase !== 'training' && (
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Your Response
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Type what you hear..."
-                    value={userResponse}
-                    onChange={(e) => setUserResponse(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 
-                             focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                  />
-
-                  <button
-                    onClick={handleSubmitResponse}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 
-                             focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 
-                             transition-colors duration-200"
-                  >
-                    Submit Response
-                  </button>
-                </div>
+              {stimulus.type === 'Eff' && (
+                <ListeningEffortTest
+                  {...commonProps}
+                  effortRating={rating}
+                  onEffortRatingChange={setRating}
+                />
               )}
 
-              {/* Next Button - only show for training */}
-              {phase === 'training' && (
-                <button
-                  onClick={() => {
-                    const currentStimuli = getCurrentStimuli();
-                    const isLastStimulus = currentStimulus === currentStimuli.length - 1;
-
-                    if (!isLastStimulus) {
-                      setCurrentStimulus(curr => curr + 1);
-                    } else {
-                      setShowComplete(true);
-                      setTimeout(() => {
-                        setShowComplete(false);
-                        setCurrentStimulus(0);
-                        if (trainingDay < 4) {
-                          setTrainingDay(prev => prev + 1);
-                        } else {
-                          setCurrentPhase('posttest');
-                        }
-                        setPhase('selection');
-                      }, 2000);
-                    }
-                  }}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
-                           transition-colors duration-200"
-                >
-                  Next
-                </button>
+              {stimulus.type === 'Comp' && (
+                <ComprehensionTest
+                  {...commonProps}
+                  options={stimulus.options}
+                />
               )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Completion Modal */}
-      {showComplete && currentStimulus === getCurrentStimuli().length - 1 && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {phase === 'pretest' ? 'Pre-test Complete' :
-                phase === 'training' ? `Training Day ${trainingDay} Complete` :
-                  'Post-test Complete'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {phase === 'pretest'
-                ? "Excellent work! You've completed the pre-test. Return tomorrow to begin your training."
-                : phase === 'training'
-                  ? trainingDay < 4
-                    ? `Great job! You've completed training day ${trainingDay}. Return tomorrow for day ${trainingDay + 1}.`
-                    : "Congratulations! You've completed all training sessions. Return tomorrow for your final assessment."
-                  : "Congratulations! You've successfully completed the study."}
-            </p>
-            {phase === 'training' && (
-              <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-full transition-all duration-1000 ease-out"
-                  style={{ width: "100%" }}
-                />
-              </div>
-            )}
+        {/* Completion Modal */}
+        {showComplete && currentStimulus === getCurrentStimuli().length - 1 && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                {phase === 'pretest' ? 'Pre-test Complete' :
+                  phase === 'training' ? `Training Day ${trainingDay} Complete` :
+                    'Post-test Complete'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {phase === 'pretest'
+                  ? "Excellent work! You've completed the pre-test. Return tomorrow to begin your training."
+                  : phase === 'training'
+                    ? trainingDay < 4
+                      ? `Great job! You've completed training day ${trainingDay}. Return tomorrow for day ${trainingDay + 1}.`
+                      : "Congratulations! You've completed all training sessions. Return tomorrow for your final assessment."
+                    : "Congratulations! You've successfully completed the study."}
+              </p>
+              {phase === 'training' && (
+                <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-full transition-all duration-1000 ease-out"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-
+        )}
+      </div>
+    );
+  };
 
 
 
