@@ -1,89 +1,175 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircleIcon, LockClosedIcon, ClockIcon, ArrowRightIcon } from '@heroicons/react/24/solid';
+import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
+import { formatDate } from './lib/utils';
+
+const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
+  const { isAvailable, isCompleted, isUpcoming } = status;
+
+  return (
+    <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-sm text-gray-600 mt-1">{description}</p>
+          </div>
+          <div className="ml-4">
+            {isCompleted ? (
+              <CheckCircle className="h-6 w-6 text-green-500" />
+            ) : isAvailable ? (
+              <Clock className="h-6 w-6 text-blue-500" />
+            ) : (
+              <Lock className="h-6 w-6 text-gray-400" />
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500">
+          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+          {date && ` • ${date}`}
+        </p>
+      </CardContent>
+      <CardFooter>
+        <Button
+          className="w-full"
+          disabled={!isAvailable}
+          variant={isAvailable ? "default" : "secondary"}
+          onClick={() => onSelect(phase, testType)}
+        >
+          <span>
+            {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
+          </span>
+          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
+// Also update the Training Day cards to include icons
+const TrainingDayCard = ({ day, currentDay, onSelect, date }) => {
+  const isCompleted = day < currentDay;
+  const isAvailable = day === currentDay;
+  const isUpcoming = day > currentDay;
+
+  return (
+    <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Training Day {day}
+          </h3>
+          <div>
+            {isCompleted ? (
+              <CheckCircle className="h-6 w-6 text-green-500" />
+            ) : isAvailable ? (
+              <Clock className="h-6 w-6 text-blue-500" />
+            ) : (
+              <Lock className="h-6 w-6 text-gray-400" />
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500">
+          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+          {date && ` • ${date}`}
+        </p>
+      </CardContent>
+      <CardFooter>
+        <Button
+          className="w-full"
+          disabled={!isAvailable}
+          variant={isAvailable ? "default" : "secondary"}
+          onClick={() => onSelect('training', 'Trn', day)}
+        >
+          <span>
+            {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
+          </span>
+          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
 
 const PhaseSelection = ({
   currentPhase,
   trainingDay,
-  pretestDate, // Changed from lastTrainingDate
-  onSelectPhase
+  pretestDate,
+  onSelectPhase,
+  completedTests = {} // Track completed test types
 }) => {
-  // Helper function to determine if a phase is available
-  const isPhaseAvailable = (phaseName, dayNumber = null) => {
-    // Pretest is available if it hasn't been completed yet
-    if (phaseName === 'pretest') {
-      return currentPhase === 'pretest';
+  const testTypes = [
+    {
+      id: 'intelligibility',
+      title: 'Intelligibility Test',
+      description: 'Type the complete phrase you hear',
+      type: 'Int',
+      order: 1
+    },
+    {
+      id: 'effort',
+      title: 'Listening Effort Test',
+      description: 'Type the final word and rate your listening effort',
+      type: 'Eff',
+      order: 2
+    },
+    {
+      id: 'comprehension',
+      title: 'Comprehension Test',
+      description: 'Listen to stories and answer questions',
+      type: 'Comp',
+      order: 3
     }
+  ];
 
-    // If pretest hasn't been completed, no other phases are available
-    if (!pretestDate) return false;
+  // Helper function to determine if a test type is available
+  const getTestStatus = (phase, testType) => {
+    const test = testTypes.find(t => t.type === testType);
+    const previousTests = testTypes.filter(t => t.order < test.order);
+    const previousTestsCompleted = previousTests.every(t =>
+      completedTests[`${phase}_${t.type}`]
+    );
 
-    const pretest = new Date(pretestDate);
-    const today = new Date();
-
-    // Reset time portions to compare dates only
-    pretest.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-
-    // Calculate days since pretest
-    const daysSincePretest = Math.floor((today - pretest) / (1000 * 60 * 60 * 24));
-
-    switch (phaseName) {
-      case 'training':
-        if (currentPhase !== 'training') return false;
-
-        // Each training day should be available on its specific day
-        // Day 1: 1 day after pretest
-        // Day 2: 2 days after pretest
-        // Day 3: 3 days after pretest
-        // Day 4: 4 days after pretest
-        return dayNumber === trainingDay && daysSincePretest === dayNumber;
-
-      case 'posttest':
-        // Posttest should be available 5 days after pretest
-        return currentPhase === 'posttest' && daysSincePretest === 5;
-
-      default:
-        return false;
-    }
-  };
-
-  // Helper to get the status of a phase
-  const getPhaseStatus = (phaseName, dayNumber = null) => {
-    const isAvailable = isPhaseAvailable(phaseName, dayNumber);
-    const isCompleted = (phaseName === 'pretest' && currentPhase !== 'pretest') ||
-      (phaseName === 'training' && dayNumber < trainingDay) ||
-      (phaseName === 'posttest' && currentPhase === 'completed');
+    const isAvailable = phase === currentPhase && previousTestsCompleted;
+    const isCompleted = completedTests[`${phase}_${testType}`];
 
     return {
-      isAvailable,
+      isAvailable: isAvailable && !isCompleted,
       isCompleted,
       isUpcoming: !isAvailable && !isCompleted
     };
   };
 
-  // Format date for display
-  const formatDate = (date) => {
-    if (!date) return 'Not started';
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  // Get expected date for a phase
-  const getExpectedDate = (phaseName, dayNumber = null) => {
-    if (!pretestDate) return 'Complete pretest to unlock';
+  // Add getExpectedDate function
+  const getExpectedDate = (phase, dayNumber = null) => {
+    if (!pretestDate) {
+      return 'Complete pretest to unlock';
+    }
 
     const baseDate = new Date(pretestDate);
     let daysToAdd = 0;
 
-    if (phaseName === 'training') {
-      daysToAdd = dayNumber;
-    } else if (phaseName === 'posttest') {
-      daysToAdd = 5;
+    switch (phase) {
+      case 'pretest':
+        return formatDate(pretestDate);
+
+      case 'training':
+        if (dayNumber) {
+          daysToAdd = dayNumber;
+        }
+        break;
+
+      case 'posttest':
+        daysToAdd = 5; // Posttest starts after 4 days of training
+        break;
+
+      default:
+        return 'Date not available';
     }
 
     const expectedDate = new Date(baseDate);
@@ -98,133 +184,71 @@ const PhaseSelection = ({
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Perceptual Training Progress
           </h1>
-          <p className="text-gray-600">
-            Select a phase to begin or continue your training
-          </p>
           {pretestDate && (
             <p className="text-sm text-gray-500 mt-2">
-              Pretest completed: {formatDate(pretestDate)}
+              Started: {new Date(pretestDate).toLocaleDateString()}
             </p>
           )}
         </div>
 
-        <div className="grid gap-6">
-          {/* Pretest Card */}
-          <PhaseCard
-            title="Pre-test Assessment"
-            description="Complete this assessment before starting your training"
-            status={getPhaseStatus('pretest')}
-            onClick={() => onSelectPhase('pretest')}
-            date={pretestDate ? formatDate(pretestDate) : 'Not started'}
-          />
-
-          {/* Training Days */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((day) => (
-              <TrainingDayCard
-                key={day}
-                day={day}
-                status={getPhaseStatus('training', day)}
-                onClick={() => onSelectPhase('training', day)}
-                date={getExpectedDate('training', day)}
-              />
-            ))}
+        {/* Pretest Section */}
+        {currentPhase === 'pretest' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {testTypes
+                .sort((a, b) => a.order - b.order)
+                .map(test => (
+                  <TestTypeCard
+                    key={test.id}
+                    {...test}
+                    phase={currentPhase}
+                    status={getTestStatus(currentPhase, test.type)}
+                    date={getExpectedDate(currentPhase)}
+                    onSelect={onSelectPhase}
+                  />
+                ))}
+            </div>
           </div>
+        )}
 
-          {/* Posttest Card */}
-          <PhaseCard
-            title="Post-test Assessment"
-            description="Final assessment to measure your progress"
-            status={getPhaseStatus('posttest')}
-            onClick={() => onSelectPhase('posttest')}
-            date={getExpectedDate('posttest')}
-          />
-        </div>
+        {/* Training Section */}
+        {currentPhase === 'training' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Training Sessions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((day) => (
+                <TrainingDayCard
+                  key={day}
+                  day={day}
+                  currentDay={trainingDay}
+                  onSelect={onSelectPhase}
+                  date={getExpectedDate('training', day)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Posttest Section */}
+        {currentPhase === 'posttest' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Post-test Assessment</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {testTypes.map(test => (
+                <TestTypeCard
+                  key={test.id}
+                  {...test}
+                  phase="posttest"
+                  status={getTestStatus('posttest', test.type)}
+                  onSelect={onSelectPhase}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
-};
-
-const PhaseCard = ({ title, description, status, onClick, date }) => {
-  const { isAvailable, isCompleted, isUpcoming } = status;
-
-  return (
-    <Card className={isAvailable ? "" : "opacity-75"}>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-600 mt-1">{description}</p>
-          </div>
-          <div className="ml-4">
-            {isCompleted ? (
-              <CheckCircleIcon className="h-6 w-6 text-green-500" />
-            ) : isAvailable ? (
-              <ClockIcon className="h-6 w-6 text-blue-500" />
-            ) : (
-              <LockClosedIcon className="h-6 w-6 text-gray-400" />
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-gray-500">
-          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Upcoming'}
-          {date && ` • ${date}`}
-        </p>
-      </CardContent>
-      <CardFooter>
-        <Button
-          className="w-full"
-          disabled={!isAvailable}
-          variant={isAvailable ? "default" : "secondary"}
-          onClick={onClick}
-        >
-          <span>{isCompleted ? 'Completed' : isAvailable ? 'Begin Session' : 'Locked'}</span>
-          {isAvailable && <ArrowRightIcon className="ml-2 h-4 w-4" />}
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
-
-const TrainingDayCard = ({ day, status, onClick, date }) => {
-  const { isAvailable, isCompleted, isUpcoming } = status;
-
-  return (
-    <Card className={isAvailable ? "" : "opacity-75"}>
-      <CardHeader>
-        <h3 className="text-lg font-semibold text-gray-900 text-center">
-          Training Day {day}
-        </h3>
-        <div className="flex justify-center mt-2">
-          {isCompleted ? (
-            <CheckCircleIcon className="h-8 w-8 text-green-500" />
-          ) : isAvailable ? (
-            <ClockIcon className="h-8 w-8 text-blue-500" />
-          ) : (
-            <LockClosedIcon className="h-8 w-8 text-gray-400" />
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-gray-500 text-center">
-          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Upcoming'}
-          {date && ` • ${date}`}
-        </p>
-      </CardContent>
-      <CardFooter>
-        <Button
-          className="w-full"
-          disabled={!isAvailable}
-          variant={isAvailable ? "default" : "secondary"}
-          onClick={onClick}
-        >
-          <span>{isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}</span>
-          {isAvailable && <ArrowRightIcon className="ml-2 h-4 w-4" />}
-        </Button>
-      </CardFooter>
-    </Card>
   );
 };
 

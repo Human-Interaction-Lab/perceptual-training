@@ -28,8 +28,8 @@ const App = () => {
   const [canProceedToday, setCanProceedToday] = useState(true);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [rating, setRating] = useState(null);
+  const [completedTests, setCompletedTests] = useState({});
   const [currentTestType, setCurrentTestType] = useState(null); // 'intelligibility', 'effort', 'comprehension'
-  const [multipleChoiceAnswers, setMultipleChoiceAnswers] = useState([]);
 
   // Reset states when phase changes
   useEffect(() => {
@@ -153,23 +153,9 @@ const App = () => {
   //  return currentStimuli[currentStimulus]?.correct || '';
   //};
 
-  // Add handler for phase selection
-  const handlePhaseSelect = (selectedPhase, dayNumber = null) => {
-    setCurrentStimulus(0); // Reset stimulus counter
-    setUserResponse(''); // Reset user response
-    setShowComplete(false); // Ensure completion modal is hidden
-
-    if (selectedPhase === 'training') {
-      setTrainingDay(dayNumber);
-    }
-
-    setPhase(selectedPhase);
-  };
-
 
   const handleLogin = async () => {
     try {
-      setError('');
       const response = await fetch('http://localhost:3000/api/login', {
         method: 'POST',
         headers: {
@@ -186,9 +172,8 @@ const App = () => {
         setTrainingDay(data.trainingDay);
         setPretestDate(data.pretestDate);
         setCanProceedToday(data.canProceedToday);
+        setCompletedTests(data.completedTests || {});
         setPhase('selection');
-        setCurrentStimulus(0); // Ensure stimulus counter is reset
-        setShowComplete(false); // Ensure completion modal is hidden
       } else {
         setError(data.error || 'Login failed');
       }
@@ -341,6 +326,14 @@ const App = () => {
     const currentStimuli = getCurrentStimuli();
     const isLastStimulus = currentStimulus === currentStimuli.length - 1;
 
+    if (isLastStimulus) {
+      // Update completedTests when a test is finished
+      setCompletedTests(prev => ({
+        ...prev,
+        [`${phase}_${currentTestType}`]: true
+      }));
+    }
+
     // Reset response fields
     setUserResponse('');
     setRating(null);
@@ -351,6 +344,23 @@ const App = () => {
       handlePhaseCompletion(data);
     }
   };
+
+
+  // handle phase select
+  const handlePhaseSelect = (selectedPhase, testType, dayNumber = null) => {
+    setCurrentPhase(selectedPhase);
+    setCurrentTestType(testType);
+
+    if (dayNumber) {
+      setTrainingDay(dayNumber);
+    }
+
+    setPhase(selectedPhase);
+    setCurrentStimulus(0);
+    setUserResponse('');
+    setRating(null);
+  };
+
 
   // Handle phase completion
   const handlePhaseCompletion = (data) => {
@@ -703,6 +713,7 @@ const App = () => {
               trainingDay={trainingDay}
               pretestDate={pretestDate}
               onSelectPhase={handlePhaseSelect}
+              completedTests={completedTests}
             />
           ) : !canProceedToday && currentPhase !== 'pretest' ? (
             <NotAvailableMessage />
