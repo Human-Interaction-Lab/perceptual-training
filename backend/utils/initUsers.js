@@ -1,7 +1,7 @@
 // save as initUsers.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const User = require('./models/User');
+const User = require('../models/User');
 
 const initializeUsers = async () => {
     try {
@@ -36,6 +36,8 @@ const initializeUsers = async () => {
 
             await adminUser.save();
             console.log('Admin user created successfully');
+        } else {
+            console.log('Admin user already exists');
         }
 
         // Test Users Configuration
