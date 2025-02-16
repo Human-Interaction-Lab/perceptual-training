@@ -5,7 +5,7 @@ import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
 import { formatDate } from './lib/utils';
 
 const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
-  const { isAvailable, isCompleted, isUpcoming } = status;
+  const { isAvailable, isCompleted } = status;
 
   return (
     <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
@@ -53,7 +53,6 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
 const TrainingDayCard = ({ day, currentDay, onSelect, date }) => {
   const isCompleted = day < currentDay;
   const isAvailable = day === currentDay;
-  const isUpcoming = day > currentDay;
 
   return (
     <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
@@ -140,8 +139,7 @@ const PhaseSelection = ({
 
     return {
       isAvailable: isAvailable && !isCompleted,
-      isCompleted,
-      isUpcoming: !isAvailable && !isCompleted
+      isCompleted
     };
   };
 
