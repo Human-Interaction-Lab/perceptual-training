@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    completedTests: {
+        type: Map,
+        of: Boolean,
+        default: new Map()
+    },
     isActive: {
         type: Boolean,
         default: true
