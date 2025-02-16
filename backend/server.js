@@ -14,6 +14,7 @@ const Response = require('./models/Response');
 const Demographics = require('./models/Demographics');
 const boxService = require('./boxService');
 const initializeAdmin = require('./utils/initAdmin');
+const initializeUsers = require('./utils/initUsers');
 
 let server;
 
@@ -114,15 +115,15 @@ const connectDB = async () => {
       return;
     }
 
-    const dbURI = process.env.MONGODB_URI;
+    const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
     await mongoose.connect(dbURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
     console.log('MongoDB connected...');
 
-    // Initialize admin user after successful connection
-    await initializeAdmin();
+    // Initialize admin and test users after successful connection
+    await initializeUsers();
   } catch (err) {
     console.error('MongoDB connection error:', err);
     if (process.env.NODE_ENV !== 'test') {
