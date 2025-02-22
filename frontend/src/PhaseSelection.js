@@ -1,14 +1,12 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, AlignJustify, AlignVerticalJustifyCenterIcon, AlignCenterIcon } from "lucide-react";
 import { formatDate } from './lib/utils';
 import { Headphones } from "lucide-react";
 
-const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date, purpose, qna }) => {
+const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
   const { isAvailable, isCompleted } = status;
-
-  const purpose = `People with Parkinson's disease often find it challenging to improve their speech so that other people can better understand them. This can make conversations with friends, family, and community members difficult and lead to loneliness and depression. We believe we can improve your ability to understand your friend or family member through training with their speech. Previous research on this technique has shown very promising results. If this works, clinicians could provide an alternative approach for improving communication by training communication partners to better understand the speech of patients with Parkinson's disease. You are participating in a clinical trial that is testing this approach. In addition to potentially improving your own ability to understand your friend or family member, this will provide researchers and clinicians with evidence on the effectiveness of this approach for the broader Parkinson's disease community.\nWe thank you for your participation!`
 
   return (
     <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
@@ -17,16 +15,6 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <p className="text-sm text-gray-600 mt-1">{description}</p>
-
-            <h3 className="text-lg font-semibold text-gray-900">What is the purpose of this study?</h3>
-            <p className="text-sm text-gray-600 mt-1">{purpose}</p>
-            <div className="flex items-center space-x-2">
-              <span>Please wear</span>
-              <strong>headphones</strong>
-              <Headphones className="h-4 w-4" />
-              <span>during all portions of this training program.</span>
-            </div>
-
           </div>
           <div className="ml-4">
             {isCompleted ? (
@@ -206,6 +194,10 @@ const PhaseSelection = ({
         {currentPhase === 'pretest' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
+            {/* <Headphones className="h-4 w-4" /> */}
+            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {testTypes
                 .sort((a, b) => a.order - b.order)
@@ -227,6 +219,10 @@ const PhaseSelection = ({
         {currentPhase === 'training' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Training Sessions</h2>
+            {/* <Headphones className="h-4 w-4" /> */}
+            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            <br></br>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((day) => (
                 <TrainingDayCard
@@ -245,6 +241,10 @@ const PhaseSelection = ({
         {currentPhase === 'posttest' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Post-test Assessment</h2>
+            {/* <Headphones className="h-4 w-4" /> */}
+            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {testTypes.map(test => (
                 <TestTypeCard

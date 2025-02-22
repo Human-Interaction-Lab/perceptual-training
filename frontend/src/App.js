@@ -5,7 +5,8 @@ import PhaseSelection from './PhaseSelection';
 import { Button } from './components/ui/button';
 import { Label } from './components/ui/label';
 import { Input } from './components/ui/input';
-import { TrainingFAQ } from './components/faq.accordion';
+import TrainingFAQ from './faq.accordion';
+import WelcomeSection from './welcomesection';
 import IntelligibilityTest from './components/intelligibilityTest';
 import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
@@ -469,18 +470,20 @@ const App = () => {
 
   // renderAuth() updated
   const renderAuth = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto">
-        {/* Logo/Title Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Perceptual Training
-          </h1>
-          <p className="text-gray-600">
-            {authMode === 'login'
-              ? 'Welcome back! Please login to continue your study.'
-              : 'Create an account to participate in the study.'}
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+      {/* Welcome Section - wider width */}
+      <WelcomeSection />
+
+      <div className="bg-white shadow-xl rounded-lg px-8 py-6 mb-4 border border-gray-100 max-w-5xl mx-auto px-4 mb-11">
+        <div className="max-w-md mx-auto">
+          {/* Logo/Title Section */}
+          <div className="text-center mb-8">
+            <p className="text-gray-600">
+              {authMode === 'login'
+                ? 'Welcome back! Please login to continue your study.'
+                : 'Create an account to participate in the study.'}
+            </p>
+          </div>
         </div>
 
         {/* Auth Card */}
@@ -593,10 +596,10 @@ const App = () => {
             Access Admin Panel
           </Button>
         </div>
+      </div >
 
-        {/* FAQ section */}
-        <TrainingFAQ />
-      </div>
+      {/* FAQ section */}
+      <TrainingFAQ />
     </div>
   );
 
@@ -719,6 +722,7 @@ const App = () => {
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
             />
+
           ) : !canProceedToday && currentPhase !== 'pretest' ? (
             <NotAvailableMessage />
           ) : (

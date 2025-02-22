@@ -1,5 +1,6 @@
 // components/ui/button.jsx
 import * as React from "react";
+import clsx from "clsx";
 import { cva } from "class-variance-authority";
 
 const buttonVariants = cva(
@@ -30,7 +31,7 @@ const buttonVariants = cva(
 const Button = React.forwardRef(({ className, variant, size, ...props }, ref) => {
   return (
     <button
-      className={buttonVariants({ variant, size, className })}
+      className={clsx(buttonVariants({ variant, size }), className)}
       ref={ref}
       {...props}
     />

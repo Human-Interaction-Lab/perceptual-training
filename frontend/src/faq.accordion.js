@@ -51,7 +51,7 @@ const TrainingFAQ = () => {
   ];
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-8 bg-white rounded-lg shadow-sm border border-gray-100">
+    <div className="w-full max-w-2xl mx-auto mt-8 bg-white rounded-lg shadow-sm border border-gray-100 max-w-5xl mx-auto px-4 mb-12">
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Training Program Q&A</h2>
         <Accordion type="single" collapsible className="w-full">
