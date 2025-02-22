@@ -5,6 +5,7 @@ import PhaseSelection from './PhaseSelection';
 import { Button } from './components/ui/button';
 import { Label } from './components/ui/label';
 import { Input } from './components/ui/input';
+import { TrainingFAQ } from './components/faq.accordion';
 import IntelligibilityTest from './components/intelligibilityTest';
 import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
@@ -592,6 +593,9 @@ const App = () => {
             Access Admin Panel
           </Button>
         </div>
+
+        {/* FAQ section */}
+        <TrainingFAQ />
       </div>
     </div>
   );
