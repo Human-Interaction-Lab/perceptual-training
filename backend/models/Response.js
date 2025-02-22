@@ -31,7 +31,8 @@ const responseSchema = new mongoose.Schema({
     rating: {
         type: Number,
         min: 1,
-        max: 100
+        max: 100,
+        default: null
     },
     correct: {
         type: Boolean,
