@@ -54,3 +54,9 @@ db.users.find({
 # Update user's admin status
 db.users.updateOne({ userId: "adminHIL" }, { $set: { isAdmin: true } });
 
+# responses
+db.getCollectionNames()
+
+db.responses.find()
+db.responses.find({userId: 'test_pretest'})
+db.responses.drop({userId: 'test_pretest'})
