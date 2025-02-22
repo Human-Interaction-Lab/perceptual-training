@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card"
 import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, AlignJustify, AlignVerticalJustifyCenterIcon, AlignCenterIcon } from "lucide-react";
 import { formatDate } from './lib/utils';
-import { Headphones } from "lucide-react";
+//import { Headphones } from "lucide-react";
 
 const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
   const { isAvailable, isCompleted } = status;
@@ -130,17 +130,33 @@ const PhaseSelection = ({
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
     const test = testTypes.find(t => t.type === testType);
-    const previousTests = testTypes.filter(t => t.order < test.order);
-    const previousTestsCompleted = previousTests.every(t =>
-      completedTests[`${phase}_${t.type}`]
-    );
 
-    const isAvailable = phase === currentPhase && previousTestsCompleted;
-    const isCompleted = completedTests[`${phase}_${testType}`];
+    // If this is the first test, it's available if phase matches and test isn't completed
+    if (test.order === 1) {
+      return {
+        isAvailable: phase === currentPhase && !completedTests[`${phase}_${testType}`],
+        isCompleted: completedTests[`${phase}_${testType}`]
+      };
+    }
+
+    // For subsequent tests:
+    // 1. Get the previous test type
+    const previousTest = testTypes.find(t => t.order === test.order - 1);
+
+    // 2. Check if previous test is completed
+    const previousTestCompleted = completedTests[`${phase}_${previousTest.type}`];
+
+    // 3. A test is available if:
+    //    - We're in the correct phase
+    //    - Previous test is completed
+    //    - This test isn't completed yet
+    const isAvailable = phase === currentPhase &&
+      previousTestCompleted &&
+      !completedTests[`${phase}_${testType}`];
 
     return {
-      isAvailable: isAvailable && !isCompleted,
-      isCompleted
+      isAvailable,
+      isCompleted: completedTests[`${phase}_${testType}`]
     };
   };
 

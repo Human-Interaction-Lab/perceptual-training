@@ -10,6 +10,7 @@ import WelcomeSection from './welcomesection';
 import IntelligibilityTest from './components/intelligibilityTest';
 import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
+import { COMPREHENSION_DATA } from './components/comprehensionData';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -31,7 +32,11 @@ const App = () => {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [rating, setRating] = useState(null);
   const [completedTests, setCompletedTests] = useState({});
-  const [currentTestType, setCurrentTestType] = useState(null); // 'intelligibility', 'effort', 'comprehension'
+  const [currentTestType, setCurrentTestType] = useState('intelligibility'); // 'intelligibility', 'effort', 'comprehension'
+  const [currentStoryId, setCurrentStoryId] = useState('Comp_01');
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [comprehensionResponses, setComprehensionResponses] = useState([]);
 
   // Reset states when phase changes
   useEffect(() => {
@@ -148,13 +153,6 @@ const App = () => {
       : '';
   };
 
-  // This helper function gets the correct response for scoring
-  //const getCurrentStimulusCorrect = () => {
-  //  const currentStimuli = getCurrentStimuli();
-  //  if (!currentStimuli || currentStimuli.length === 0) return '';
-  //  return currentStimuli[currentStimulus]?.correct || '';
-  //};
-
 
   const handleLogin = async () => {
     try {
@@ -224,61 +222,127 @@ const App = () => {
     }
   };
 
-  const handleSubmitResponse = async () => {
+  // Handle intelligibility test submissions
+  const handleIntelligibilitySubmit = async () => {
+    if (!validateResponse()) return;
+
     try {
-      // Validate response based on test type
-      if (!validateResponse()) {
-        return;
-      }
-
-      const currentStimuli = getCurrentStimuli();
-      const stimulus = currentStimuli[currentStimulus];
-
-      const responseData = {
-        phase,
-        stimulusId: stimulus.id,
-        testType: stimulus.type,
-        trainingDay: phase === 'training' ? trainingDay : undefined,
-        storyNumber: stimulus.storyNumber, // For comprehension tests
-        response: formatResponse(userResponse, stimulus.type),
-        rating: stimulus.type === 'Eff' ? rating : undefined,
-      };
-
-      const response = await fetch('http://localhost:3000/api/response', {
+      const token = localStorage.getItem('token');
+      await fetch('http://localhost:3000/api/response', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(responseData),
+        body: JSON.stringify({
+          phase,
+          currentTestType: 'intelligibility',
+          stimulusId: `${phase}_intel_${currentStimulus + 1}`,
+          response: userResponse
+        }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        handleResponseSuccess(data);
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Failed to submit response');
+      // Prevent multiple submissions of last stimulus
+      if (currentStimulus === 19) {
+        // Disable the submit button or add loading state
+        setIsSubmitting(true); // Add this state variable
       }
+
+      handleResponseSuccess();
     } catch (error) {
-      console.error('Submit response error:', error);
+      console.error('Error submitting response:', error);
       alert('Failed to submit response. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle effort test submissions
+  const handleEffortSubmit = async () => {
+    if (!validateResponse()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('http://localhost:3000/api/response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phase,
+          currentTestType: 'effort',
+          stimulusId: `${phase}_effort_${currentStimulus + 1}`,
+          response: userResponse,
+          rating: rating
+        }),
+      });
+
+      // Prevent multiple submissions of last stimulus
+      if (currentStimulus === 29) {
+        // Disable the submit button or add loading state
+        setIsSubmitting(true); // Add this state variable
+      }
+
+      handleResponseSuccess();
+    } catch (error) {
+      console.error('Error submitting response:', error);
+      alert('Failed to submit response. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle comprehension test submissions (reusing previous code)
+  const handleComprehensionSubmit = async () => {
+    if (!validateResponse()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const currentStory = COMPREHENSION_DATA[currentStoryId];
+      const currentQuestion = currentStory.questions[questionIndex];
+      const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+
+      await fetch('http://localhost:3000/api/response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phase,
+          currentTestType: 'comprehension',
+          stimulusId: currentQuestion.id,
+          response: optionLabels[userResponse],
+          isCorrect: optionLabels[userResponse] === currentQuestion.answer
+        }),
+      });
+
+      // Prevent multiple submissions of last stimulus
+      if (currentStimulus === 19) {
+        // Disable the submit button or add loading state
+        setIsSubmitting(true); // Add this state variable
+      }
+
+      handleResponseSuccess();
+    } catch (error) {
+      console.error('Error submitting response:', error);
+      alert('Failed to submit response. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const validateResponse = () => {
-    const currentStimuli = getCurrentStimuli();
-    const stimulus = currentStimuli[currentStimulus];
-
-    switch (stimulus.type) {
-      case 'Int':
+    switch (currentTestType) {
+      case 'intelligibility':
         if (!userResponse.trim()) {
           alert('Please enter the phrase you heard.');
           return false;
         }
         break;
 
-      case 'Eff':
+      case 'effort':
         if (!userResponse.trim()) {
           alert('Please enter the final word you heard.');
           return false;
@@ -289,69 +353,88 @@ const App = () => {
         }
         break;
 
-      case 'Comp':
-        if (!userResponse) {
+      case 'comprehension':
+        if (userResponse === null) {
           alert('Please select an answer.');
           return false;
         }
         break;
 
-      case 'Trn':
-        // Training might not need validation
+      case 'training':
+        // Training might have different validation requirements
         return true;
     }
 
     return true;
   };
 
-  const formatResponse = (response, type) => {
-    switch (type) {
-      case 'Int':
-        return response.trim().toLowerCase();
-
-      case 'Eff':
-        return response.trim().toLowerCase();
-
-      case 'Comp':
-        return response; // Already formatted as multiple choice selection
-
-      case 'Trn':
-        return 'completed'; // Training just needs completion status
-
-      default:
-        return response;
-    }
-  };
 
   // Handle successful response submission
-  const handleResponseSuccess = (data) => {
-    const currentStimuli = getCurrentStimuli();
-    const isLastStimulus = currentStimulus === currentStimuli.length - 1;
+  const handleResponseSuccess = () => {
+    const isLastStimulus = currentStimulus === 19;
 
     if (isLastStimulus) {
-      // Update completedTests when a test is finished
+      // Update completedTests for current test type
       setCompletedTests(prev => ({
         ...prev,
         [`${phase}_${currentTestType}`]: true
       }));
-    }
 
-    // Reset response fields
-    setUserResponse('');
-    setRating(null);
+      // Show completion message
+      setShowComplete(true);
 
-    if (!isLastStimulus) {
-      setCurrentStimulus(prev => prev + 1);
+      // Handle phase transitions and user progress
+      setTimeout(() => {
+        // Update phase if needed based on test completion
+        switch (currentTestType) {
+          case 'intelligibility':
+            // Keep same phase, just allow effort test to be available
+            break;
+          case 'effort':
+            // Keep same phase, allow comprehension test to be available
+            break;
+          case 'comprehension':
+            // Move to next major phase
+            if (phase === 'pretest') {
+              setCurrentPhase('training');
+            } else if (phase === 'posttest') {
+              setCurrentPhase('completed');
+            }
+            break;
+          default:
+            break;
+        }
+
+        // Reset states
+        setPhase('selection');
+        setShowComplete(false);
+        setCurrentStimulus(0);
+        setUserResponse('');
+        setRating(null);
+      }, 2000);
     } else {
-      handlePhaseCompletion(data);
+      // Just move to next stimulus
+      setCurrentStimulus(prev => prev + 1);
+      setUserResponse('');
+      setRating(null);
     }
   };
 
 
   // handle phase select
-  const handlePhaseSelect = (selectedPhase, testType, dayNumber = null) => {
+  const handlePhaseSelect = (selectedPhase, dayNumber = null) => {
+    // Determine which test type to start based on completed tests
+    let startingTestType = 'intelligibility';
+    if (completedTests[`${selectedPhase}_intelligibility`]) {
+      if (completedTests[`${selectedPhase}_effort`]) {
+        startingTestType = 'comprehension';
+      } else {
+        startingTestType = 'effort';
+      }
+    }
+
     setCurrentPhase(selectedPhase);
-    setCurrentTestType(testType);
+    setCurrentTestType(selectedPhase === 'training' ? 'training' : startingTestType);
 
     if (dayNumber) {
       setTrainingDay(dayNumber);
@@ -364,39 +447,13 @@ const App = () => {
   };
 
 
-  // Handle phase completion
-  const handlePhaseCompletion = (data) => {
-    setShowComplete(true);
-
-    // Update user progress
-    if (data.currentPhase) setCurrentPhase(data.currentPhase);
-    if (data.trainingDay) setTrainingDay(data.trainingDay);
-
-    // Handle different phase transitions
-    if (phase === 'pretest') {
-      setTimeout(() => {
-        setPhase('selection');
-        setShowComplete(false);
-        setCurrentStimulus(0);
-      }, 2000);
-    } else if (phase === 'training') {
-      setTimeout(() => {
-        setPhase('selection');
-        setShowComplete(false);
-        setCurrentStimulus(0);
-      }, 2000);
-    } else if (phase === 'posttest') {
-      setTimeout(() => {
-        setPhase('selection');
-        setShowComplete(false);
-        setCurrentStimulus(0);
-      }, 2000);
-    }
-  };
-
 
   const handlePlayAudio = async () => {
     try {
+      // Temporary placeholder until Box integration
+      alert("Audio playback will be available once Box integration is complete. For now, you can proceed with testing the interface.");
+
+
       const currentStimuli = getCurrentStimuli();
       if (!currentStimuli || currentStimuli.length === 0) return;
 
@@ -604,53 +661,75 @@ const App = () => {
   );
 
 
-
-
   const renderAudioTest = () => {
-    const currentStimuli = getCurrentStimuli();
-    const stimulus = currentStimuli[currentStimulus];
+    const renderTestComponent = () => {
+      switch (currentTestType) {
+        case 'intelligibility':
+          return (
+            <IntelligibilityTest
+              userResponse={userResponse}
+              onResponseChange={setUserResponse}
+              onSubmit={handleIntelligibilitySubmit}
+              currentStimulus={currentStimulus}
+              totalStimuli={20} // Set to your desired number
+              onPlayAudio={handlePlayAudio}
+            />
+          );
 
-    const commonProps = {
-      currentStimulus,
-      totalStimuli: currentStimuli.length,
-      onPlayAudio: handlePlayAudio,
-      userResponse,
-      onResponseChange: setUserResponse,
-      onSubmit: handleSubmitResponse
+        case 'effort':
+          return (
+            <ListeningEffortTest
+              userResponse={userResponse}
+              rating={rating}
+              onResponseChange={setUserResponse}
+              onRatingChange={setRating}
+              onSubmit={handleEffortSubmit}
+              currentStimulus={currentStimulus}
+              totalStimuli={30} // Set to your desired number
+              onPlayAudio={handlePlayAudio}
+            />
+          );
+
+        case 'comprehension':
+          const currentStory = COMPREHENSION_DATA[currentStoryId];
+          const currentQuestion = currentStory.questions[questionIndex];
+          return (
+            <ComprehensionTest
+              storyId={currentStoryId}
+              question={currentQuestion.question}
+              options={currentQuestion.options}
+              userResponse={userResponse}
+              onResponseChange={setUserResponse}
+              onSubmit={handleComprehensionSubmit}
+              currentStimulus={questionIndex}
+              totalStimuli={currentStory.questions.length}
+              onPlayAudio={handlePlayAudio}
+            />
+          );
+
+        default:
+          return null;
+      }
     };
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+            {/* Header */}
             <div className="bg-blue-600 text-white px-6 py-4">
               <h2 className="text-xl font-semibold">
-                {phase === 'pretest' ? 'Pre-test Assessment' :
-                  phase === 'training' ? `Training Session - Day ${trainingDay}` :
-                    'Post-test Assessment'}
+                {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test' : 'Post-test'}: {
+                  currentTestType === 'intelligibility' ? 'Speech Intelligibility' :
+                    currentTestType === 'effort' ? 'Listening Effort' :
+                      'Story Comprehension'
+                }
               </h2>
             </div>
 
+            {/* Content */}
             <div className="p-6">
-              {/* Render appropriate test component based on type */}
-              {stimulus.type === 'Int' && (
-                <IntelligibilityTest {...commonProps} />
-              )}
-
-              {stimulus.type === 'Eff' && (
-                <ListeningEffortTest
-                  {...commonProps}
-                  effortRating={rating}
-                  onEffortRatingChange={setRating}
-                />
-              )}
-
-              {stimulus.type === 'Comp' && (
-                <ComprehensionTest
-                  {...commonProps}
-                  options={stimulus.options}
-                />
-              )}
+              {renderTestComponent()}
             </div>
           </div>
         </div>
@@ -660,12 +739,12 @@ const App = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {phase === 'pretest' ? 'Pre-test Complete' :
+                {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test Complete' :
                   phase === 'training' ? `Training Day ${trainingDay} Complete` :
                     'Post-test Complete'}
               </h3>
               <p className="text-gray-600 mb-6">
-                {phase === 'pretest'
+                {phase === 'pretest' || phase === 'intelligibility'
                   ? "Excellent work! You've completed the pre-test. Return tomorrow to begin your training."
                   : phase === 'training'
                     ? trainingDay < 4
