@@ -60,3 +60,6 @@ db.getCollectionNames()
 db.responses.find()
 db.responses.find({userId: 'test_pretest'})
 db.responses.drop({userId: 'test_pretest'})
+
+# demographics
+db.demographics.find({userId: 'test_pretest'})

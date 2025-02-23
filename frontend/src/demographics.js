@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
@@ -66,21 +66,55 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    const checkExistingDemographics = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        // Get userId from somewhere - could be stored in localStorage during login
+        const userId = localStorage.getItem('userId');
+
+        const response = await fetch(`http://localhost:3000/api/demographics/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          // Demographics exist
+          setErrors({
+            general: 'Demographics already submitted'
+          });
+        }
+      } catch (error) {
+        console.error('Error checking demographics:', error);
+      }
+    };
+
+    checkExistingDemographics();
+  }, []);
+
   const validateForm = () => {
     const newErrors = {};
 
-    // Required field validation
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
-    if (!formData.ethnicity) newErrors.ethnicity = 'Ethnicity is required';
-    if (!formData.race) newErrors.race = 'Race is required';
-    if (!formData.sexAssignedAtBirth) newErrors.sexAssignedAtBirth = 'Sex assigned at birth is required';
-    if (!formData.isEnglishPrimary) newErrors.isEnglishPrimary = 'English primary language is required';
-    if (!formData.cognitiveImpairment) newErrors.cognitiveImpairment = 'Cognitive impairment status is required';
-    if (!formData.hearingLoss) newErrors.hearingLoss = 'Hearing loss status is required';
-    if (!formData.hearingAids) newErrors.hearingAids = 'Hearing aids status is required';
-    if (!formData.relationshipToPartner) newErrors.relationshipToPartner = 'Relationship to partner is required';
-    if (!formData.communicationFrequency) newErrors.communicationFrequency = 'Communication frequency is required';
-    if (!formData.communicationType) newErrors.communicationType = 'Communication type is required';
+    // Basic required field validation
+    Object.entries(formData).forEach(([key, value]) => {
+      if (!value && key !== 'relationshipOther') {
+        newErrors[key] = `${key.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`;
+      }
+    });
+
+    // Special validation for relationshipOther
+    if (formData.relationshipToPartner === 'Other' && !formData.relationshipOther) {
+      newErrors.relationshipOther = 'Please specify the relationship';
+    }
+
+    // Date validation
+    if (formData.dateOfBirth) {
+      const dob = new Date(formData.dateOfBirth);
+      if (dob > new Date()) {
+        newErrors.dateOfBirth = 'Date of birth cannot be in the future';
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -113,18 +147,27 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault();
     if (submitting) return;
 
-    setSubmitting(true);
-    console.log('Form submitted', formData); // Debug log
-
     try {
-      // Validate form
       if (!validateForm()) {
         setSubmitting(false);
         return;
       }
+
+      // Format the data to match schema
+      const formattedData = {
+        ...formData,
+        dateOfBirth: new Date(formData.dateOfBirth), // Convert to Date object
+        formCompletedBy: 'Participant',
+        // Add any missing required fields with defaults
+        researchData: {
+          hearingScreeningCompleted: false,
+          hearingThresholds: [],
+          notes: ''
+        }
+      };
 
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:3000/api/demographics', {
@@ -133,22 +176,21 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          formCompletedBy: 'Participant'
-        })
+        body: JSON.stringify(formattedData)
       });
 
-      if (response.ok) {
-        // Call the onSubmit callback
-        onSubmit();
-      } else {
-        const data = await response.json();
-        setErrors(data.errors.general);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit form');
       }
+
+      onSubmit();
     } catch (error) {
       console.error('Error submitting demographics:', error);
-      setErrors({ general: 'Failed to submit form. Please try again.' });
+      setErrors({
+        general: error.message
+      });
     } finally {
       setSubmitting(false);
     }

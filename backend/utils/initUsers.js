@@ -2,6 +2,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Demographics = require('../models/Demographics');
+const Response = require('../models/Response');
 
 const initializeUsers = async () => {
     try {

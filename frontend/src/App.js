@@ -59,27 +59,6 @@ const App = () => {
     });
   }, [phase, currentPhase, trainingDay, currentStimulus, showComplete]);
 
-  useEffect(() => {
-    const checkDemographics = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3000/api/demographics/status', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await response.json();
-        setIsDemographicsCompleted(data.completed);
-      } catch (error) {
-        console.error('Error checking demographics status:', error);
-      }
-    };
-
-    if (phase === 'selection') {
-      checkDemographics();
-    }
-  }, [phase]);
-
   // Sample stimuli data structure
   const stimuli = {
     pretest: {
