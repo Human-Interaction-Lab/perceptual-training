@@ -11,6 +11,7 @@ import IntelligibilityTest from './components/intelligibilityTest';
 import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
 import { COMPREHENSION_DATA } from './components/comprehensionData';
+import DemographicsForm from './demographics'
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -36,6 +37,7 @@ const App = () => {
   const [currentStoryId, setCurrentStoryId] = useState('Comp_01');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDemographicsCompleted, setIsDemographicsCompleted] = useState(false);
   // const [comprehensionResponses, setComprehensionResponses] = useState([]);
 
   // Reset states when phase changes
@@ -56,6 +58,27 @@ const App = () => {
       stimuliLength: getCurrentStimuli()?.length
     });
   }, [phase, currentPhase, trainingDay, currentStimulus, showComplete]);
+
+  useEffect(() => {
+    const checkDemographics = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/demographics/status', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        setIsDemographicsCompleted(data.completed);
+      } catch (error) {
+        console.error('Error checking demographics status:', error);
+      }
+    };
+
+    if (phase === 'selection') {
+      checkDemographics();
+    }
+  }, [phase]);
 
   // Sample stimuli data structure
   const stimuli = {
@@ -423,30 +446,48 @@ const App = () => {
 
 
   // handle phase select
-  const handlePhaseSelect = (selectedPhase, dayNumber = null) => {
-    // Determine which test type to start based on completed tests
-    let startingTestType = 'intelligibility';
-    if (completedTests[`${selectedPhase}_intelligibility`]) {
-      if (completedTests[`${selectedPhase}_effort`]) {
-        startingTestType = 'comprehension';
-      } else {
-        startingTestType = 'effort';
+  const handlePhaseSelect = (selectedPhase, testType, dayNumber = null) => {
+    // Special handling for demographics
+    if (selectedPhase === 'demographics') {
+      console.log('Setting phase to demographics');  // Debug log
+      setPhase('demographics');
+      return;
+    }
+
+    // For training phase
+    if (selectedPhase === 'training') {
+      setCurrentPhase(selectedPhase);
+      setCurrentTestType('training');
+      if (dayNumber) {
+        setTrainingDay(dayNumber);
       }
+      setPhase(selectedPhase);
+      return;
+    }
+
+    // For pretest and posttest phases
+    // Determine which test type to start based on completed tests
+    let startingTestType = testType || 'intelligibility';
+    if (testType !== 'intelligibility' && !completedTests[`${selectedPhase}_intelligibility`]) {
+      startingTestType = 'intelligibility';
+    } else if (testType !== 'effort' &&
+      completedTests[`${selectedPhase}_intelligibility`] &&
+      !completedTests[`${selectedPhase}_effort`]) {
+      startingTestType = 'effort';
+    } else if (testType !== 'comprehension' &&
+      completedTests[`${selectedPhase}_intelligibility`] &&
+      completedTests[`${selectedPhase}_effort`] &&
+      !completedTests[`${selectedPhase}_comprehension`]) {
+      startingTestType = 'comprehension';
     }
 
     setCurrentPhase(selectedPhase);
-    setCurrentTestType(selectedPhase === 'training' ? 'training' : startingTestType);
-
-    if (dayNumber) {
-      setTrainingDay(dayNumber);
-    }
-
+    setCurrentTestType(startingTestType);
     setPhase(selectedPhase);
     setCurrentStimulus(0);
     setUserResponse('');
     setRating(null);
   };
-
 
 
   const handlePlayAudio = async () => {
@@ -794,6 +835,15 @@ const App = () => {
         <>
           {phase === 'auth' ? (
             renderAuth()
+          ) : phase === 'demographics' ? (
+            <DemographicsForm
+              onSubmit={() => {
+                setIsDemographicsCompleted(true);
+                setPhase('selection');
+              }}
+              onBack={() => setPhase('selection')}
+            />
+
           ) : phase === 'selection' ? (
             <PhaseSelection
               currentPhase={currentPhase}
@@ -801,6 +851,7 @@ const App = () => {
               pretestDate={pretestDate}
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
+              isDemographicsCompleted={isDemographicsCompleted}
             />
 
           ) : !canProceedToday && currentPhase !== 'pretest' ? (

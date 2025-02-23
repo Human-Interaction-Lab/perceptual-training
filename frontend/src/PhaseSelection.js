@@ -101,6 +101,7 @@ const PhaseSelection = ({
   trainingDay,
   pretestDate,
   onSelectPhase,
+  isDemographicsCompleted,
   completedTests = {} // Track completed test types
 }) => {
   const testTypes = [
@@ -129,34 +130,43 @@ const PhaseSelection = ({
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
-    const test = testTypes.find(t => t.type === testType);
-
-    // If this is the first test, it's available if phase matches and test isn't completed
-    if (test.order === 1) {
+    // Special handling for demographics
+    if (testType === 'demographics') {
       return {
-        isAvailable: phase === currentPhase && !completedTests[`${phase}_${testType}`],
-        isCompleted: completedTests[`${phase}_${testType}`]
+        isAvailable: !isDemographicsCompleted,
+        isCompleted: isDemographicsCompleted
       };
     }
 
-    // For subsequent tests:
-    // 1. Get the previous test type
-    const previousTest = testTypes.find(t => t.order === test.order - 1);
+    // For training phase
+    if (phase === 'training') {
+      return {
+        isAvailable: currentPhase === 'training' && isDemographicsCompleted,
+        isCompleted: completedTests[`${phase}_${testType}`] || false
+      };
+    }
 
-    // 2. Check if previous test is completed
+    const test = testTypes.find(t => t.type === testType);
+    if (!test) return { isAvailable: false, isCompleted: false };
+
+    // First test in a phase
+    if (test.order === 1) {
+      return {
+        isAvailable: phase === currentPhase && isDemographicsCompleted && !completedTests[`${phase}_${testType}`],
+        isCompleted: completedTests[`${phase}_${testType}`] || false
+      };
+    }
+
+    // Subsequent tests
+    const previousTest = testTypes.find(t => t.order === test.order - 1);
     const previousTestCompleted = completedTests[`${phase}_${previousTest.type}`];
 
-    // 3. A test is available if:
-    //    - We're in the correct phase
-    //    - Previous test is completed
-    //    - This test isn't completed yet
-    const isAvailable = phase === currentPhase &&
-      previousTestCompleted &&
-      !completedTests[`${phase}_${testType}`];
-
     return {
-      isAvailable,
-      isCompleted: completedTests[`${phase}_${testType}`]
+      isAvailable: phase === currentPhase &&
+        isDemographicsCompleted &&
+        previousTestCompleted &&
+        !completedTests[`${phase}_${testType}`],
+      isCompleted: completedTests[`${phase}_${testType}`] || false
     };
   };
 
@@ -206,8 +216,26 @@ const PhaseSelection = ({
           )}
         </div>
 
+        {/* Demographics Card */}
+        {currentPhase === 'pretest' && !isDemographicsCompleted && (
+          <div className="mb-8">
+            <TestTypeCard
+              title="Demographics Questionnaire"
+              description="Please complete this questionnaire before starting the pre-test"
+              phase="demographics"
+              testType="demographics"
+              status={{
+                isAvailable: true,
+                isCompleted: isDemographicsCompleted
+              }}
+              onSelect={onSelectPhase}
+              date="Required now"
+            />
+          </div>
+        )}
+
         {/* Pretest Section */}
-        {currentPhase === 'pretest' && (
+        {currentPhase === 'pretest' && isDemographicsCompleted && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
             {/* <Headphones className="h-4 w-4" /> */}
