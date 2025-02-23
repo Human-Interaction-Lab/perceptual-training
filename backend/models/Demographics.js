@@ -19,34 +19,6 @@ const hearingThresholdSchema = new mongoose.Schema({
     }
 });
 
-// Define CPIB question schema
-const cpibQuestionSchema = new mongoose.Schema({
-    response: {
-        type: String,
-        required: true,
-        enum: ['0', '1', '2', '3'], // 0: Very much, 1: Quite a bit, 2: A little, 3: Not at all
-        validate: {
-            validator: function (v) {
-                return ['0', '1', '2', '3'].includes(v);
-            },
-            message: props => `${props.value} is not a valid CPIB response`
-        }
-    }
-});
-
-const cpibSchema = new mongoose.Schema({
-    talkingKnownPeople: cpibQuestionSchema,
-    communicatingQuickly: cpibQuestionSchema,
-    talkingUnknownPeople: cpibQuestionSchema,
-    communicatingCommunity: cpibQuestionSchema,
-    askingQuestions: cpibQuestionSchema,
-    communicatingSmallGroup: cpibQuestionSchema,
-    longConversation: cpibQuestionSchema,
-    detailedInformation: cpibQuestionSchema,
-    fastMovingConversation: cpibQuestionSchema,
-    persuadingOthers: cpibQuestionSchema
-});
-
 const demographicsSchema = new mongoose.Schema({
     userId: {
         type: String,
@@ -86,8 +58,9 @@ const demographicsSchema = new mongoose.Schema({
         enum: ['Male', 'Female', 'Prefer not to answer']
     },
     isEnglishPrimary: {
-        type: Boolean,
-        required: true
+        type: String,
+        required: true,
+        enum: ['Yes', 'No', 'Unknown']
     },
     cognitiveImpairment: {
         type: String,
@@ -100,8 +73,9 @@ const demographicsSchema = new mongoose.Schema({
         enum: ['Yes', 'No', 'Unknown']
     },
     hearingAids: {
-        type: Boolean,
-        required: true
+        type: String,
+        required: true,
+        enum: ['Yes', 'No', 'Unknown']
     },
     relationshipToPartner: {
         type: String,
@@ -135,15 +109,6 @@ const demographicsSchema = new mongoose.Schema({
             'Video chat'
         ]
     },
-    cpib: {
-        type: cpibSchema,
-        required: true
-    },
-    cpibTotalScore: {
-        type: Number,
-        min: 0,
-        max: 30
-    },
     formCompletedBy: {
         type: String,
         required: true,
@@ -166,34 +131,6 @@ const demographicsSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-});
-
-// Function to calculate CPIB total score
-demographicsSchema.methods.calculateCPIBScore = function () {
-    if (!this.cpib) return 0;
-
-    const responses = [
-        this.cpib.talkingKnownPeople,
-        this.cpib.communicatingQuickly,
-        this.cpib.talkingUnknownPeople,
-        this.cpib.communicatingCommunity,
-        this.cpib.askingQuestions,
-        this.cpib.communicatingSmallGroup,
-        this.cpib.longConversation,
-        this.cpib.detailedInformation,
-        this.cpib.fastMovingConversation,
-        this.cpib.persuadingOthers
-    ];
-
-    return responses.reduce((sum, question) => {
-        return sum + (question ? parseInt(question.response) : 0);
-    }, 0);
-};
-
-// Calculate CPIB total score before saving
-demographicsSchema.pre('save', function (next) {
-    this.cpibTotalScore = this.calculateCPIBScore();
-    next();
 });
 
 // Add indexes for common queries

@@ -840,6 +840,7 @@ const App = () => {
               onSubmit={() => {
                 setIsDemographicsCompleted(true);
                 setPhase('selection');
+                setCurrentPhase('pretest');
               }}
               onBack={() => setPhase('selection')}
             />

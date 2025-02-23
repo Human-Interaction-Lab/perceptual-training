@@ -52,26 +52,14 @@ describe('Demographics API', () => {
         ethnicity: 'Not Hispanic or Latino',
         race: 'White',
         sexAssignedAtBirth: 'Male',
-        isEnglishPrimary: true,
+        isEnglishPrimary: 'Yes',
         cognitiveImpairment: 'No',
         hearingLoss: 'No',
-        hearingAids: false,
+        hearingAids: 'No',
         relationshipToPartner: 'Spouse/Partner',
         communicationFrequency: 'Daily',
         communicationType: 'Face to face',
-        formCompletedBy: 'Participant',
-        cpib: {
-            talkingKnownPeople: { response: '3' },
-            communicatingQuickly: { response: '3' },
-            talkingUnknownPeople: { response: '3' },
-            communicatingCommunity: { response: '3' },
-            askingQuestions: { response: '3' },
-            communicatingSmallGroup: { response: '3' },
-            longConversation: { response: '3' },
-            detailedInformation: { response: '3' },
-            fastMovingConversation: { response: '3' },
-            persuadingOthers: { response: '3' }
-        }
+        formCompletedBy: 'Participant'
     };
 
     describe('POST /api/demographics', () => {
@@ -82,25 +70,7 @@ describe('Demographics API', () => {
                 .send(validDemographicsData);
 
             expect(response.status).toBe(201);
-            expect(response.body.cpibTotalScore).toBe(30);
             expect(response.body.userId).toBe(userId);
-        });
-
-        it('should reject invalid CPIB data', async () => {
-            const invalidData = {
-                ...validDemographicsData,
-                cpib: {
-                    ...validDemographicsData.cpib,
-                    talkingKnownPeople: { response: '5' }
-                }
-            };
-
-            const response = await request(app)
-                .post('/api/demographics')
-                .set('Authorization', `Bearer ${token}`)
-                .send(invalidData);
-
-            expect(response.status).toBe(400);
         });
     });
 
