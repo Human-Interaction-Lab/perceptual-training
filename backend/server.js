@@ -13,8 +13,8 @@ const User = require('./models/User');
 const Response = require('./models/Response');
 const Demographics = require('./models/Demographics');
 const boxService = require('./boxService');
-const initializeAdmin = require('./utils/initAdmin');
-const initializeUsers = require('./utils/initUsers');
+//const initializeAdmin = require('./utils/initAdmin');
+const { initializeUsers } = require('./utils/initUsers');
 
 let server;
 
@@ -666,7 +666,7 @@ app.get('/api/admin/export/all', async (req, res) => {
 
     // Create separate CSV files
     const usersCsv = json2csv(users, {
-      fields: ['userId', 'email', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
+      fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
     });
     const responsesCsv = json2csv(responses, {
       fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
@@ -832,21 +832,6 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
         relationshipOther: record.relationshipOther,
         communicationFrequency: record.communicationFrequency,
         communicationType: record.communicationType,
-
-        // CPIB Individual Responses
-        cpib_talkingKnownPeople: record.cpib?.talkingKnownPeople?.response,
-        cpib_communicatingQuickly: record.cpib?.communicatingQuickly?.response,
-        cpib_talkingUnknownPeople: record.cpib?.talkingUnknownPeople?.response,
-        cpib_communicatingCommunity: record.cpib?.communicatingCommunity?.response,
-        cpib_askingQuestions: record.cpib?.askingQuestions?.response,
-        cpib_communicatingSmallGroup: record.cpib?.communicatingSmallGroup?.response,
-        cpib_longConversation: record.cpib?.longConversation?.response,
-        cpib_detailedInformation: record.cpib?.detailedInformation?.response,
-        cpib_fastMovingConversation: record.cpib?.fastMovingConversation?.response,
-        cpib_persuadingOthers: record.cpib?.persuadingOthers?.response,
-
-        // CPIB Total Score
-        cpibTotalScore: record.cpibTotalScore,
 
         formCompletedBy: record.formCompletedBy,
         submitted: record.submitted,
