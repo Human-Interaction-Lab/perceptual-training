@@ -29,7 +29,7 @@ const runBoxTests = process.env.BOX_TEST === 'true';
 
 // Test configuration
 const TEST_CONFIG = {
-    userId: 'Grace Norman',
+    speaker: 'Grace Norman',
     testFiles: {
         comprehension: 'Grace Norman_Comp_01_01.wav',
         effort: 'Grace Norman_EFF01.wav',
@@ -90,7 +90,7 @@ describe('Box Integration Tests', () => {
         it('should connect to Box and get user folder', async () => {
             if (!runBoxTests) return;
 
-            const folder = await BoxService.getUserFolder(TEST_CONFIG.userId);
+            const folder = await BoxService.getUserFolder(TEST_CONFIG.speaker);
             expect(folder).toBeDefined();
             expect(folder.id).toBeDefined();
             console.log('Successfully connected to Box and found user folder:', folder.id);
@@ -99,7 +99,7 @@ describe('Box Integration Tests', () => {
         it('should list files in user folder', async () => {
             if (!runBoxTests) return;
 
-            const files = await BoxService.listUserFiles(TEST_CONFIG.userId);
+            const files = await BoxService.listUserFiles(TEST_CONFIG.speaker);
             expect(Array.isArray(files)).toBe(true);
             expect(files.length).toBeGreaterThan(0);
             console.log('Found files:', files);
@@ -110,7 +110,7 @@ describe('Box Integration Tests', () => {
         it('should stream and save comprehension file', async () => {
             if (!runBoxTests) return;
 
-            const stream = await BoxService.getTestFile(TEST_CONFIG.userId, 'COMPREHENSION', 1, 1);
+            const stream = await BoxService.getTestFile(TEST_CONFIG.speaker, 'COMPREHENSION', 1, 1);
             await streamToFile(stream, TEST_CONFIG.testFiles.comprehension);
 
             const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.comprehension);
@@ -124,7 +124,7 @@ describe('Box Integration Tests', () => {
         it('should stream and save effort file', async () => {
             if (!runBoxTests) return;
 
-            const stream = await BoxService.getTestFile(TEST_CONFIG.userId, 'EFFORT', null, 1);
+            const stream = await BoxService.getTestFile(TEST_CONFIG.speaker, 'EFFORT', null, 1);
             await streamToFile(stream, TEST_CONFIG.testFiles.effort);
 
             const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.effort);
@@ -138,7 +138,7 @@ describe('Box Integration Tests', () => {
         it('should stream and save intelligibility file', async () => {
             if (!runBoxTests) return;
 
-            const stream = await BoxService.getTestFile(TEST_CONFIG.userId, 'INTELLIGIBILITY', null, 1);
+            const stream = await BoxService.getTestFile(TEST_CONFIG.speaker, 'INTELLIGIBILITY', null, 1);
             await streamToFile(stream, TEST_CONFIG.testFiles.intelligibility);
 
             const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.intelligibility);
@@ -152,7 +152,7 @@ describe('Box Integration Tests', () => {
         it('should stream and save training file', async () => {
             if (!runBoxTests) return;
 
-            const stream = await BoxService.getTrainingFile(TEST_CONFIG.userId, 1, 1);
+            const stream = await BoxService.getTrainingFile(TEST_CONFIG.speaker, 1, 1);
             await streamToFile(stream, TEST_CONFIG.testFiles.training);
 
             const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.training);

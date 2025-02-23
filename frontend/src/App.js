@@ -333,6 +333,7 @@ const App = () => {
     }
   };
 
+  // validate the responses
   const validateResponse = () => {
     switch (currentTestType) {
       case 'intelligibility':

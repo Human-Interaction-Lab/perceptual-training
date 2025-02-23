@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, AlignJustify, AlignVerticalJustifyCenterIcon, AlignCenterIcon } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
 import { formatDate } from './lib/utils';
 //import { Headphones } from "lucide-react";
 
@@ -106,23 +106,23 @@ const PhaseSelection = ({
   const testTypes = [
     {
       id: 'intelligibility',
-      title: 'Intelligibility Test',
+      title: 'Intelligibility',
       description: 'Type the complete phrase you hear',
-      type: 'Int',
+      type: 'intelligibility',
       order: 1
     },
     {
       id: 'effort',
-      title: 'Listening Effort Test',
+      title: 'Listening Effort',
       description: 'Type the final word and rate your listening effort',
-      type: 'Eff',
+      type: 'effort',
       order: 2
     },
     {
       id: 'comprehension',
-      title: 'Comprehension Test',
+      title: 'Comprehension',
       description: 'Listen to stories and answer questions',
-      type: 'Comp',
+      type: 'comprehension',
       order: 3
     }
   ];

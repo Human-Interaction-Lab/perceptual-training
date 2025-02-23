@@ -23,11 +23,11 @@ class MockBoxService {
         };
     }
 
-    async getUserFolder(userId) {
-        return { id: 'folder123', name: userId };
+    async getUserFolder(speaker) {
+        return { id: 'folder123', name: speaker };
     }
 
-    async getFileStream(userId, filePattern) {
+    async getFileStream(speaker, filePattern) {
         const { Readable } = require('stream');
         return new Readable({
             read() {
@@ -37,19 +37,19 @@ class MockBoxService {
         });
     }
 
-    async getTestFile(userId, testType, version, sentence) {
-        return this.getFileStream(userId, 'mock_file.wav');
+    async getTestFile(speaker, testType, version, sentence) {
+        return this.getFileStream(speaker, 'mock_file.wav');
     }
 
-    async getTrainingFile(userId, day, sentence) {
-        return this.getFileStream(userId, 'mock_training.wav');
+    async getTrainingFile(speaker, day, sentence) {
+        return this.getFileStream(speaker, 'mock_training.wav');
     }
 
-    async fileExists(userId, filename) {
+    async fileExists(speaker, filename) {
         return true;
     }
 
-    async listUserFiles(userId) {
+    async listUserFiles(speaker) {
         return [
             'GraceNorman_Comp_01_01.wav',
             'GraceNorman_Comp_01_02.wav',
@@ -110,7 +110,8 @@ const BoxService = require('../../boxService');
 const { app } = require('../../server');
 
 describe('Box Service Integration Tests - Grace Norman', () => {
-    const userId = 'GraceNorman';
+    const userId = 'testuser123';
+    const speaker = 'GraceNorman';
     let token;
     let testUser;
 
@@ -121,7 +122,8 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             password: 'password123',
             currentPhase: 'pretest',
             pretestDate: new Date(),
-            trainingDay: 1
+            trainingDay: 1,
+            speaker: speaker
         });
         await testUser.save();
 

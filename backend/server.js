@@ -156,7 +156,11 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res) => {
   try {
     const { phase, testType, sentence } = req.params;
-    const userId = req.user.userId;
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const speaker = user.speaker;
 
     // Validate phase
     if (phase !== 'pretest' && phase !== 'posttest') {
@@ -171,10 +175,10 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
       });
     }
 
-    // Check if file exists
+    // Check if file exists using speaker instead of userId
     const prefix = phase === 'pretest' ? 'Pre' : 'Post';
     const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
-    const exists = await boxService.fileExists(userId, pattern);
+    const exists = await boxService.fileExists(speaker, pattern);
 
     if (!exists) {
       return res.status(404).json({
@@ -182,8 +186,8 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
       });
     }
 
-    // Get and stream the file
-    const fileStream = await boxService.getTestFile(userId, phase, testType, sentence);
+    // Get and stream the file using speaker
+    const fileStream = await boxService.getTestFile(speaker, phase, testType, sentence);
 
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Cache-Control', 'no-cache');
@@ -198,18 +202,22 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
 app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
   try {
     const { day, sentence } = req.params;
-    const userId = req.user.userId;
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const speaker = user.speaker;
 
     const pattern = `Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
 
-    const exists = await boxService.fileExists(userId, pattern);
+    const exists = await boxService.fileExists(speaker, pattern);
     if (!exists) {
       return res.status(404).json({
         error: `Training file for day ${day}, sentence ${sentence} not found`
       });
     }
 
-    const fileStream = await boxService.getTrainingFile(userId, day, sentence);
+    const fileStream = await boxService.getTrainingFile(speaker, day, sentence);
 
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Cache-Control', 'no-cache');

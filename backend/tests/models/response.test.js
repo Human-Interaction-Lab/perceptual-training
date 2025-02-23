@@ -14,7 +14,8 @@ describe('Response Model Test', () => {
         testUser = await User.create({
             userId: 'testuser',
             email: 'test@example.com',
-            password: 'password123'
+            password: 'password123',
+            speaker: 'testSpeaker'
         });
     });
 
@@ -185,6 +186,7 @@ describe('Response Model Test', () => {
                 userId: 'lateuser',
                 email: 'late@test.com',
                 password: 'password123',
+                speaker: 'testSpeaker',
                 currentPhase: 'training',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
@@ -217,6 +219,7 @@ describe('Response Model Test', () => {
                 email: 'catchup@test.com',
                 password: 'password123',
                 currentPhase: 'training',
+                speaker: 'testSpeaker',
                 trainingDay: 2,
                 pretestDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) // 4 days ago
             });

@@ -23,7 +23,8 @@ describe('Admin API', () => {
             userId: 'adminuser',
             email: 'admin@test.com',
             password: 'adminpass123',
-            isAdmin: true
+            isAdmin: true,
+            speaker: 'Grace Norman'
         });
         await adminUser.save();
 
@@ -32,7 +33,8 @@ describe('Admin API', () => {
             userId: 'regularuser',
             email: 'user@test.com',
             password: 'userpass123',
-            isAdmin: false
+            isAdmin: false,
+            speaker: 'Grace Norman'
         });
         await testUser.save();
 

@@ -31,7 +31,8 @@ describe('Demographics API', () => {
         const user = await User.create({
             userId: uniqueId,
             email: `${uniqueId}@test.com`,
-            password: 'password123'
+            password: 'password123',
+            speaker: "testSpeaker"
         });
 
         userId = user.userId;

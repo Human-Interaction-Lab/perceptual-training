@@ -8,7 +8,8 @@ describe('User Model Test', () => {
         userId: 'testuser1',
         email: 'test@example.com',
         password: 'password123',
-        currentPhase: 'pretest'
+        currentPhase: 'pretest',
+        speaker: 'Grace Norman'
     };
 
     beforeEach(async () => {
