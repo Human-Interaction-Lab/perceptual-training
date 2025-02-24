@@ -357,7 +357,7 @@ const App = () => {
         break;
 
       case 'comprehension':
-        if (userResponse === null) {
+        if (!userResponse.trim()) {
           alert('Please select an answer.');
           return false;
         }

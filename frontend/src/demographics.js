@@ -3,7 +3,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
-
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 
 const SelectField = ({ label, name, value, onChange, options, error }) => (
   <div className="space-y-2">
@@ -46,6 +46,7 @@ const RadioGroup = ({ label, name, value, onChange, options, error }) => (
     {error && <p className="text-red-500 text-sm">{error}</p>}
   </div>
 );
+
 
 const DemographicsForm = ({ onSubmit, onBack }) => {
   const [formData, setFormData] = useState({
@@ -201,8 +202,13 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       <div className="max-w-3xl mx-auto">
         <Card>
           <CardHeader>
-            <h2 className="text-2xl font-bold text-gray-900">Demographics Questionnaire</h2>
-            <p className="text-gray-600">Please complete all fields to continue with the study</p>
+            <div className="flex items-center mb-6">
+              <div className="justify-start">
+                <h2 className="text-2xl font-bold text-gray-900">Demographics Questionnaire</h2>
+                <p className="text-gray-600 mt-1">Please respond to each question below.</p>
+              </div>
+            </div>
+
             {errors.general && (
               <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                 {errors.general}
@@ -213,7 +219,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
               {/* Basic Demographics */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
                   type="date"
@@ -369,20 +375,34 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
             </CardContent>
 
             <CardFooter className="flex justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-                disabled={submitting}
-              >
-                Back
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting}
-              >
-                {submitting ? 'Submitting...' : 'Submit'}
-              </Button>
+              <div className="w-full flex justify-end space-x-4">
+                <Button
+                  variant="ghost"
+                  disabled={submitting}
+                  onClick={onBack}
+                  className="mr-4 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-8"
+                >
+                  {submitting ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin mr-2">●</span>
+                      Submitting...
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Submit
+                    </span>
+                  )}
+                </Button>
+              </div>
             </CardFooter>
           </form>
         </Card>
