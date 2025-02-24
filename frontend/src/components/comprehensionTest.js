@@ -27,7 +27,28 @@ const ComprehensionTest = ({
     return (
         <Card className="shadow-lg border-gray-200">
             <CardContent className="p-6 space-y-6">
-                {/* Same header and progress code as before... */}
+                {/* Header with Progress and Story ID */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <BookOpen className="h-5 w-5 text-blue-600" />
+                            <span className="text-lg font-medium text-gray-900">
+                                Story {storyId}
+                            </span>
+                        </div>
+                        <span className="text-blue-600 font-medium">
+                            {Math.round(progress)}% Complete
+                        </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
 
                 {/* Audio Control Section */}
                 <div className="pt-2">
@@ -95,7 +116,16 @@ const ComprehensionTest = ({
                     </Button>
                 </div>
 
-                {/* Instructions panel remains the same... */}
+                {/* Instructions */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                        <li>1. Listen to the story segment carefully</li>
+                        <li>2. Read the question above</li>
+                        <li>3. Select the best answer from the options provided</li>
+                        <li>4. Click "Submit Answer" when you're ready</li>
+                    </ul>
+                </div>
             </CardContent >
         </Card >
     );
