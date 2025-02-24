@@ -320,18 +320,37 @@ const App = () => {
         }),
       });
 
-      // Prevent multiple submissions of last stimulus
-      if (currentStimulus === 19) {
-        // Disable the submit button or add loading state
-        setIsSubmitting(true); // Add this state variable
+      // Move to next question or complete the test
+      if (questionIndex < currentStory.questions.length - 1) {
+        // Move to next question in current story
+        setQuestionIndex(prevIndex => prevIndex + 1);
+      } else if (currentStoryId === 'Comp_01') {
+        // Move to second story
+        setCurrentStoryId('Comp_02');
+        setQuestionIndex(0);
+      } else {
+        // Complete the comprehension test
+        setCompletedTests(prev => ({
+          ...prev,
+          [`${phase}_comprehension`]: true
+        }));
+        setShowComplete(true);
+
+        // Reset states after delay
+        setTimeout(() => {
+          setPhase('selection');
+          setShowComplete(false);
+          setCurrentStoryId('Comp_01');
+          setQuestionIndex(0);
+          setUserResponse('');
+        }, 2000);
       }
 
-      handleResponseSuccess();
+      // Reset user response for next question
+      setUserResponse('');
     } catch (error) {
       console.error('Error submitting response:', error);
       alert('Failed to submit response. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -357,7 +376,7 @@ const App = () => {
         break;
 
       case 'comprehension':
-        if (!userResponse.trim()) {
+        if (userResponse === null) {
           alert('Please select an answer.');
           return false;
         }
