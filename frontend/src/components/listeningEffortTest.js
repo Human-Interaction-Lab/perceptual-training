@@ -67,7 +67,7 @@ const ListeningEffortTest = ({
                             htmlFor="finalWordInput"
                             className="text-sm font-medium text-gray-700"
                         >
-                            Type the final word you heard:
+                            Type the <strong>final word</strong>you heard:
                         </Label>
                         <Input
                             id="finalWordInput"
@@ -83,7 +83,7 @@ const ListeningEffortTest = ({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <Label className="text-sm font-medium text-gray-700">
-                                Rate your listening effort:
+                                How easy is this speech to understand?
                             </Label>
                             <span className="text-sm font-medium text-blue-600">
                                 {rating || 0} - {getRatingLabel(rating || 0)}
