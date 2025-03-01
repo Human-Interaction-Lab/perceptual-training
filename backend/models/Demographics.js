@@ -115,10 +115,18 @@ const demographicsSchema = new mongoose.Schema({
         enum: ['Participant', 'Research Personnel']
     },
     researchData: {
-        hearingScreeningCompleted: {
-            type: Boolean,
+        hearingTestType: {
+            type: String,
+            enum: ['Full Threshold Testing', 'Hearing Screened', 'Hearing Not Tested'],
             required: function () {
                 return this.formCompletedBy === 'Research Personnel';
+            }
+        },
+        hearingScreenResult: {
+            type: String,
+            enum: ['Pass', 'Fail'],
+            required: function () {
+                return this.researchData?.hearingTestType === 'Hearing Screened';
             }
         },
         hearingThresholds: [hearingThresholdSchema],
