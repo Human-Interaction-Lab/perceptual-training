@@ -7,30 +7,30 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import HearingAssessment from "./hearingAssessment";
 
 const SelectField = ({ label, name, value, onChange, options, error }) => (
-  <div className="space-y-2">
-    <Label htmlFor={name}>{label}</Label>
+  <div className="space-y-2 mb-6">
+    <Label htmlFor={name} className="text-base">{label}</Label>
     <select
       id={name}
       name={name}
       value={value}
       onChange={onChange}
-      className={`w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'} p-2`}
+      className={`w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'} p-2 mt-1`}
     >
       <option value="">Select an option</option>
       {options.map(option => (
         <option key={option} value={option}>{option}</option>
       ))}
     </select>
-    {error && <p className="text-red-500 text-sm">{error}</p>}
+    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
   </div>
 );
 
 const RadioGroup = ({ label, name, value, onChange, options, error }) => (
-  <div className="space-y-2">
-    <Label>{label}</Label>
-    <div className="space-y-2">
+  <div className="space-y-3 mb-6">
+    <Label className="text-base">{label}</Label>
+    <div className="space-y-3 pl-1">
       {options.map(option => (
-        <div key={option} className="flex items-center space-x-2">
+        <div key={option} className="flex items-center space-x-3">
           <input
             type="radio"
             id={`${name}-${option}`}
@@ -38,13 +38,13 @@ const RadioGroup = ({ label, name, value, onChange, options, error }) => (
             value={option}
             checked={value === option}
             onChange={(e) => onChange(e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value)}
-            className="form-radio"
+            className="form-radio h-4 w-4 text-blue-600"
           />
-          <Label htmlFor={`${name}-${option}`}>{option}</Label>
+          <Label htmlFor={`${name}-${option}`} className="font-normal">{option}</Label>
         </div>
       ))}
     </div>
-    {error && <p className="text-red-500 text-sm">{error}</p>}
+    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
   </div>
 );
 
@@ -73,7 +73,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [isResearchPersonnel, setIsResearchPersonnel] = useState(false);
+  const [isResearchPersonnel, setIsResearchPersonnel] = useState(true); // Set to true since default is 'Research Personnel'
 
   useEffect(() => {
     const checkExistingDemographics = async () => {
@@ -155,7 +155,6 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         hearingScreenResult: 'Hearing screen result is required'
       };
     }
-
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0 &&
@@ -241,192 +240,208 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg">
+          <CardHeader className="border-b border-gray-100 pb-6">
             <h2 className="text-2xl font-bold text-gray-900">Background Information</h2>
-            <p className="text-gray-600">Please complete all fields to continue with the study</p>
+            <p className="text-gray-600 mt-2">Please complete all fields to continue with the study</p>
             {errors.general && (
-              <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              <div className="mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
                 {errors.general}
               </div>
             )}
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-2 pt-6">
               {/* Form Completion Type */}
-              <RadioGroup
-                label="Form Completed By"
-                name="formCompletedBy"
-                value={formData.formCompletedBy}
-                onChange={(value) => {
-                  handleRadioChange('formCompletedBy', value);
-                  setIsResearchPersonnel(value === 'Research Personnel');
-                }}
-                options={['Participant', 'Research Personnel']}
-                error={errors.formCompletedBy}
-              />
-
-              {/* Basic Demographics */}
-              <div>
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  type="date"
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleChange}
-                  max={new Date().toISOString().split('T')[0]}
-                  className={errors.dateOfBirth ? 'border-red-500' : ''}
+              <div className="bg-gray-50 p-5 rounded-lg mb-8">
+                <RadioGroup
+                  label="Form Completed By"
+                  name="formCompletedBy"
+                  value={formData.formCompletedBy}
+                  onChange={(value) => {
+                    handleRadioChange('formCompletedBy', value);
+                    setIsResearchPersonnel(value === 'Research Personnel');
+                  }}
+                  options={['Participant', 'Research Personnel']}
+                  error={errors.formCompletedBy}
                 />
-                {errors.dateOfBirth && (
-                  <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
-                )}
               </div>
 
-              <SelectField
-                label="Ethnicity"
-                name="ethnicity"
-                value={formData.ethnicity}
-                onChange={handleChange}
-                options={[
-                  'Hispanic or Latino',
-                  'Not Hispanic or Latino',
-                  'Prefer not to answer'
-                ]}
-                error={errors.ethnicity}
-              />
+              {/* Basic Demographics Section */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-6">Basic Information</h3>
 
-              <SelectField
-                label="Race"
-                name="race"
-                value={formData.race}
-                onChange={handleChange}
-                options={[
-                  'American Indian or Alaska Native',
-                  'Asian',
-                  'Black or African American',
-                  'Native Hawaiian or Other Pacific Islander',
-                  'White',
-                  'Multiple races',
-                  'Prefer not to answer'
-                ]}
-                error={errors.race}
-              />
-
-              <SelectField
-                label="Sex Assigned at Birth"
-                name="sexAssignedAtBirth"
-                value={formData.sexAssignedAtBirth}
-                onChange={handleChange}
-                options={[
-                  'Male',
-                  'Female',
-                  'Prefer not to answer'
-                ]}
-                error={errors.sexAssignedAtBirth}
-              />
-
-              {/* Language and Health Section */}
-              <RadioGroup
-                label="Is English your primary language?"
-                name="isEnglishPrimary"
-                value={formData.isEnglishPrimary}
-                onChange={(value) => handleRadioChange('isEnglishPrimary', value)}
-                options={['Yes', 'No', 'Unknown']}
-                error={errors.isEnglishPrimary}
-              />
-
-              <SelectField
-                label="Do you have any cognitive impairment?"
-                name="cognitiveImpairment"
-                value={formData.cognitiveImpairment}
-                onChange={handleChange}
-                options={['Yes', 'No', 'Unknown']}
-                error={errors.cognitiveImpairment}
-              />
-
-              <SelectField
-                label="Do you have hearing loss?"
-                name="hearingLoss"
-                value={formData.hearingLoss}
-                onChange={handleChange}
-                options={['Yes', 'No', 'Unknown']}
-                error={errors.hearingLoss}
-              />
-
-              <RadioGroup
-                label="Do you use hearing aids?"
-                name="hearingAids"
-                value={formData.hearingAids}
-                onChange={(value) => handleRadioChange('hearingAids', value)}
-                options={['Yes', 'No', 'Unknown']}
-                error={errors.hearingAids}
-              />
-
-              {/* Relationship Section */}
-              <SelectField
-                label="What is your relationship to your communication partner?"
-                name="relationshipToPartner"
-                value={formData.relationshipToPartner}
-                onChange={handleChange}
-                options={[
-                  'Spouse/Partner',
-                  'Child',
-                  'Sibling',
-                  'Friend',
-                  'Other'
-                ]}
-                error={errors.relationshipToPartner}
-              />
-
-              {formData.relationshipToPartner === 'Other' && (
-                <div>
-                  <Label htmlFor="relationshipOther">Please specify relationship</Label>
+                <div className="mb-6">
+                  <Label htmlFor="dateOfBirth" className="text-base">Date of Birth</Label>
                   <Input
-                    type="text"
-                    id="relationshipOther"
-                    name="relationshipOther"
-                    value={formData.relationshipOther || ''}
+                    type="date"
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
                     onChange={handleChange}
-                    className={errors.relationshipOther ? 'border-red-500' : ''}
+                    max={new Date().toISOString().split('T')[0]}
+                    className={`mt-1 ${errors.dateOfBirth ? 'border-red-500' : ''}`}
                   />
-                  {errors.relationshipOther && (
-                    <p className="text-red-500 text-sm mt-1">{errors.relationshipOther}</p>
+                  {errors.dateOfBirth && (
+                    <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
                   )}
                 </div>
-              )}
 
-              <SelectField
-                label="How often do you communicate with your partner?"
-                name="communicationFrequency"
-                value={formData.communicationFrequency}
-                onChange={handleChange}
-                options={[
-                  'Daily',
-                  'Several Days Per Week',
-                  'Weekly',
-                  'Monthly',
-                  'Less than Monthly'
-                ]}
-                error={errors.communicationFrequency}
-              />
+                <SelectField
+                  label="Ethnicity"
+                  name="ethnicity"
+                  value={formData.ethnicity}
+                  onChange={handleChange}
+                  options={[
+                    'Hispanic or Latino',
+                    'Not Hispanic or Latino',
+                    'Prefer not to answer'
+                  ]}
+                  error={errors.ethnicity}
+                />
 
-              <SelectField
-                label="What is your primary mode of communication?"
-                name="communicationType"
-                value={formData.communicationType}
-                onChange={handleChange}
-                options={[
-                  'Face to face',
-                  'Phone (audio only)',
-                  'Video chat'
-                ]}
-                error={errors.communicationType}
-              />
+                <SelectField
+                  label="Race"
+                  name="race"
+                  value={formData.race}
+                  onChange={handleChange}
+                  options={[
+                    'American Indian or Alaska Native',
+                    'Asian',
+                    'Black or African American',
+                    'Native Hawaiian or Other Pacific Islander',
+                    'White',
+                    'Multiple races',
+                    'Prefer not to answer'
+                  ]}
+                  error={errors.race}
+                />
+
+                <SelectField
+                  label="Sex Assigned at Birth"
+                  name="sexAssignedAtBirth"
+                  value={formData.sexAssignedAtBirth}
+                  onChange={handleChange}
+                  options={[
+                    'Male',
+                    'Female',
+                    'Prefer not to answer'
+                  ]}
+                  error={errors.sexAssignedAtBirth}
+                />
+              </div>
+
+              {/* Language and Health Section */}
+              <div className="border-t border-gray-200 pt-8 mb-8">
+                <h3 className="text-xl font-semibold mb-6">Language & Health</h3>
+
+                <RadioGroup
+                  label="Is English your primary language?"
+                  name="isEnglishPrimary"
+                  value={formData.isEnglishPrimary}
+                  onChange={(value) => handleRadioChange('isEnglishPrimary', value)}
+                  options={['Yes', 'No', 'Unknown']}
+                  error={errors.isEnglishPrimary}
+                />
+
+                <SelectField
+                  label="Do you have any cognitive impairment?"
+                  name="cognitiveImpairment"
+                  value={formData.cognitiveImpairment}
+                  onChange={handleChange}
+                  options={['Yes', 'No', 'Unknown']}
+                  error={errors.cognitiveImpairment}
+                />
+
+              </div>
+
+              {/* Relationship Section */}
+              <div className="border-t border-gray-200 pt-8 mb-8">
+                <h3 className="text-xl font-semibold mb-6">Communication</h3>
+
+                <SelectField
+                  label="What is your relationship to your communication partner?"
+                  name="relationshipToPartner"
+                  value={formData.relationshipToPartner}
+                  onChange={handleChange}
+                  options={[
+                    'Spouse/Partner',
+                    'Child',
+                    'Sibling',
+                    'Friend',
+                    'Other'
+                  ]}
+                  error={errors.relationshipToPartner}
+                />
+
+                {formData.relationshipToPartner === 'Other' && (
+                  <div className="mb-6">
+                    <Label htmlFor="relationshipOther" className="text-base">Please specify relationship</Label>
+                    <Input
+                      type="text"
+                      id="relationshipOther"
+                      name="relationshipOther"
+                      value={formData.relationshipOther || ''}
+                      onChange={handleChange}
+                      className={`mt-1 ${errors.relationshipOther ? 'border-red-500' : ''}`}
+                    />
+                    {errors.relationshipOther && (
+                      <p className="text-red-500 text-sm mt-1">{errors.relationshipOther}</p>
+                    )}
+                  </div>
+                )}
+
+                <SelectField
+                  label="How often do you communicate with your partner?"
+                  name="communicationFrequency"
+                  value={formData.communicationFrequency}
+                  onChange={handleChange}
+                  options={[
+                    'Daily',
+                    'Several Days Per Week',
+                    'Weekly',
+                    'Monthly',
+                    'Less than Monthly'
+                  ]}
+                  error={errors.communicationFrequency}
+                />
+
+                <SelectField
+                  label="What is your primary mode of communication?"
+                  name="communicationType"
+                  value={formData.communicationType}
+                  onChange={handleChange}
+                  options={[
+                    'Face to face',
+                    'Phone (audio only)',
+                    'Video chat'
+                  ]}
+                  error={errors.communicationType}
+                />
+              </div>
 
               {/* Hearing Assessment Section */}
-              <div>
+              <div className="border-t border-gray-200 pt-8 mb-8">
+                <h3 className="text-xl font-semibold mb-6">Hearing</h3>
+                <SelectField
+                  label="Do you have hearing loss?"
+                  name="hearingLoss"
+                  value={formData.hearingLoss}
+                  onChange={handleChange}
+                  options={['Yes', 'No', 'Unknown']}
+                  error={errors.hearingLoss}
+                />
+
+                <RadioGroup
+                  label="Do you use hearing aids?"
+                  name="hearingAids"
+                  value={formData.hearingAids}
+                  onChange={(value) => handleRadioChange('hearingAids', value)}
+                  options={['Yes', 'No', 'Unknown']}
+                  error={errors.hearingAids}
+                />
+
                 <HearingAssessment
                   formData={formData}
                   setFormData={setFormData}
@@ -435,21 +450,21 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
               </div>
             </CardContent>
 
-            <CardFooter className="flex justify-between">
+            <CardFooter className="border-t border-gray-100 pt-6">
               <div className="w-full flex justify-end space-x-4">
                 <Button
-                  variant="ghost"
-                  disabled={submitting}
+                  type="button"
+                  variant="outline"
                   onClick={onBack}
-                  className="mr-4 text-gray-600 hover:text-gray-900"
+                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="px-8"
+                  className="bg-blue-600 hover:bg-blue-700 px-8"
                 >
                   {submitting ? (
                     <span className="flex items-center">
@@ -468,7 +483,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
           </form>
         </Card>
       </div>
-    </div >
+    </div>
   );
 };
 

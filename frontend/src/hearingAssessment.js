@@ -70,16 +70,16 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 border-gray-200 mt-8">
 
-      <div>
-        <Label htmlFor="hearingTestType">Hearing Test Type:</Label>
+      <div className="mb-6">
+        <Label htmlFor="hearingTestType" className="text-base">Hearing Test Type:</Label>
         <select
           id="hearingTestType"
           name="hearingTestType"
           value={hearingTestType}
           onChange={handleChange}
-          className="w-full rounded-md border border-gray-300 p-2 mt-1"
+          className="w-full rounded-md border border-gray-300 p-2 mt-2"
         >
           <option value="">Select Test Type</option>
           <option value="Full Threshold Testing">Full Threshold Testing</option>
@@ -87,42 +87,42 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
           <option value="Hearing Not Tested">Hearing Not Tested</option>
         </select>
         {errors?.researchData?.hearingTestType && (
-          <p className="text-red-500 text-sm">{errors.researchData.hearingTestType}</p>
+          <p className="text-red-500 text-sm mt-1">{errors.researchData.hearingTestType}</p>
         )}
       </div>
 
       {hearingTestType === 'Hearing Screened' && (
-        <div>
-          <Label htmlFor="hearingScreenResult">Hearing Screen Result:</Label>
+        <div className="mb-6">
+          <Label htmlFor="hearingScreenResult" className="text-base">Hearing Screen Result:</Label>
           <select
             id="hearingScreenResult"
             name="hearingScreenResult"
             value={formData.researchData?.hearingScreenResult || ''}
             onChange={handleChange}
-            className="w-full rounded-md border border-gray-300 p-2 mt-1"
+            className="w-full rounded-md border border-gray-300 p-2 mt-2"
           >
             <option value="">Select Result</option>
             <option value="Pass">Pass</option>
             <option value="Fail">Fail</option>
           </select>
           {errors?.researchData?.hearingScreenResult && (
-            <p className="text-red-500 text-sm">{errors.researchData.hearingScreenResult}</p>
+            <p className="text-red-500 text-sm mt-1">{errors.researchData.hearingScreenResult}</p>
           )}
         </div>
       )}
 
       {hearingTestType === 'Full Threshold Testing' && (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+        <div className="space-y-8">
+          <p className="text-base text-gray-600 italic">
             Enter hearing thresholds in dB HL. Leave blank if not tested.
           </p>
 
-          <div>
-            <h4 className="text-lg font-medium mb-2">Right Ear</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-6 rounded-lg mb-6">
+            <h4 className="text-lg font-medium mb-4">Right Ear</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[250, 500, 1000, 2000, 4000, 8000].map(freq => (
                 <div key={`right-${freq}`}>
-                  <Label htmlFor={`threshold_${freq}_rightEar`}>{freq} Hz</Label>
+                  <Label htmlFor={`threshold_${freq}_rightEar`} className="font-medium">{freq} Hz</Label>
                   <Input
                     id={`threshold_${freq}_rightEar`}
                     name={`threshold_${freq}_rightEar`}
@@ -132,18 +132,19 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
                     max="120"
                     value={getThresholdValue(freq, 'rightEar')}
                     onChange={handleChange}
+                    className="mt-1"
                   />
                 </div>
               ))}
             </div>
           </div>
 
-          <div>
-            <h4 className="text-lg font-medium mb-2">Left Ear</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-6 rounded-lg mb-6">
+            <h4 className="text-lg font-medium mb-4">Left Ear</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[250, 500, 1000, 2000, 4000, 8000].map(freq => (
                 <div key={`left-${freq}`}>
-                  <Label htmlFor={`threshold_${freq}_leftEar`}>{freq} Hz</Label>
+                  <Label htmlFor={`threshold_${freq}_leftEar`} className="font-medium">{freq} Hz</Label>
                   <Input
                     id={`threshold_${freq}_leftEar`}
                     name={`threshold_${freq}_leftEar`}
@@ -153,6 +154,7 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
                     max="120"
                     value={getThresholdValue(freq, 'leftEar')}
                     onChange={handleChange}
+                    className="mt-1"
                   />
                 </div>
               ))}
@@ -161,8 +163,8 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
         </div>
       )}
 
-      <div>
-        <Label htmlFor="notes">Notes:</Label>
+      <div className="mt-8">
+        <Label htmlFor="notes" className="text-base">Notes:</Label>
         <textarea
           id="notes"
           name="notes"
@@ -174,8 +176,8 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
               notes: e.target.value
             }
           }))}
-          className="w-full rounded-md border border-gray-300 p-2 mt-1"
-          rows={3}
+          className="w-full rounded-md border border-gray-300 p-3 mt-2"
+          rows={4}
           placeholder="Add any additional notes about the hearing assessment"
         />
       </div>
