@@ -129,12 +129,18 @@ const PhaseSelection = ({
   ];
 
   // Helper function to determine if a test type is available
+  // In PhaseSelection.js, modify the getTestStatus function
+
   const getTestStatus = (phase, testType) => {
     // Special handling for demographics
     if (testType === 'demographics') {
+      const demoCompleted = isDemographicsCompleted ||
+        completedTests['demographics'] ||
+        completedTests['pretest_demographics'];
+
       return {
-        isAvailable: !isDemographicsCompleted,
-        isCompleted: isDemographicsCompleted
+        isAvailable: !demoCompleted,
+        isCompleted: demoCompleted
       };
     }
 
@@ -149,24 +155,33 @@ const PhaseSelection = ({
     const test = testTypes.find(t => t.type === testType);
     if (!test) return { isAvailable: false, isCompleted: false };
 
+    // Check for completed test using both formats:
+    // 1. "phase_testType" (e.g., "pretest_intelligibility")
+    // 2. Just "testType" (e.g., "intelligibility")
+    const isTestCompleted =
+      completedTests[`${phase}_${testType}`] ||
+      completedTests[testType];
+
     // First test in a phase
     if (test.order === 1) {
       return {
-        isAvailable: phase === currentPhase && isDemographicsCompleted && !completedTests[`${phase}_${testType}`],
-        isCompleted: completedTests[`${phase}_${testType}`] || false
+        isAvailable: phase === currentPhase && isDemographicsCompleted && !isTestCompleted,
+        isCompleted: isTestCompleted
       };
     }
 
     // Subsequent tests
     const previousTest = testTypes.find(t => t.order === test.order - 1);
-    const previousTestCompleted = completedTests[`${phase}_${previousTest.type}`];
+    const previousTestCompleted =
+      completedTests[`${phase}_${previousTest.type}`] ||
+      completedTests[previousTest.type];
 
     return {
       isAvailable: phase === currentPhase &&
         isDemographicsCompleted &&
         previousTestCompleted &&
-        !completedTests[`${phase}_${testType}`],
-      isCompleted: completedTests[`${phase}_${testType}`] || false
+        !isTestCompleted,
+      isCompleted: isTestCompleted
     };
   };
 

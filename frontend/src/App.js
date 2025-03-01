@@ -147,13 +147,13 @@ const App = () => {
 
 
   // This helper function gets the text to display for training phases
-  const getCurrentStimulusText = () => {
-    const currentStimuli = getCurrentStimuli();
-    if (!currentStimuli || currentStimuli.length === 0) return '';
-    return phase === 'training'
-      ? currentStimuli[currentStimulus]?.text
-      : '';
-  };
+  //const getCurrentStimulusText = () => {
+  //  const currentStimuli = getCurrentStimuli();
+  //  if (!currentStimuli || currentStimuli.length === 0) return '';
+  //  return phase === 'training'
+  //    ? currentStimuli[currentStimulus]?.text
+  //    : '';
+  //};
 
 
   const handleLogin = async () => {
@@ -175,6 +175,15 @@ const App = () => {
         setPretestDate(data.pretestDate);
         setCanProceedToday(data.canProceedToday);
         setCompletedTests(data.completedTests || {});
+
+        // Check if demographics is completed by looking at completedTests
+        const demographicsCompleted =
+          data.completedTests?.demographics ||
+          data.completedTests?.pretest_demographics ||
+          data.isDemographicsCompleted;
+
+        setIsDemographicsCompleted(!!demographicsCompleted);
+
         setPhase('selection');
       } else {
         setError(data.error || 'Login failed');
@@ -399,7 +408,9 @@ const App = () => {
       // Update completedTests for current test type
       setCompletedTests(prev => ({
         ...prev,
-        [`${phase}_${currentTestType}`]: true
+        [`${phase}_${currentTestType}`]: true,
+        // Also add the non-prefixed version for backward compatibility
+        [currentTestType]: true
       }));
 
       // Show completion message
