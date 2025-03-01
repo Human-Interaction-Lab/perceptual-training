@@ -34,7 +34,7 @@ const TEST_CONFIG = {
         comprehension: 'Grace Norman_Comp_01_01.wav',
         effort: 'Grace Norman_EFF01.wav',
         intelligibility: 'Grace Norman_Int01.wav',
-        training: 'Grace Norman_Trn_01_01.wav'
+        training: 'Grace Norman_Trn_02_01.wav'
     },
     outputDir: path.join(__dirname, '../../test-downloads')
 };
@@ -106,6 +106,36 @@ describe('Box Integration Tests', () => {
         }, 30000);
     });
 
+    describe('Box Folder Exploration', () => {
+        it('should explore the root folder structure', async () => {
+            if (!runBoxTests) return;
+
+            console.log('\n======= BOX FOLDER STRUCTURE EXPLORATION =======');
+
+            // First explore the root folder
+            const rootContents = await BoxService.listFolderContents();
+
+            // Then find the speaker's folder
+            const speakerFolder = rootContents.subfolders.find(
+                folder => folder.name === TEST_CONFIG.speaker
+            );
+
+            if (speakerFolder) {
+                // Explore the speaker's folder
+                console.log(`\nFound ${TEST_CONFIG.speaker} folder. Exploring contents...`);
+                await BoxService.listFolderContents(speakerFolder.id);
+            } else {
+                console.log(`\nWarning: Could not find folder for ${TEST_CONFIG.speaker}`);
+                console.log('Available subfolders:', rootContents.subfolders.map(f => f.name).join(', '));
+            }
+
+            console.log('\n======= END OF FOLDER EXPLORATION =======\n');
+
+            // This is just for exploration, so we don't need assertions
+            expect(true).toBe(true);
+        }, 30000);
+    });
+
     describe('File Streaming', () => {
         it('should stream and save comprehension file', async () => {
             if (!runBoxTests) return;
@@ -152,15 +182,27 @@ describe('Box Integration Tests', () => {
         it('should stream and save training file', async () => {
             if (!runBoxTests) return;
 
-            const stream = await BoxService.getTrainingFile(TEST_CONFIG.speaker, 1, 1);
-            await streamToFile(stream, TEST_CONFIG.testFiles.training);
+            try {
+                console.log('Looking for file pattern:',
+                    `${TEST_CONFIG.speaker}_Trn_${String(1).padStart(2, '0')}_${String(1).padStart(2, '0')}.wav`);
 
-            const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.training);
-            expect(fs.existsSync(filePath)).toBe(true);
+                // First try to list files to see what's available
+                const files = await BoxService.listUserFiles(TEST_CONFIG.speaker);
+                console.log('Available files:', files);
 
-            const stats = fs.statSync(filePath);
-            expect(stats.size).toBeGreaterThan(0);
-            console.log('Downloaded training file:', TEST_CONFIG.testFiles.training);
+                const stream = await BoxService.getTrainingFile(TEST_CONFIG.speaker, 1, 1);
+                await streamToFile(stream, TEST_CONFIG.testFiles.training);
+
+                const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.training);
+                expect(fs.existsSync(filePath)).toBe(true);
+
+                const stats = fs.statSync(filePath);
+                expect(stats.size).toBeGreaterThan(0);
+                console.log('Downloaded training file:', TEST_CONFIG.testFiles.training);
+            } catch (error) {
+                console.error('Error details:', error);
+                throw error;
+            }
         }, 30000);
     });
 });

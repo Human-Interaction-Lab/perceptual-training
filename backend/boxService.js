@@ -65,6 +65,63 @@ class BoxService {
     }
   }
 
+  async listFolderContents(folderId = null) {
+    try {
+      // If no folderId provided, use the root folder
+      const targetFolderId = folderId || this.rootFolderId;
+
+      // Get folder items with more details
+      const options = {
+        fields: 'name,id,type,size,created_at,modified_at',
+        limit: 1000
+      };
+
+      const folder = await this.client.folders.get(targetFolderId, options);
+      const items = await this.client.folders.getItems(targetFolderId, options);
+
+      console.log(`\nFolder: ${folder.name} (ID: ${folder.id})`);
+      console.log(`Total items: ${items.total_count}`);
+
+      // Group by type for easier viewing
+      const subfolders = items.entries.filter(item => item.type === 'folder');
+      const files = items.entries.filter(item => item.type === 'file');
+
+      // Log subfolders
+      if (subfolders.length > 0) {
+        console.log('\nSubfolders:');
+        subfolders.forEach(folder => {
+          console.log(`- ${folder.name} (ID: ${folder.id})`);
+        });
+      }
+
+      // Log files
+      if (files.length > 0) {
+        console.log('\nFiles:');
+        files.forEach(file => {
+          const sizeInKB = Math.round(file.size / 1024);
+          console.log(`- ${file.name} (${sizeInKB} KB, Modified: ${new Date(file.modified_at).toLocaleString()})`);
+        });
+      }
+
+      return {
+        folder: {
+          id: folder.id,
+          name: folder.name
+        },
+        subfolders: subfolders.map(f => ({ id: f.id, name: f.name })),
+        files: files.map(f => ({
+          id: f.id,
+          name: f.name,
+          size: f.size,
+          modified: f.modified_at
+        }))
+      };
+    } catch (error) {
+      console.error(`Error listing folder contents for folder ID ${folderId}:`, error);
+      throw error;
+    }
+  }
+
   async getFileStream(userId, filePattern) {
     try {
       const userFolder = await this.getUserFolder(userId);

@@ -8,7 +8,10 @@
     "test:email": "node tests/testEmailScheduler.js",
     "test": "cross-env NODE_ENV=test jest --runInBand --detectOpenHandles --forceExit --testTimeout=60000 --verbose",
     "test:watch": "cross-env NODE_ENV=test jest --watchAll --testTimeout=30000",
-    "test:coverage": "cross-env NODE_ENV=test jest --coverage --testTimeout=30000"
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage --testTimeout=30000",
+    "explore-box": "node scripts/explore-box.js",
+    "explore-box-root": "node scripts/explore-box-root.js",
+    "test-box": "node tests/test-box-connection.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",
