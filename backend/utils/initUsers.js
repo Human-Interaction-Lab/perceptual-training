@@ -79,7 +79,7 @@ const initializeUsers = async () => {
             {
                 userId: 'test_posttest',
                 email: 'posttest@test.com',
-                currentPhase: 'posttest',
+                currentPhase: 'posttest1',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
                 ...baseTestUser
@@ -208,16 +208,16 @@ const initializeUsers = async () => {
 
         // Update completedTests property for the users
         if (pretest2) {
-            pretest2.completedTests.set('demographics', true);
-            pretest2.completedTests.set('intelligibility', true);
+            pretest2.completedTests.set('pretest_demographics', true);
+            pretest2.completedTests.set('pretest_intelligibility', true);
             await pretest2.save();
             console.log('Updated completedTests for test_pretest2');
         }
 
         if (pretest3) {
-            pretest3.completedTests.set('demographics', true);
-            pretest3.completedTests.set('intelligibility', true);
-            pretest3.completedTests.set('effort', true);
+            pretest3.completedTests.set('pretest_demographics', true);
+            pretest3.completedTests.set('pretest_intelligibility', true);
+            pretest3.completedTests.set('pretest_effort', true);
             await pretest3.save();
             console.log('Updated completedTests for test_pretest3');
         }
