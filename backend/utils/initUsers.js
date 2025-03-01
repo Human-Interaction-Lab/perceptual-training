@@ -139,7 +139,13 @@ const initializeUsers = async () => {
             relationshipToPartner: 'Spouse/Partner',
             communicationFrequency: 'Daily',
             communicationType: 'Face to face',
-            formCompletedBy: 'Participant'
+            formCompletedBy: 'Participant',
+            researchData: {
+                hearingTestType: 'Hearing Not Tested',
+                hearingScreenResult: '',
+                hearingThresholds: [],
+                notes: 'Stuff'
+            }
         };
 
         for (const userId of ['test_pretest2', 'test_pretest3']) {
