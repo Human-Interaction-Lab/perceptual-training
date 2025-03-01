@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Volume2, Send, BookOpen, Check } from 'lucide-react';
+import { Volume2, Send, BookOpen, Check, AlertCircle } from 'lucide-react';
 
 const ComprehensionTest = ({
     question,
@@ -16,8 +16,17 @@ const ComprehensionTest = ({
     storyId,
     isSubmitting = false
 }) => {
+    // Add state to track if audio has been played
+    const [audioPlayed, setAudioPlayed] = useState(false);
+
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+
+    // Modified play audio handler that updates the state
+    const handlePlayAudio = async () => {
+        await onPlayAudio();
+        setAudioPlayed(true);
+    };
 
     const handleSubmit = () => {
         if (isSubmitting) return;
@@ -33,7 +42,7 @@ const ComprehensionTest = ({
                         <div className="flex items-center space-x-2">
                             <BookOpen className="h-5 w-5 text-blue-600" />
                             <span className="text-lg font-medium text-gray-900">
-                                Story {storyId}
+                                Story {storyId.replace('Comp_', '')}
                             </span>
                         </div>
                         <span className="text-blue-600 font-medium">
@@ -53,20 +62,30 @@ const ComprehensionTest = ({
                 {/* Audio Control Section */}
                 <div className="pt-2">
                     <Button
-                        onClick={onPlayAudio}
-                        className="w-full h-16 text-lg flex items-center justify-center space-x-3 bg-blue-600 hover:bg-blue-700 transition-colors"
-                        disabled={isSubmitting}
+                        onClick={handlePlayAudio}
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${audioPlayed
+                                ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed"
+                                : "bg-blue-600 hover:bg-blue-700"
+                            }`}
+                        disabled={audioPlayed || isSubmitting}
                     >
                         <Volume2 className="h-6 w-6" />
-                        <span>Play Story Audio</span>
+                        <span>{audioPlayed ? "Story Audio Played" : "Play Story Audio"}</span>
                     </Button>
-                    <p className="text-center text-sm text-gray-600 mt-2">
-                        Click to play the story segment
-                    </p>
+
+                    {!audioPlayed ? (
+                        <p className="text-center text-sm text-blue-600 mt-2 font-medium">
+                            You must listen to the story before answering questions
+                        </p>
+                    ) : (
+                        <p className="text-center text-sm text-green-600 mt-2">
+                            Story played successfully. You can now answer the question.
+                        </p>
+                    )}
                 </div>
 
-                {/* Question Section */}
-                <div className="space-y-6">
+                {/* Question Section - Disabled until audio is played */}
+                <div className={`space-y-6 ${!audioPlayed ? "opacity-60" : ""}`}>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                         <Label className="block text-lg font-medium text-gray-800">
                             {question}
@@ -76,29 +95,33 @@ const ComprehensionTest = ({
                     {/* Options */}
                     <div className="space-y-3">
                         {options.map((option, index) => (
-                            <Card
+                            <div
                                 key={index}
-                                className={`transition-all duration-200 ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50'}
-                                    ${userResponse === index ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
-                                onClick={() => !isSubmitting && onResponseChange(index)}
+                                className={`p-3 rounded-md border ${userResponse === index
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-gray-200 bg-white'
+                                    } ${audioPlayed
+                                        ? 'cursor-pointer hover:bg-gray-50'
+                                        : 'cursor-not-allowed'
+                                    }`}
+                                onClick={() => audioPlayed && !isSubmitting && onResponseChange(index)}
                             >
-
                                 <div className="flex items-center space-x-3">
                                     <div className={`w-6 h-6 flex items-center justify-center rounded-full border ${userResponse === index
-                                        ? 'border-blue-500 bg-blue-500 text-white'
-                                        : 'border-gray-300'
+                                            ? 'border-blue-500 bg-blue-500 text-white'
+                                            : 'border-gray-300'
                                         }`}>
                                         {optionLabels[index]}
                                     </div>
                                     <span className="text-gray-700">{option}</span>
                                 </div>
-                            </Card>
+                            </div>
                         ))}
                     </div>
 
                     <Button
                         onClick={handleSubmit}
-                        disabled={userResponse === null || isSubmitting}
+                        disabled={userResponse === null || !audioPlayed || isSubmitting}
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -120,14 +143,26 @@ const ComprehensionTest = ({
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                        <li>1. Listen to the story segment carefully</li>
-                        <li>2. Read the question above</li>
-                        <li>3. Select the best answer from the options provided</li>
-                        <li>4. Click "Submit Answer" when you're ready</li>
+                        <li className="flex items-start">
+                            <span className="text-blue-600 mr-2">1.</span>
+                            Listen to the story segment carefully (required)
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-blue-600 mr-2">2.</span>
+                            Read the question above
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-blue-600 mr-2">3.</span>
+                            Select the best answer from the options provided
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-blue-600 mr-2">4.</span>
+                            Click "Submit Answer" when you're ready
+                        </li>
                     </ul>
                 </div>
-            </CardContent >
-        </Card >
+            </CardContent>
+        </Card>
     );
 };
 

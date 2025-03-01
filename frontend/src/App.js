@@ -491,8 +491,7 @@ const App = () => {
   const handlePlayAudio = async () => {
     try {
       // Temporary placeholder until Box integration
-      alert("Audio playback will be available once Box integration is complete. For now, you can proceed with testing the interface.");
-
+      //alert("Audio playback would normally play the story audio here. For testing, consider this as having played the audio.");
 
       const currentStimuli = getCurrentStimuli();
       if (!currentStimuli || currentStimuli.length === 0) return;
@@ -508,8 +507,11 @@ const App = () => {
 
       // Construct filename based on type
       let filename;
-      if (stimulus.type === 'Comp' || stimulus.type === 'Trn') {
-        // Format: userid_type_test_Num (e.g. test1_Comp_01_02.wav)
+      if (stimulus.type === 'Comp') {
+        // For comprehension, we use the story ID rather than individual questions
+        const storyNum = String(stimulus.storyNumber || '01').padStart(2, '0');
+        filename = `${userId}_${stimulus.type}_${storyNum}.wav`;
+      } else if (stimulus.type === 'Trn') {
         const storyNum = String(stimulus.storyNumber || '01').padStart(2, '0');
         const questionNum = String(stimulus.id).padStart(2, '0');
         filename = `${userId}_${stimulus.type}_${storyNum}_${questionNum}.wav`;
@@ -527,10 +529,15 @@ const App = () => {
         alert('Error playing audio. Please try again.');
       };
 
+      // Play the audio
       await audio.play();
+
+      // Return true to indicate successful playback
+      return true;
     } catch (error) {
       console.error('Error playing audio:', error);
       alert('Error playing audio. Please try again.');
+      return false;
     }
   };
 
