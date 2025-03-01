@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper } from "lucide-react";
 import { formatDate } from './lib/utils';
 //import { Headphones } from "lucide-react";
 
@@ -217,12 +217,16 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
 
+  const isAllPretestCompleted = testTypes.every(test =>
+    completedTests[`pretest_${test.type}`] === true
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Perceptual Training Progress
+            Communication Training Progress
           </h1>
           {pretestDate && (
             <p className="text-sm text-gray-500 mt-2">
@@ -271,6 +275,18 @@ const PhaseSelection = ({
                   />
                 ))}
             </div>
+          </div>
+        )}
+
+        {/* Message when all pretest tests are completed */}
+        {currentPhase === 'pretest' && isDemographicsCompleted && isAllPretestCompleted && (
+          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-center justify-center mb-2">
+              <PartyPopper className="h-8 w-8 text-yellow-500 mr-2" />
+              <h2 className="text-xl font-semibold">Great job completing all tests!</h2>
+              <PartyPopper className="h-8 w-8 text-yellow-500 ml-2" />
+            </div>
+            <p className="text-lg text-green-700">Please return tomorrow to start the training.</p>
           </div>
         )}
 
