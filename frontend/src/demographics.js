@@ -4,6 +4,7 @@ import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { ArrowLeft, CheckCircle } from 'lucide-react';
+import HearingAssessment from "./hearingAssessment";
 
 const SelectField = ({ label, name, value, onChange, options, error }) => (
   <div className="space-y-2">
@@ -47,7 +48,6 @@ const RadioGroup = ({ label, name, value, onChange, options, error }) => (
   </div>
 );
 
-
 const DemographicsForm = ({ onSubmit, onBack }) => {
   const [formData, setFormData] = useState({
     dateOfBirth: '',
@@ -61,11 +61,19 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
     relationshipToPartner: '',
     relationshipOther: '',
     communicationFrequency: '',
-    communicationType: ''
+    communicationType: '',
+    formCompletedBy: 'Research Personnel', // Default value
+    researchData: {
+      hearingTestType: '',
+      hearingScreenResult: '',
+      hearingThresholds: [],
+      notes: ''
+    }
   });
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [isResearchPersonnel, setIsResearchPersonnel] = useState(false);
 
   useEffect(() => {
     const checkExistingDemographics = async () => {
@@ -81,10 +89,17 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         });
 
         if (response.ok) {
-          // Demographics exist
-          setErrors({
-            general: 'Demographics already submitted'
-          });
+          const data = await response.json();
+          // Pre-fill form with existing data
+          if (data) {
+            // Format date for input field
+            if (data.dateOfBirth) {
+              const date = new Date(data.dateOfBirth);
+              data.dateOfBirth = date.toISOString().split('T')[0];
+            }
+            setFormData(data);
+            setIsResearchPersonnel(data.formCompletedBy === 'Research Personnel');
+          }
         }
       } catch (error) {
         console.error('Error checking demographics:', error);
@@ -98,9 +113,16 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
     const newErrors = {};
 
     // Basic required field validation
-    Object.entries(formData).forEach(([key, value]) => {
-      if (!value && key !== 'relationshipOther') {
-        newErrors[key] = `${key.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`;
+    const requiredFields = [
+      'dateOfBirth', 'ethnicity', 'race', 'sexAssignedAtBirth',
+      'isEnglishPrimary', 'cognitiveImpairment', 'hearingLoss',
+      'hearingAids', 'relationshipToPartner', 'communicationFrequency',
+      'communicationType', 'formCompletedBy'
+    ];
+
+    requiredFields.forEach(field => {
+      if (!formData[field]) {
+        newErrors[field] = `${field.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`;
       }
     });
 
@@ -112,13 +134,32 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
     // Date validation
     if (formData.dateOfBirth) {
       const dob = new Date(formData.dateOfBirth);
-      if (dob > new Date()) {
+      if (isNaN(dob.getTime())) {
+        newErrors.dateOfBirth = 'Please enter a valid date';
+      } else if (dob > new Date()) {
         newErrors.dateOfBirth = 'Date of birth cannot be in the future';
       }
     }
 
+    if (!formData.researchData?.hearingTestType) {
+      newErrors.researchData = {
+        ...newErrors.researchData,
+        hearingTestType: 'Hearing test type is required'
+      };
+    }
+
+    if (formData.researchData?.hearingTestType === 'Hearing Screened' &&
+      !formData.researchData?.hearingScreenResult) {
+      newErrors.researchData = {
+        ...newErrors.researchData,
+        hearingScreenResult: 'Hearing screen result is required'
+      };
+    }
+
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 &&
+      (!newErrors.researchData || Object.keys(newErrors.researchData).length === 0);
   };
 
   const handleChange = (e) => {
@@ -137,6 +178,11 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         ...prev,
         [name]: value
       }));
+
+      // Toggle research personnel interface
+      if (name === 'formCompletedBy') {
+        setIsResearchPersonnel(value === 'Research Personnel');
+      }
     }
   };
 
@@ -151,6 +197,8 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
     e.preventDefault();
     if (submitting) return;
 
+    setSubmitting(true);
+
     try {
       if (!validateForm()) {
         setSubmitting(false);
@@ -161,13 +209,6 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       const formattedData = {
         ...formData,
         dateOfBirth: new Date(formData.dateOfBirth), // Convert to Date object
-        formCompletedBy: 'Participant',
-        // Add any missing required fields with defaults
-        researchData: {
-          hearingScreeningCompleted: false,
-          hearingThresholds: [],
-          notes: ''
-        }
       };
 
       const token = localStorage.getItem('token');
@@ -202,13 +243,8 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       <div className="max-w-3xl mx-auto">
         <Card>
           <CardHeader>
-            <div className="flex items-center mb-6">
-              <div className="justify-start">
-                <h2 className="text-2xl font-bold text-gray-900">Demographics Questionnaire</h2>
-                <p className="text-gray-600 mt-1">Please respond to each question below.</p>
-              </div>
-            </div>
-
+            <h2 className="text-2xl font-bold text-gray-900">Background Information</h2>
+            <p className="text-gray-600">Please complete all fields to continue with the study</p>
             {errors.general && (
               <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                 {errors.general}
@@ -218,8 +254,21 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
 
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">
+              {/* Form Completion Type */}
+              <RadioGroup
+                label="Form Completed By"
+                name="formCompletedBy"
+                value={formData.formCompletedBy}
+                onChange={(value) => {
+                  handleRadioChange('formCompletedBy', value);
+                  setIsResearchPersonnel(value === 'Research Personnel');
+                }}
+                options={['Participant', 'Research Personnel']}
+                error={errors.formCompletedBy}
+              />
+
               {/* Basic Demographics */}
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
                   type="date"
@@ -312,6 +361,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                 value={formData.hearingAids}
                 onChange={(value) => handleRadioChange('hearingAids', value)}
                 options={['Yes', 'No', 'Unknown']}
+                error={errors.hearingAids}
               />
 
               {/* Relationship Section */}
@@ -337,10 +387,13 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                     type="text"
                     id="relationshipOther"
                     name="relationshipOther"
-                    value={formData.relationshipOther}
+                    value={formData.relationshipOther || ''}
                     onChange={handleChange}
                     className={errors.relationshipOther ? 'border-red-500' : ''}
                   />
+                  {errors.relationshipOther && (
+                    <p className="text-red-500 text-sm mt-1">{errors.relationshipOther}</p>
+                  )}
                 </div>
               )}
 
@@ -372,6 +425,14 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                 error={errors.communicationType}
               />
 
+              {/* Hearing Assessment Section */}
+              <div>
+                <HearingAssessment
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+              </div>
             </CardContent>
 
             <CardFooter className="flex justify-between">
