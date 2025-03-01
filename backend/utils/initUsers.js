@@ -1,4 +1,3 @@
-// save as initUsers.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
@@ -13,23 +12,15 @@ const initializeUsers = async () => {
             return;
         }
 
-        // First, remove all test users but keep admin
+        // First, remove existing test users but keep admin
         console.log('Removing existing test users...');
-        await User.deleteMany({
-            userId: {
-                $in: ['test_pretest', 'test_training', 'test_posttest']
-            }
-        }); // drop test users
-        await Demographics.deleteMany({
-            userId: {
-                $in: ['test_pretest', 'test_training', 'test_posttest']
-            }
-        }); // Drop test demographics
-        await Response.deleteMany({
-            userId: {
-                $in: ['test_pretest', 'test_training', 'test_posttest']
-            }
-        }); // Drop test responses
+        const testUserIds = [
+            'test_pretest', 'test_training', 'test_posttest',
+            'test_pretest1', 'test_pretest2', 'test_pretest3'
+        ];
+        await User.deleteMany({ userId: { $in: testUserIds } });
+        await Demographics.deleteMany({ userId: { $in: testUserIds } });
+        await Response.deleteMany({ userId: { $in: testUserIds } });
 
         // Check if admin user exists
         const adminExists = await User.findOne({ isAdmin: true });
@@ -61,35 +52,60 @@ const initializeUsers = async () => {
             console.log('Admin user already exists');
         }
 
+        // Base test user configuration for reuse
+        const baseTestUser = {
+            password: 'test1234',
+            isActive: true,
+            speaker: 'GraceNorman'
+        };
+
         // Test Users Configuration
         const testUsers = [
+            // Original test users
             {
                 userId: 'test_pretest',
                 email: 'pretest@test.com',
-                password: 'test1234',
                 currentPhase: 'pretest',
-                isActive: true,
-                speaker: 'GraceNorman'
+                ...baseTestUser
             },
             {
                 userId: 'test_training',
                 email: 'training@test.com',
-                password: 'test1234',
                 currentPhase: 'training',
                 trainingDay: 1,
                 pretestDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
-                isActive: true,
-                speaker: 'GraceNorman'
+                ...baseTestUser
             },
             {
                 userId: 'test_posttest',
                 email: 'posttest@test.com',
-                password: 'test1234',
                 currentPhase: 'posttest',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-                isActive: true,
-                speaker: 'GraceNorman'
+                ...baseTestUser
+            },
+
+            // New test users with different pretest states
+            {
+                userId: 'test_pretest1',
+                email: 'pretest1@test.com',
+                currentPhase: 'pretest',
+                ...baseTestUser
+                // This user has no forms/responses
+            },
+            {
+                userId: 'test_pretest2',
+                email: 'pretest2@test.com',
+                currentPhase: 'pretest',
+                ...baseTestUser
+                // Will add demographics + intelligibility responses
+            },
+            {
+                userId: 'test_pretest3',
+                email: 'pretest3@test.com',
+                currentPhase: 'pretest',
+                ...baseTestUser
+                // Will add demographics + intelligibility + effort responses
             }
         ];
 
@@ -101,11 +117,103 @@ const initializeUsers = async () => {
 
             const user = new User({
                 ...userData,
-                password: hashedPassword
+                password: hashedPassword,
+                // Initialize completedTests as a Map
+                completedTests: new Map()
             });
 
             await user.save();
             console.log(`Test user ${userData.userId} created successfully`);
+        }
+
+        // Create demographics for test_pretest2 and test_pretest3
+        const demographicsData = {
+            dateOfBirth: new Date('1980-01-01'),
+            ethnicity: 'Not Hispanic or Latino',
+            race: 'White',
+            sexAssignedAtBirth: 'Male',
+            isEnglishPrimary: 'Yes',
+            cognitiveImpairment: 'No',
+            hearingLoss: 'No',
+            hearingAids: 'No',
+            relationshipToPartner: 'Spouse/Partner',
+            communicationFrequency: 'Daily',
+            communicationType: 'Face to face',
+            formCompletedBy: 'Participant'
+        };
+
+        for (const userId of ['test_pretest2', 'test_pretest3']) {
+            const demographics = new Demographics({
+                ...demographicsData,
+                userId
+            });
+            await demographics.save();
+            console.log(`Demographics created for ${userId}`);
+        }
+
+        // Create responses for test_pretest2 and test_pretest3
+        const pretest2 = await User.findOne({ userId: 'test_pretest2' });
+        const pretest3 = await User.findOne({ userId: 'test_pretest3' });
+
+        // Add intelligibility test responses for both pretest2 and pretest3
+        const intelligibilityResponses = [
+            { stimulusId: 'intelligibility_1', response: 'Sample response 1' },
+            { stimulusId: 'intelligibility_2', response: 'Sample response 2' },
+            { stimulusId: 'intelligibility_3', response: 'Sample response 3' }
+        ];
+
+        for (const respData of intelligibilityResponses) {
+            // Create response for test_pretest2
+            const response2 = new Response({
+                userId: 'test_pretest2',
+                phase: 'pretest',
+                stimulusId: respData.stimulusId,
+                response: respData.response
+            });
+            await response2.save();
+
+            // Create response for test_pretest3
+            const response3 = new Response({
+                userId: 'test_pretest3',
+                phase: 'pretest',
+                stimulusId: respData.stimulusId,
+                response: respData.response
+            });
+            await response3.save();
+        }
+
+        // Add effort test responses for pretest3 only
+        const effortResponses = [
+            { stimulusId: 'effort_1', response: 'Sample effort 1', rating: 75 },
+            { stimulusId: 'effort_2', response: 'Sample effort 2', rating: 60 },
+            { stimulusId: 'effort_3', response: 'Sample effort 3', rating: 85 }
+        ];
+
+        for (const respData of effortResponses) {
+            const response = new Response({
+                userId: 'test_pretest3',
+                phase: 'pretest',
+                stimulusId: respData.stimulusId,
+                response: respData.response,
+                rating: respData.rating
+            });
+            await response.save();
+        }
+
+        // Update completedTests property for the users
+        if (pretest2) {
+            pretest2.completedTests.set('demographics', true);
+            pretest2.completedTests.set('intelligibility', true);
+            await pretest2.save();
+            console.log('Updated completedTests for test_pretest2');
+        }
+
+        if (pretest3) {
+            pretest3.completedTests.set('demographics', true);
+            pretest3.completedTests.set('intelligibility', true);
+            pretest3.completedTests.set('effort', true);
+            await pretest3.save();
+            console.log('Updated completedTests for test_pretest3');
         }
 
         console.log('All users initialized successfully');
