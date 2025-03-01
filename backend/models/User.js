@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
     },
     currentPhase: {
         type: String,
-        enum: ['pretest', 'training', 'posttest'],
+        enum: ['pretest', 'training', 'posttest1', 'posttest2', 'posttest3'],
         default: 'pretest'
     },
     trainingDay: {
@@ -56,6 +56,62 @@ const userSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+/**
+ * Mark a test as completed with phase prefix
+ * @param {String} phase - The phase (pretest, posttest1, etc.)
+ * @param {String} testId - The test identifier
+ * @param {Boolean} completed - Whether the test is completed
+ * @returns {void}
+ */
+userSchema.methods.markTestCompleted = function (phase, testId, completed = true) {
+    // Create a prefixed key for this test
+    const prefixedKey = `${phase}_${testId}`;
+    this.completedTests.set(prefixedKey, completed);
+};
+
+/**
+ * Check if a test is completed for a specific phase
+ * @param {String} phase - The phase (pretest, posttest1, etc.)
+ * @param {String} testId - The test identifier
+ * @returns {Boolean} - Whether the test is completed
+ */
+userSchema.methods.isTestCompleted = function (phase, testId) {
+    const prefixedKey = `${phase}_${testId}`;
+    return this.completedTests.get(prefixedKey) === true;
+};
+
+/**
+ * Get all completed tests for a specific phase
+ * @param {String} phase - The phase (pretest, posttest1, etc.)
+ * @returns {Array} - Array of completed test IDs
+ */
+userSchema.methods.getCompletedTestsForPhase = function (phase) {
+    const prefix = `${phase}_`;
+    const completedTests = [];
+
+    this.completedTests.forEach((completed, key) => {
+        if (key.startsWith(prefix) && completed) {
+            completedTests.push(key.substring(prefix.length));
+        }
+    });
+
+    return completedTests;
+};
+
+/**
+ * Check if all required tests are completed for a phase
+ * @param {String} phase - The phase to check
+ * @param {Array} requiredTests - Array of test IDs required for completion
+ * @returns {Boolean} - Whether all required tests are completed
+ */
+userSchema.methods.hasCompletedAllTests = function (phase, requiredTests) {
+    if (!requiredTests || !requiredTests.length) return false;
+
+    return requiredTests.every(testId => this.isTestCompleted(phase, testId));
+};
+
+
 
 userSchema.methods.needsReminder = function () {
     if (!this.pretestDate) {

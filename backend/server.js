@@ -334,7 +334,6 @@ app.post('/api/register', async (req, res) => {
 //
 // LOGIN POST
 //
-
 app.post('/api/login', async (req, res) => {
   try {
     const { userId, password } = req.body;
@@ -367,8 +366,11 @@ app.post('/api/login', async (req, res) => {
 
       if (user.currentPhase === 'training') {
         canProceedToday = daysSincePretest === user.trainingDay;
-      } else if (user.currentPhase === 'posttest') {
-        canProceedToday = daysSincePretest === 5;
+      } else if (user.currentPhase.startsWith('posttest')) {
+        // For posttest1, we use day 5
+        // You can add additional logic for posttest2, posttest3, etc.
+        const expectedPosttestDay = user.currentPhase === 'posttest1' ? 5 : null;
+        canProceedToday = daysSincePretest === expectedPosttestDay;
       }
     }
 
@@ -376,6 +378,9 @@ app.post('/api/login', async (req, res) => {
       { userId: user.userId, isAdmin: user.isAdmin },
       process.env.JWT_SECRET || 'your_jwt_secret'
     );
+
+    // Get completed tests for the current phase
+    const currentPhaseCompletedTests = user.getCompletedTestsForPhase(user.currentPhase);
 
     res.json({
       token,
@@ -385,7 +390,8 @@ app.post('/api/login', async (req, res) => {
       pretestDate: user.pretestDate,
       completed: user.completed,
       canProceedToday,
-      completedTests: Object.fromEntries(user.completedTests) || {}
+      completedTests: Object.fromEntries(user.completedTests) || {},
+      currentPhaseCompletedTests
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -402,8 +408,12 @@ app.post('/api/login', async (req, res) => {
 // Response Routes
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
-    const { phase, stimulusId, response, trainingDay } = req.body;
+    const { phase, testType, stimulusId, response, trainingDay } = req.body;
     const user = await User.findOne({ userId: req.user.userId });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     // Check if user is attempting on the correct day
     if (!isCorrectDay(user, phase)) {
@@ -412,6 +422,10 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       });
     }
 
+    // For test responses, create a unique test identifier combining test type and stimulus id
+    const testId = phase !== 'training' ? `${testType}_${stimulusId}` : null;
+
+    // Create response record
     const newResponse = new Response({
       userId: req.user.userId,
       phase,
@@ -422,36 +436,81 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
     await newResponse.save();
 
+    // Mark test as completed with appropriate phase prefix
+    if (testId) {
+      // If this is a test (not training), mark it as completed
+      user.markTestCompleted(phase, testId, true);
+    }
+
     // Update user progress
     if (phase === 'pretest' && user.currentPhase === 'pretest') {
-      user.currentPhase = 'training';
-      user.trainingDay = 1;
-      user.pretestDate = new Date(); // Set pretest date when completing pretest
+      // Check if all pretest items are completed
+      const pretestCompleted = checkAllPretestCompleted(user);
+
+      if (pretestCompleted) {
+        user.currentPhase = 'training';
+        user.trainingDay = 1;
+        user.pretestDate = new Date(); // Set pretest date when completing pretest
+      }
     } else if (phase === 'training') {
       if (trainingDay >= 4) {
-        user.currentPhase = 'posttest';
+        user.currentPhase = 'posttest1'; // Changed from 'posttest' to 'posttest1'
       } else {
         user.trainingDay = trainingDay + 1;
       }
-    } else if (phase === 'posttest') {
-      user.completed = true;
+    } else if (phase === 'posttest1') {
+      // Check if all posttest1 items are completed
+      const posttestCompleted = checkAllPosttestCompleted(user, 'posttest1');
+
+      if (posttestCompleted) {
+        // Logic for future posttest phases can be added here
+        // user.currentPhase = 'posttest2';
+        user.completed = true;
+      }
     }
+    // Additional posttest phases can be added here
 
     await user.save();
 
-    // Return updated user state
+    // Return updated user state with completed tests
     res.status(201).json({
       message: 'Response saved successfully',
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
-      completed: user.completed
+      completed: user.completed,
+      completedTests: Object.fromEntries(user.completedTests) || {}
     });
   } catch (error) {
     console.error('Error saving response:', error);
     res.status(500).json({ error: 'Failed to save response' });
   }
 });
+
+// Helper function to check if all pretest items are completed
+// This is a placeholder - you should define your required tests
+function checkAllPretestCompleted(user) {
+  const requiredTests = [
+    'COMPREHENSION_1',
+    'COMPREHENSION_2',
+    'EFFORT_1',
+    'INTELLIGIBILITY_1'
+  ];
+
+  return user.hasCompletedAllTests('pretest', requiredTests);
+}
+
+// Helper function to check if all posttest items are completed
+function checkAllPosttestCompleted(user, postTestPhase) {
+  const requiredTests = [
+    'COMPREHENSION_1',
+    'COMPREHENSION_2',
+    'EFFORT_1',
+    'INTELLIGIBILITY_1'
+  ];
+
+  return user.hasCompletedAllTests(postTestPhase, requiredTests);
+}
 
 
 

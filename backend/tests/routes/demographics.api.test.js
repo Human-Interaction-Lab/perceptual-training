@@ -59,7 +59,13 @@ describe('Demographics API', () => {
         relationshipToPartner: 'Spouse/Partner',
         communicationFrequency: 'Daily',
         communicationType: 'Face to face',
-        formCompletedBy: 'Participant'
+        formCompletedBy: 'Participant',
+        researchData: {
+            hearingTestType: 'Hearing Screened',
+            hearingScreenResult: 'Pass',
+            hearingThresholds: [],
+            notes: 'Stuff'
+        }
     };
 
     describe('POST /api/demographics', () => {

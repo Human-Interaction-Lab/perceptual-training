@@ -10,7 +10,7 @@ const responseSchema = new mongoose.Schema({
     phase: {
         type: String,
         required: true,
-        enum: ['pretest', 'training', 'posttest']
+        enum: ['pretest', 'training', 'posttest1', 'posttest2', 'posttest3']
     },
     trainingDay: {
         type: Number,

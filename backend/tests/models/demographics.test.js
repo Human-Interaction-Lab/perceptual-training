@@ -17,7 +17,13 @@ describe('Demographics Model Test', () => {
         relationshipToPartner: 'Spouse/Partner',
         communicationFrequency: 'Daily',
         communicationType: 'Face to face',
-        formCompletedBy: 'Participant'
+        formCompletedBy: 'Participant',
+        researchData: {
+            hearingTestType: 'Hearing Screened',
+            hearingScreenResult: 'Pass',
+            hearingThresholds: [],
+            notes: 'Stuff'
+        }
     };
 
     afterAll(async () => {

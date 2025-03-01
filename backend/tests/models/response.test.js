@@ -144,7 +144,7 @@ describe('Response Model Test', () => {
 
             const posttestResponse = new Response({
                 ...validResponseData,
-                phase: 'posttest'
+                phase: 'posttest1'
             });
 
             const savedPosttest = await posttestResponse.save();
@@ -209,7 +209,7 @@ describe('Response Model Test', () => {
                 });
 
             expect(response.status).toBe(201);
-            expect(response.body.currentPhase).toBe('posttest');
+            expect(response.body.currentPhase).toBe('posttest1');
         });
 
         it('should allow catching up on missed training days', async () => {
