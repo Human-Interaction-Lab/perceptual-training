@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
@@ -21,6 +21,11 @@ const ComprehensionTest = ({
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+
+    // Reset audioPlayed when stimulus changes
+    useEffect(() => {
+        setAudioPlayed(false);
+    }, [storyId]);
 
     // Modified play audio handler that updates the state
     const handlePlayAudio = async () => {
@@ -64,8 +69,8 @@ const ComprehensionTest = ({
                     <Button
                         onClick={handlePlayAudio}
                         className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${audioPlayed
-                                ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed"
-                                : "bg-blue-600 hover:bg-blue-700"
+                            ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
                             }`}
                         disabled={audioPlayed || isSubmitting}
                     >
@@ -98,8 +103,8 @@ const ComprehensionTest = ({
                             <div
                                 key={index}
                                 className={`p-3 rounded-md border ${userResponse === index
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 bg-white'
+                                    ? 'border-blue-500 bg-blue-50'
+                                    : 'border-gray-200 bg-white'
                                     } ${audioPlayed
                                         ? 'cursor-pointer hover:bg-gray-50'
                                         : 'cursor-not-allowed'
@@ -108,8 +113,8 @@ const ComprehensionTest = ({
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`w-6 h-6 flex items-center justify-center rounded-full border ${userResponse === index
-                                            ? 'border-blue-500 bg-blue-500 text-white'
-                                            : 'border-gray-300'
+                                        ? 'border-blue-500 bg-blue-500 text-white'
+                                        : 'border-gray-300'
                                         }`}>
                                         {optionLabels[index]}
                                     </div>
