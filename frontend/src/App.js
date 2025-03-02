@@ -430,7 +430,7 @@ const App = () => {
 
   // Handle successful response submission
   const handleResponseSuccess = () => {
-    const isLastStimulus = currentStimulus === 19;
+    const isLastStimulus = currentStimulus === 19 && (currentTestType === 'intelligibility' || currentTestType === 'comprehension') || currentStimulus === 29;
 
     if (isLastStimulus) {
       // Update completedTests for current test type
