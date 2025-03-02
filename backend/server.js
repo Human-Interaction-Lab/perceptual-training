@@ -408,7 +408,7 @@ app.post('/api/login', async (req, res) => {
 // Response Routes
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
-    const { phase, testType, stimulusId, response, trainingDay } = req.body;
+    const { phase, testType, stimulusId, response, trainingDay, rating } = req.body;
     const user = await User.findOne({ userId: req.user.userId });
 
     if (!user) {
@@ -431,7 +431,8 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       phase,
       stimulusId,
       response: phase === 'training' ? 'training_completed' : response,
-      trainingDay: phase === 'training' ? trainingDay : undefined
+      trainingDay: phase === 'training' ? trainingDay : undefined,
+      rating: testType === 'EFFORT' ? rating : undefined
     });
 
     await newResponse.save();
