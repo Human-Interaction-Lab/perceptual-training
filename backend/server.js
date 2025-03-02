@@ -432,7 +432,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       stimulusId,
       response: phase === 'training' ? 'training_completed' : response,
       trainingDay: phase === 'training' ? trainingDay : undefined,
-      rating: testType === 'EFFORT' ? rating : undefined
+      rating: testType === 'effort' ? rating : undefined
     });
 
     await newResponse.save();

@@ -247,7 +247,7 @@ const App = () => {
         },
         body: JSON.stringify({
           phase,
-          currentTestType: 'intelligibility',
+          testType: 'intelligibility',
           stimulusId: `${phase}_intel_${currentStimulus + 1}`,
           response: userResponse
         }),
@@ -273,8 +273,10 @@ const App = () => {
     if (!validateResponse()) return;
 
     try {
+      // Ensure rating is a number and at least 1
+      const ratingValue = typeof rating === 'number' ? Math.max(1, rating) : 1;
       const token = localStorage.getItem('token');
-      await fetch('http://localhost:3000/api/response', {
+      const response = await fetch('http://localhost:3000/api/response', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,23 +284,49 @@ const App = () => {
         },
         body: JSON.stringify({
           phase,
-          currentTestType: 'effort',
+          testType: 'effort',
           stimulusId: `${phase}_effort_${currentStimulus + 1}`,
           response: userResponse,
-          rating: rating
+          trainingDay: 1,
+          rating: ratingValue  // Use the validated rating value
         }),
       });
 
-      // Prevent multiple submissions of last stimulus
-      if (currentStimulus === 29) {
-        // Disable the submit button or add loading state
-        setIsSubmitting(true); // Add this state variable
+      // Check response status and log outcome
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
+        throw new Error(`Server error: ${response.status} ${errorData.message || 'Unknown error'}`);
       }
 
+      const responseData = await response.json();
+      console.log('Server response:', responseData);
+
+      // Prevent multiple submissions of last stimulus
+      if (currentStimulus === 29) {
+        setIsSubmitting(true);
+      }
+
+      // Store the current values before resetting
+      const currentStim = currentStimulus;
+      const currentResponse = userResponse;
+      const currentRating = ratingValue;
+
+      // Call handleResponseSuccess AFTER ensuring the data was sent successfully
       handleResponseSuccess();
+
+      // Log to confirm state was updated correctly after submission
+      console.log('After submission:', {
+        previousStimulus: currentStim,
+        newStimulus: currentStimulus,
+        previousResponse: currentResponse,
+        newResponse: userResponse,
+        previousRating: currentRating,
+        newRating: rating
+      });
     } catch (error) {
       console.error('Error submitting response:', error);
-      alert('Failed to submit response. Please try again.');
+      alert(`Failed to submit response: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -322,7 +350,7 @@ const App = () => {
         },
         body: JSON.stringify({
           phase,
-          currentTestType: 'comprehension',
+          testType: 'comprehension',
           stimulusId: currentQuestion.id,
           response: optionLabels[userResponse],
           isCorrect: optionLabels[userResponse] === currentQuestion.answer
@@ -378,7 +406,7 @@ const App = () => {
           alert('Please enter the final word you heard.');
           return false;
         }
-        if (rating === null) {
+        if (rating === null || rating < 1) {
           alert('Please rate your listening effort.');
           return false;
         }

@@ -163,9 +163,9 @@ const initializeUsers = async () => {
 
         // Add intelligibility test responses for both pretest2 and pretest3
         const intelligibilityResponses = [
-            { stimulusId: 'intelligibility_1', response: 'Sample response 1' },
-            { stimulusId: 'intelligibility_2', response: 'Sample response 2' },
-            { stimulusId: 'intelligibility_3', response: 'Sample response 3' }
+            { stimulusId: 'pretest_intelligibility_1', response: 'Sample response 1' },
+            { stimulusId: 'pretest_intelligibility_2', response: 'Sample response 2' },
+            { stimulusId: 'pretest_intelligibility_3', response: 'Sample response 3' }
         ];
 
         for (const respData of intelligibilityResponses) {
@@ -190,9 +190,9 @@ const initializeUsers = async () => {
 
         // Add effort test responses for pretest3 only
         const effortResponses = [
-            { stimulusId: 'effort_1', response: 'Sample effort 1', rating: 75 },
-            { stimulusId: 'effort_2', response: 'Sample effort 2', rating: 60 },
-            { stimulusId: 'effort_3', response: 'Sample effort 3', rating: 85 }
+            { stimulusId: 'pretest_effort_1', response: 'Sample effort 1', rating: 75 },
+            { stimulusId: 'pretest_effort_2', response: 'Sample effort 2', rating: 60 },
+            { stimulusId: 'pretest_effort_3', response: 'Sample effort 3', rating: 85 }
         ];
 
         for (const respData of effortResponses) {

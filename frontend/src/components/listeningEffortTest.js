@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -16,6 +16,7 @@ const ListeningEffortTest = ({
     onPlayAudio
 }) => {
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+    const [audioPlayed, setAudioPlayed] = useState(false);
 
     const getRatingLabel = (value) => {
         if (value <= 20) return 'Very Easy';
@@ -23,6 +24,17 @@ const ListeningEffortTest = ({
         if (value <= 60) return 'Moderate';
         if (value <= 80) return 'Hard';
         return 'Very Hard';
+    };
+
+    // Reset audioPlayed when stimulus changes
+    useEffect(() => {
+        setAudioPlayed(false);
+    }, [currentStimulus]);
+
+    // Handler to track when audio has been played
+    const handlePlayAudio = async () => {
+        await onPlayAudio();
+        setAudioPlayed(true);
     };
 
     return (
@@ -49,25 +61,29 @@ const ListeningEffortTest = ({
                 {/* Audio Control Section */}
                 <div className="pt-4">
                     <Button
-                        onClick={onPlayAudio}
-                        className="w-full h-16 text-lg flex items-center justify-center space-x-3 bg-blue-600 hover:bg-blue-700 transition-colors"
+                        onClick={handlePlayAudio}
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioPlayed ? "bg-gray-400 hover:bg-gray-500" : "bg-blue-600 hover:bg-blue-700"
+                            } transition-colors`}
+                        disabled={audioPlayed}
                     >
                         <Volume2 className="h-6 w-6" />
-                        <span>Play Audio Stimulus</span>
+                        <span>{audioPlayed ? "Audio Played" : "Play Audio Stimulus"}</span>
                     </Button>
                     <p className="text-center text-sm text-gray-600 mt-2">
-                        Click to play the audio clip
+                        {audioPlayed ?
+                            "Audio played successfully. Please complete your response below." :
+                            "Click to play the audio clip"}
                     </p>
                 </div>
 
                 {/* Response Input Section */}
-                <div className="space-y-6 pt-4">
+                <div className={`space-y-6 pt-4 ${!audioPlayed ? "opacity-60" : ""}`}>
                     <div className="space-y-2">
                         <Label
                             htmlFor="finalWordInput"
                             className="text-sm font-medium text-gray-700"
                         >
-                            Type the <strong>final word</strong>you heard:
+                            Type the <strong>final word</strong> you heard:
                         </Label>
                         <Input
                             id="finalWordInput"
@@ -76,6 +92,7 @@ const ListeningEffortTest = ({
                             onChange={(e) => onResponseChange(e.target.value)}
                             placeholder="Enter the final word..."
                             className="w-full p-3 text-lg border-gray-200 focus:ring-blue-500 focus:border-blue-500"
+                            disabled={!audioPlayed}
                         />
                     </div>
 
@@ -83,10 +100,10 @@ const ListeningEffortTest = ({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <Label className="text-sm font-medium text-gray-700">
-                                How easy is this speech to understand?
+                                Rate your listening effort:
                             </Label>
                             <span className="text-sm font-medium text-blue-600">
-                                {rating || 0} - {getRatingLabel(rating || 0)}
+                                {rating || 1} - {getRatingLabel(rating || 1)}
                             </span>
                         </div>
 
@@ -94,15 +111,16 @@ const ListeningEffortTest = ({
                             <div className="relative">
                                 <input
                                     type="range"
-                                    min="0"
+                                    min="1"
                                     max="100"
-                                    value={rating || 0}
+                                    value={rating || 1}
                                     onChange={(e) => onRatingChange(parseInt(e.target.value))}
                                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
                                              focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     style={{
-                                        background: `linear-gradient(to right, #2563eb ${rating}%, #e5e7eb ${rating}%)`
+                                        background: `linear-gradient(to right, #2563eb ${rating || 1}%, #e5e7eb ${rating || 1}%)`
                                     }}
+                                    disabled={!audioPlayed}
                                 />
                                 <div className="flex justify-between text-xs text-gray-600 px-1 mt-1">
                                     <span>No effort</span>
@@ -112,7 +130,7 @@ const ListeningEffortTest = ({
 
                             {/* Visual indicator markers */}
                             <div className="flex justify-between px-1">
-                                {[0, 25, 50, 75, 100].map((mark) => (
+                                {[1, 25, 50, 75, 100].map((mark) => (
                                     <div
                                         key={mark}
                                         className="w-1 h-1 bg-gray-400 rounded-full"
@@ -124,7 +142,7 @@ const ListeningEffortTest = ({
 
                     <Button
                         onClick={onSubmit}
-                        disabled={!userResponse.trim() || rating === null}
+                        disabled={!userResponse.trim() || !rating || !audioPlayed}
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
