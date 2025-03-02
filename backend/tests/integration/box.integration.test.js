@@ -1,6 +1,10 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const BoxService = require('../../boxService');
+
+// Only run these tests when specifically called with BOX_TEST=true
+const runBoxTests = process.env.BOX_TEST === 'true';
 
 // Check required environment variables before importing BoxService
 const requiredEnvVars = [
@@ -22,10 +26,6 @@ if (missingEnvVars.length > 0) {
     process.exit(1);
 }
 
-const BoxService = require('../../boxService');
-
-// Only run these tests when specifically called with BOX_TEST=true
-const runBoxTests = process.env.BOX_TEST === 'true';
 
 // Test configuration
 const TEST_CONFIG = {
@@ -184,13 +184,13 @@ describe('Box Integration Tests', () => {
 
             try {
                 console.log('Looking for file pattern:',
-                    `${TEST_CONFIG.speaker}_Trn_${String(1).padStart(2, '0')}_${String(1).padStart(2, '0')}.wav`);
+                    `${TEST_CONFIG.speaker}_Trn_${String(2).padStart(2, '0')}_${String(1).padStart(2, '0')}.wav`);
 
                 // First try to list files to see what's available
                 const files = await BoxService.listUserFiles(TEST_CONFIG.speaker);
                 console.log('Available files:', files);
 
-                const stream = await BoxService.getTrainingFile(TEST_CONFIG.speaker, 1, 1);
+                const stream = await BoxService.getTrainingFile(TEST_CONFIG.speaker, 2, 1);
                 await streamToFile(stream, TEST_CONFIG.testFiles.training);
 
                 const filePath = path.join(TEST_CONFIG.outputDir, TEST_CONFIG.testFiles.training);

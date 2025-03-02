@@ -9,21 +9,30 @@ async function exploreBox() {
         // First check the root folder
         const rootContents = await BoxService.listFolderContents();
 
-        // Allow exploring a specific subfolder
-        if (process.argv[2]) {
-            const folderName = process.argv[2];
-            console.log(`\nLooking for folder: ${folderName}`);
+        // Get all files for Grace Norman with pagination
+        console.log('\nRetrieving all files for Grace Norman...');
+        let allFiles = [];
+        let offset = 0;
+        let hasMoreItems = true;
 
-            const targetFolder = rootContents.subfolders.find(f => f.name === folderName);
-            if (targetFolder) {
-                console.log(`Found folder ${folderName}. Exploring contents...`);
-                await BoxService.listFolderContents(targetFolder.id);
+        while (hasMoreItems) {
+            const files = await BoxService.listUserFiles('Grace Norman', { limit: 1000, offset });
+            allFiles = allFiles.concat(files);
+            console.log(`Retrieved ${files.length} files, total so far: ${allFiles.length}`);
+
+            if (files.length < 1000) {
+                hasMoreItems = false;
             } else {
-                console.log(`Folder "${folderName}" not found in root directory.`);
+                offset += 1000;
             }
         }
 
+        console.log(`\nTotal files found: ${allFiles.length}`);
+        console.log('First 10 files:', allFiles.slice(0, 10));
+        console.log('Last 10 files:', allFiles.slice(-10));
+
         console.log('\nExploration complete.');
+
     } catch (error) {
         console.error('Error exploring Box:', error);
     }

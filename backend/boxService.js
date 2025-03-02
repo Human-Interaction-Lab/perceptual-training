@@ -99,7 +99,7 @@ class BoxService {
         console.log('\nFiles:');
         files.forEach(file => {
           const sizeInKB = Math.round(file.size / 1024);
-          console.log(`- ${file.name} (${sizeInKB} KB, Modified: ${new Date(file.modified_at).toLocaleString()})`);
+          //console.log(`- ${file.name} (${sizeInKB} KB, Modified: ${new Date(file.modified_at).toLocaleString()})`);
         });
       }
 
@@ -125,7 +125,10 @@ class BoxService {
   async getFileStream(userId, filePattern) {
     try {
       const userFolder = await this.getUserFolder(userId);
-      const files = await this.client.folders.getItems(userFolder.id);
+      const files = await this.client.folders.getItems(userFolder.id, { limit: 1000 });
+
+      console.log(`Looking for file: "${filePattern}" in ${files.entries.length} files`);
+      console.log(`Available files: ${files.entries.map(e => e.name).join(', ')}`);
 
       const file = files.entries.find(entry =>
         entry.type === 'file' && entry.name === filePattern
@@ -173,13 +176,21 @@ class BoxService {
     }
   }
 
-  async listUserFiles(userId) {
+  async listUserFiles(userId, options = {}) {
     try {
       const userFolder = await this.getUserFolder(userId);
-      const files = await this.client.folders.getItems(userFolder.id);
+      const limit = options.limit || 1000; // Default to 1000 or Box's max
+      const offset = options.offset || 0;
+
+      // Use limit and offset in the API call
+      const files = await this.client.folders.getItems(userFolder.id, {
+        limit,
+        offset,
+        fields: 'name,id,type'
+      });
 
       return files.entries
-        .filter(entry => entry.type === 'file' && entry.name.endsWith('.wav'))
+        .filter(entry => entry.name.endsWith('.wav'))
         .map(entry => entry.name);
     } catch (error) {
       console.error(`Error listing files for user ${userId}:`, error);
