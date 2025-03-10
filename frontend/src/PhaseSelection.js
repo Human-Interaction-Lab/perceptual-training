@@ -84,7 +84,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date }) => {
           className="w-full"
           disabled={!isAvailable}
           variant={isAvailable ? "default" : "secondary"}
-          onClick={() => onSelect('training', 'Trn', day)}
+          onClick={() => onSelect('training', null, day)}
         >
           <span>
             {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}

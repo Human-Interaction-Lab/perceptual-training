@@ -12,6 +12,8 @@ import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
 import { COMPREHENSION_DATA } from './components/comprehensionData';
 import DemographicsForm from './demographics'
+import TrainingSession from './TrainingSession';
+import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -145,6 +147,67 @@ const App = () => {
     return currentStimuli;
   };
 
+  const renderTrainingSession = () => {
+    // Get training data based on day
+    const getTrainingData = () => {
+      switch (trainingDay) {
+        case 1:
+          return {
+            stimuli: TRAINING_DATA.day1,
+            testStimuli: TRAINING_TEST_STIMULI.day1
+          };
+        case 2:
+          return {
+            stimuli: TRAINING_DATA.day2,
+            testStimuli: TRAINING_TEST_STIMULI.day2
+          };
+        case 3:
+          return {
+            stimuli: TRAINING_DATA.day3,
+            testStimuli: TRAINING_TEST_STIMULI.day3
+          };
+        case 4:
+          return {
+            stimuli: TRAINING_DATA.day4,
+            testStimuli: TRAINING_TEST_STIMULI.day4
+          };
+        default:
+          return {
+            stimuli: TRAINING_DATA.day1,
+            testStimuli: TRAINING_TEST_STIMULI.day1
+          };
+      }
+    };
+
+    const trainData = getTrainingData();
+
+    return (
+      <TrainingSession
+        trainingDay={trainingDay}
+        trainingStimuli={trainData.stimuli}
+        intelligibilityStimuli={trainData.testStimuli}
+        onComplete={(day) => {
+          // Update training day and return to selection
+          if (day < 4) {
+            setTrainingDay(day + 1);
+          } else {
+            // If all training days are complete, move to posttest
+            setCurrentPhase('posttest');
+          }
+          setPhase('selection');
+          setShowComplete(true);
+
+          // Hide completion message after delay
+          setTimeout(() => {
+            setShowComplete(false);
+          }, 2000);
+        }}
+        onBack={() => {
+          setPhase('selection');
+        }}
+      />
+    );
+  };
 
   // This helper function gets the text to display for training phases
   //const getCurrentStimulusText = () => {
@@ -493,6 +556,7 @@ const App = () => {
 
     // For training phase
     if (selectedPhase === 'training') {
+      console.log(`Setting training day ${dayNumber}`);  // Debug log
       setCurrentPhase(selectedPhase);
       setCurrentTestType('training');
       if (dayNumber) {
@@ -901,6 +965,8 @@ const App = () => {
 
           ) : !canProceedToday && currentPhase !== 'pretest' ? (
             <NotAvailableMessage />
+          ) : phase === 'training' ? (
+            renderTrainingSession()
           ) : (
             renderAudioTest()
           )}
