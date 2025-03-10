@@ -12,7 +12,7 @@ import ListeningEffortTest from './components/listeningEffortTest';
 import ComprehensionTest from './components/comprehensionTest';
 import { COMPREHENSION_DATA } from './components/comprehensionData';
 import DemographicsForm from './demographics'
-import TrainingSession from './TrainingSession';
+import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 

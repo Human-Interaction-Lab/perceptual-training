@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from "./components/ui/button";
-import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
+import { Button } from "./ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { Volume2, ArrowRight, Headphones } from 'lucide-react';
-import IntelligibilityTest from './components/intelligibilityTest';
-import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
+import IntelligibilityTest from './intelligibilityTest';
+import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './trainingData';
 
 const TrainingSession = ({
     onComplete,
@@ -308,10 +308,6 @@ const TrainingSession = ({
                 };
         }
     };
-
-    const trainingData = getTrainingData();
-    const trainingStimuli = trainingData.stimuli || [];
-    const testStimuli = trainingData.testStimuli || [];
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
