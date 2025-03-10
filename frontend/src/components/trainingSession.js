@@ -23,7 +23,7 @@ const TrainingSession = ({
     useEffect(() => {
         setCurrentPhase('instruction');
         setCurrentStimulusIndex(0);
-        setShowText(false);
+        setShowText(true);
         setUserResponse('');
         setIsSubmitting(false);
         setAudioPlayed(false);
@@ -52,9 +52,6 @@ const TrainingSession = ({
 
             // Play the audio
             await audio.play();
-
-            // Show text after audio starts playing
-            setShowText(true);
             setAudioPlayed(true);
 
             // Auto-advance after 5 seconds if we're in training mode
@@ -77,7 +74,7 @@ const TrainingSession = ({
         if (currentPhase === 'training') {
             // Reset for next stimulus
             setAudioPlayed(false);
-            setShowText(false);
+            setShowText(true);
 
             // Move to next stimulus or to test phase
             if (currentStimulusIndex < trainingStimuli.length - 1) {
