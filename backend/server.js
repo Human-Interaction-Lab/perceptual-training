@@ -153,7 +153,6 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 // Box integration
 //
 
-// Route for pretest and posttest files
 // Route for pretest and posttest files with test types
 app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (req, res) => {
   try {
@@ -178,12 +177,27 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
     }
 
     // Check if file exists in Box
-    const exists = await boxService.fileExists(speaker, testType, version, sentence);
-    if (!exists) {
-      return res.status(404).json({
-        error: `${phase} ${testType} file ${version}/${sentence} not found`
-      });
+    const prefix = phase === 'pretest' ? 'Pre' : 'Post';
+    if (testType === "COMPREHENSION") {
+      const pattern = `${prefix}_${testType}_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+      const exists = await boxService.fileExists(speaker, pattern);
+
+      if (!exists) {
+        return res.status(404).json({
+          error: `${phase} ${testType} file ${version}/${sentence} not found`
+        });
+      }
+    } else {
+      const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
+      const exists = await boxService.fileExists(speaker, pattern);
+
+      if (!exists) {
+        return res.status(404).json({
+          error: `${phase} ${testType} file ${version}/${sentence} not found`
+        });
+      }
     }
+
 
     // Stream and save the file from Box
     const fileInfo = await tempFileService.streamAndSaveFile(
@@ -214,14 +228,17 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
       return res.status(404).json({ error: 'User not found' });
     }
     const speaker = user.speaker;
+    console.log('Check if training file exists')
 
     // Check if file exists in Box
-    const exists = await boxService.fileExists(speaker, 'training', day, sentence);
+    const pattern = `Trn_${String(day + 1).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    const exists = await boxService.fileExists(speaker, pattern);
     if (!exists) {
       return res.status(404).json({
         error: `Training file for day ${day}, sentence ${sentence} not found`
       });
     }
+    console.log('Training file exists')
 
     // Stream and save the file from Box
     const fileInfo = await tempFileService.streamAndSaveFile(

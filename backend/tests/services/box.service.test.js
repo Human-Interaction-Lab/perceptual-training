@@ -224,14 +224,14 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         it('should access training files with valid authentication', async () => {
             // Set pretest date to yesterday to allow training today
             const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 2);
+            yesterday.setDate(yesterday.getDate() - 1);
 
             // Update user to be in training phase
             testUser = await User.findOneAndUpdate(
                 { userId },
                 {
                     currentPhase: 'training',
-                    trainingDay: 2,
+                    trainingDay: 1,
                     pretestDate: yesterday
                 },
                 { new: true }
@@ -244,18 +244,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             );
 
             // Mock the fileExists method for this specific test
-            mockBoxService.fileExists = jest.fn().mockImplementation((speaker, param2, param3, param4) => {
-                // Handle different call signatures
-                if (typeof param2 === 'string' && param2 === 'training' && param3 === 2) {
-                    // Called as fileExists(speaker, 'training', 2, 1)
-                    return Promise.resolve(true);
-                } else if (param2 && param2.includes && param2.includes('Trn_02')) {
-                    // Called as fileExists(speaker, 'Grace Norman_Trn_02_01.wav')
-                    return Promise.resolve(true);
-                }
-                // Default
-                return Promise.resolve(true);
-            });
+            mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
 
             const response = await request(app)
                 .get('/audio/training/day/2/1')
