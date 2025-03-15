@@ -168,6 +168,7 @@ class BoxService {
 
   async fileExists(userId, filename) {
     try {
+      filename = `${userId}_${filename}`;
       const files = await this.listUserFiles(userId);
       return files.includes(filename);
     } catch (error) {

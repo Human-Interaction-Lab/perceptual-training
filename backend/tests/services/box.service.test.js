@@ -244,11 +244,18 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             );
 
             // Mock the fileExists method for this specific test
-            mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
+            mockBoxService.fileExists = jest.fn().mockImplementation((speaker, filename) => {
+                console.log(`Checking file exists: ${speaker}, ${filename}`);
+                return true;
+            });
 
             const response = await request(app)
-                .get('/audio/training/day/2/1')
+                .get('/audio/training/day/1/1')
                 .set('Authorization', `Bearer ${token}`);
+
+            console.log("Response status:", response.status);
+            console.log("Response body:", response.body);
+
             expect(response.status).toBe(200);
         });
 

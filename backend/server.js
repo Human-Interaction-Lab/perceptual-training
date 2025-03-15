@@ -179,7 +179,16 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
     // Check if file exists in Box
     const prefix = phase === 'pretest' ? 'Pre' : 'Post';
     if (testType === "COMPREHENSION") {
-      const pattern = `${prefix}_${testType}_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+      const pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+      const exists = await boxService.fileExists(speaker, pattern);
+
+      if (!exists) {
+        return res.status(404).json({
+          error: `${phase} ${testType} file ${version}/${sentence} not found`
+        });
+      }
+    } else if (testType === "INTELLIGIBILITY") {
+      const pattern = `Int${String(sentence).padStart(2, '0')}`;
       const exists = await boxService.fileExists(speaker, pattern);
 
       if (!exists) {
@@ -188,7 +197,7 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         });
       }
     } else {
-      const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
+      const pattern = `EFF${String(sentence).padStart(2, '0')}`;
       const exists = await boxService.fileExists(speaker, pattern);
 
       if (!exists) {
