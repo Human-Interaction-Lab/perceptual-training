@@ -208,7 +208,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
     describe('API Integration', () => {
         it('should require authentication for file access', async () => {
             const response = await request(app)
-                .get('/audio/pretest/COMPREHENSION/1');
+                .get('/audio/pretest/COMPREHENSION/1/1');
             expect(response.status).toBe(401);
         });
 
@@ -216,7 +216,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
 
             const response = await request(app)
-                .get('/audio/pretest/COMPREHENSION/1')
+                .get('/audio/pretest/COMPREHENSION/1/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(200);
         });
@@ -255,14 +255,14 @@ describe('Box Service Integration Tests - Grace Norman', () => {
             mockBoxService.fileExists = jest.fn().mockResolvedValue(false);
 
             const response = await request(app)
-                .get('/audio/pretest/COMPREHENSION/999')
+                .get('/audio/pretest/COMPREHENSION/1/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(404);
         });
 
         it('should return 400 for invalid test type', async () => {
             const response = await request(app)
-                .get('/audio/pretest/INVALID/1')
+                .get('/audio/pretest/INVALID/1/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(400);
         });
