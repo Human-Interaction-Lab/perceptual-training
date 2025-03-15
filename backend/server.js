@@ -15,6 +15,7 @@ const Demographics = require('./models/Demographics');
 const boxService = require('./boxService');
 //const initializeAdmin = require('./utils/initAdmin');
 const { initializeUsers } = require('./utils/initUsers');
+const tempFileService = require('./tempFileService');
 
 let server;
 
@@ -135,6 +136,7 @@ const connectDB = async () => {
 // Server startup function
 const startServer = async () => {
   await connectDB();
+  await tempFileService.initialize();
   const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
   const server = app.listen(PORT, () => {
     const actualPort = server.address().port;
@@ -153,9 +155,9 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 
 // Route for pretest and posttest files
 // Route for pretest and posttest files with test types
-app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res) => {
+app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (req, res) => {
   try {
-    const { phase, testType, sentence } = req.params;
+    const { phase, testType, version, sentence } = req.params;
     const user = await User.findOne({ userId: req.user.userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -163,7 +165,7 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
     const speaker = user.speaker;
 
     // Validate phase
-    if (phase !== 'pretest' && phase !== 'posttest') {
+    if (phase !== 'pretest' && !phase.startsWith('posttest')) {
       return res.status(400).json({ error: 'Invalid phase specified' });
     }
 
@@ -175,30 +177,35 @@ app.get('/audio/:phase/:testType/:sentence', authenticateToken, async (req, res)
       });
     }
 
-    // Check if file exists using speaker instead of userId
-    const prefix = phase === 'pretest' ? 'Pre' : 'Post';
-    const pattern = `${prefix}_${testType}_${String(sentence).padStart(2, '0')}`;
-    const exists = await boxService.fileExists(speaker, pattern);
-
+    // Check if file exists in Box
+    const exists = await boxService.fileExists(speaker, testType, version, sentence);
     if (!exists) {
       return res.status(404).json({
-        error: `${phase} ${testType} file ${sentence} not found`
+        error: `${phase} ${testType} file ${version}/${sentence} not found`
       });
     }
 
-    // Get and stream the file using speaker
-    const fileStream = await boxService.getTestFile(speaker, phase, testType, sentence);
+    // Stream and save the file from Box
+    const fileInfo = await tempFileService.streamAndSaveFile(
+      speaker,
+      phase,
+      testType,
+      parseInt(version),
+      parseInt(sentence)
+    );
 
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Cache-Control', 'no-cache');
-    fileStream.pipe(res);
+    // Return the URL to the temporary file
+    res.json({
+      url: fileInfo.relativeUrl,
+      filename: fileInfo.filename
+    });
   } catch (error) {
-    console.error('Error streaming audio:', error);
-    res.status(500).json({ error: 'Failed to stream audio file' });
+    console.error('Error handling audio request:', error);
+    res.status(500).json({ error: 'Failed to retrieve audio file' });
   }
 });
 
-// Route for training files (unchanged)
+// Route for training files
 app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
   try {
     const { day, sentence } = req.params;
@@ -208,23 +215,54 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
     }
     const speaker = user.speaker;
 
-    const pattern = `Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
-
-    const exists = await boxService.fileExists(speaker, pattern);
+    // Check if file exists in Box
+    const exists = await boxService.fileExists(speaker, 'training', day, sentence);
     if (!exists) {
       return res.status(404).json({
         error: `Training file for day ${day}, sentence ${sentence} not found`
       });
     }
 
-    const fileStream = await boxService.getTrainingFile(speaker, day, sentence);
+    // Stream and save the file from Box
+    const fileInfo = await tempFileService.streamAndSaveFile(
+      speaker,
+      'training',
+      null,
+      parseInt(day),
+      parseInt(sentence)
+    );
 
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Cache-Control', 'no-cache');
-    fileStream.pipe(res);
+    // Return the URL to the temporary file
+    res.json({
+      url: fileInfo.relativeUrl,
+      filename: fileInfo.filename
+    });
   } catch (error) {
-    console.error('Error streaming audio:', error);
-    res.status(500).json({ error: 'Failed to stream audio file' });
+    console.error('Error handling training audio request:', error);
+    res.status(500).json({ error: 'Failed to retrieve training audio file' });
+  }
+});
+
+// Route to notify the server that a file has been played (to clean it up)
+app.post('/api/audio/played', authenticateToken, async (req, res) => {
+  try {
+    const { filename } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' });
+    }
+
+    // Schedule file for removal (slight delay to ensure it's fully played)
+    setTimeout(() => {
+      tempFileService.removeFile(filename).catch(err => {
+        console.error(`Error removing file ${filename}:`, err);
+      });
+    }, 5000); // 5 second delay
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking file as played:', error);
+    res.status(500).json({ error: 'Failed to process request' });
   }
 });
 
