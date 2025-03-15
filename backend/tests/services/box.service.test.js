@@ -51,11 +51,11 @@ class MockBoxService {
 
     async listUserFiles(speaker) {
         return [
-            'GraceNorman_Comp_01_01.wav',
-            'GraceNorman_Comp_01_02.wav',
-            'GraceNorman_EFF01.wav',
-            'GraceNorman_Int01.wav',
-            'GraceNorman_Trn_01_01.wav'
+            'Grace Norman_Comp_01_01.wav',
+            'Grace Norman_Comp_01_02.wav',
+            'Grace Norman_EFF01.wav',
+            'Grace Norman_Int01.wav',
+            'Grace Norman_Trn_02_01.wav'
         ];
     }
 
@@ -111,7 +111,7 @@ const { app } = require('../../server');
 
 describe('Box Service Integration Tests - Grace Norman', () => {
     const userId = 'testuser123';
-    const speaker = 'GraceNorman';
+    const speaker = 'Grace Norman';
     let token;
     let testUser;
 
@@ -147,9 +147,9 @@ describe('Box Service Integration Tests - Grace Norman', () => {
 
     describe('Filename Pattern Tests', () => {
         it('should correctly parse comprehension filenames', () => {
-            const result = BoxService.parseFileName('GraceNorman_Comp_01_01.wav');
+            const result = BoxService.parseFileName('Grace Norman_Comp_01_01.wav');
             expect(result).toEqual({
-                username: 'GraceNorman',
+                username: 'Grace Norman',
                 type: 'comprehension',
                 version: 1,
                 sentence: 1
@@ -157,29 +157,29 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should correctly parse effort filenames', () => {
-            const result = BoxService.parseFileName('GraceNorman_EFF01.wav');
+            const result = BoxService.parseFileName('Grace Norman_EFF01.wav');
             expect(result).toEqual({
-                username: 'GraceNorman',
+                username: 'Grace Norman',
                 type: 'effort',
                 sentence: 1
             });
         });
 
         it('should correctly parse intelligibility filenames', () => {
-            const result = BoxService.parseFileName('GraceNorman_Int01.wav');
+            const result = BoxService.parseFileName('Grace Norman_Int01.wav');
             expect(result).toEqual({
-                username: 'GraceNorman',
+                username: 'Grace Norman',
                 type: 'intelligibility',
                 sentence: 1
             });
         });
 
         it('should correctly parse training filenames', () => {
-            const result = BoxService.parseFileName('GraceNorman_Trn_01_01.wav');
+            const result = BoxService.parseFileName('Grace Norman_Trn_02_01.wav');
             expect(result).toEqual({
-                username: 'GraceNorman',
+                username: 'Grace Norman',
                 phase: 'training',
-                day: 1,
+                day: 2,
                 sentence: 1
             });
         });
@@ -194,7 +194,7 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         });
 
         it('should check if a file exists', async () => {
-            const exists = await BoxService.fileExists(userId, 'GraceNorman_Comp_01_01.wav');
+            const exists = await BoxService.fileExists(userId, 'Grace Norman_Comp_01_01.wav');
             expect(exists).toBe(true);
         });
 
@@ -224,14 +224,14 @@ describe('Box Service Integration Tests - Grace Norman', () => {
         it('should access training files with valid authentication', async () => {
             // Set pretest date to yesterday to allow training today
             const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
+            yesterday.setDate(yesterday.getDate() - 2);
 
             // Update user to be in training phase
             testUser = await User.findOneAndUpdate(
                 { userId },
                 {
                     currentPhase: 'training',
-                    trainingDay: 1,
+                    trainingDay: 2,
                     pretestDate: yesterday
                 },
                 { new: true }
@@ -243,10 +243,22 @@ describe('Box Service Integration Tests - Grace Norman', () => {
                 process.env.JWT_SECRET || 'your_jwt_secret'
             );
 
-            mockBoxService.fileExists = jest.fn().mockResolvedValue(true);
+            // Mock the fileExists method for this specific test
+            mockBoxService.fileExists = jest.fn().mockImplementation((speaker, param2, param3, param4) => {
+                // Handle different call signatures
+                if (typeof param2 === 'string' && param2 === 'training' && param3 === 2) {
+                    // Called as fileExists(speaker, 'training', 2, 1)
+                    return Promise.resolve(true);
+                } else if (param2 && param2.includes && param2.includes('Trn_02')) {
+                    // Called as fileExists(speaker, 'Grace Norman_Trn_02_01.wav')
+                    return Promise.resolve(true);
+                }
+                // Default
+                return Promise.resolve(true);
+            });
 
             const response = await request(app)
-                .get('/audio/training/day/1/1')
+                .get('/audio/training/day/2/1')
                 .set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(200);
         });
