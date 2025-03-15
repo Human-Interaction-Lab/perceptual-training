@@ -24,22 +24,25 @@ class BoxService {
     // Define test types and their filename patterns
     this.testTypes = {
       COMPREHENSION: {
-        code: 'Comp',
+        code: 'COMPREHENSION',
+        fileCode: 'Comp',
         hasVersion: true,
-        pattern: (username, version, sentence) =>
-          `${username}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`
+        pattern: (speaker, version, sentence) =>
+          `${speaker}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`
       },
       EFFORT: {
-        code: 'EFF',
+        code: 'EFFORT',
+        fileCode: 'EFF',
         hasVersion: false,
-        pattern: (username, _, sentence) =>
-          `${username}_EFF${String(sentence).padStart(2, '0')}.wav`
+        pattern: (speaker, _, sentence) =>
+          `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`
       },
       INTELLIGIBILITY: {
-        code: 'Int',
+        code: 'INTELLIGIBILITY',
+        fileCode: 'Int',
         hasVersion: false,
-        pattern: (username, _, sentence) =>
-          `${username}_Int${String(sentence).padStart(2, '0')}.wav`
+        pattern: (speaker, _, sentence) =>
+          `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`
       }
     };
   }
@@ -146,31 +149,49 @@ class BoxService {
   }
 
   // Get test file based on type
-  async getTestFile(userId, testType, version, sentence) {
+  async getTestFile(speaker, testType, version, sentence) {
     const typeConfig = this.testTypes[testType.toUpperCase()];
     if (!typeConfig) {
       throw new Error(`Invalid test type: ${testType}`);
     }
 
-    if (typeConfig.hasVersion && !version) {
+    // If this test type requires a version but none was provided
+    if (typeConfig.hasVersion && (version === undefined || version === null)) {
       throw new Error(`Version required for ${testType}`);
     }
 
-    const filename = typeConfig.pattern(userId, version, sentence);
-    return this.getFileStream(userId, filename);
+    // Generate the filename using the pattern function
+    const filename = typeConfig.pattern(speaker, version, sentence);
+    console.log(`Getting test file: ${filename}`);
+
+    return this.getFileStream(speaker, filename);
   }
 
   // Get training file
-  async getTrainingFile(userId, day, sentence) {
-    const pattern = `${userId}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
-    return this.getFileStream(userId, pattern);
+  async getTrainingFile(speaker, day, sentence) {
+    const filename = `${speaker}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+    console.log(`Getting training file: ${filename}`);
+
+    return this.getFileStream(speaker, filename);
   }
 
-  async fileExists(userId, filename) {
+  async fileExists(speaker, filenameOrPattern) {
     try {
-      filename = `${userId}_${filename}`;
-      const files = await this.listUserFiles(userId);
-      return files.includes(filename);
+      // If it's a partial pattern, we'll construct the full filename
+      const filename = filenameOrPattern.includes(speaker)
+        ? filenameOrPattern
+        : `${speaker}_${filenameOrPattern}.wav`;
+
+      console.log(`Checking if file exists: ${filename}`);
+
+      const files = await this.listUserFiles(speaker);
+      const exists = files.includes(filename);
+
+      if (!exists) {
+        console.log(`File not found. Available files: ${files.slice(0, 5).join(', ')}${files.length > 5 ? '...' : ''}`);
+      }
+
+      return exists;
     } catch (error) {
       console.error('Box verification error:', error);
       throw error;

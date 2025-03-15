@@ -1,4 +1,3 @@
-// backend/tempFileService.js
 const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
@@ -35,7 +34,7 @@ const ensureTempDir = async () => {
 const initialize = async () => {
   await ensureTempDir();
   console.log('Temporary file service initialized');
-  
+
   // Start cleanup job
   setInterval(cleanupExpiredFiles, 5 * 60 * 1000); // Check every 5 minutes
 };
@@ -43,44 +42,48 @@ const initialize = async () => {
 // Stream and save a file from Box
 const streamAndSaveFile = async (speaker, phase, testType, version, sentence) => {
   await ensureTempDir();
-  
+
   // Generate filename based on parameters
   let filename;
   let fileStream;
-  
+
   if (phase === 'training') {
+    // For training files: <speaker>_Trn_<day>_<sentence>.wav
+    // Note: in the route, we pass the real day (1-indexed), but internally add 1 to match file naming convention
     filename = `${speaker}_Trn_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
     fileStream = await boxService.getTrainingFile(speaker, version, sentence);
   } else {
     // For pretest and posttest
-    const testTypeCode = testType.toUpperCase();
-    if (testTypeCode === 'COMPREHENSION') {
+    if (testType === 'COMPREHENSION') {
+      // Comprehension: <speaker>_Comp_<version>_<sentence>.wav
       filename = `${speaker}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
-    } else if (testTypeCode === 'EFFORT') {
+    } else if (testType === 'EFFORT') {
+      // Effort: <speaker>_EFF<sentence>.wav
       filename = `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`;
-    } else if (testTypeCode === 'INTELLIGIBILITY') {
+    } else if (testType === 'INTELLIGIBILITY') {
+      // Intelligibility: <speaker>_Int<sentence>.wav
       filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
     } else {
       throw new Error(`Invalid test type: ${testType}`);
     }
-    
-    fileStream = await boxService.getTestFile(speaker, testTypeCode, version, sentence);
+
+    fileStream = await boxService.getTestFile(speaker, testType, version, sentence);
   }
-  
+
   const filePath = path.join(TEMP_DIR, filename);
-  
+
   // Stream to file
   const chunks = [];
   for await (const chunk of fileStream) {
     chunks.push(chunk);
   }
-  
+
   const buffer = Buffer.concat(chunks);
   await writeFile(filePath, buffer);
-  
+
   // Track the file with current timestamp
   downloadedFiles.set(filename, Date.now());
-  
+
   return {
     filename,
     path: filePath,
@@ -106,7 +109,7 @@ const removeFile = async (filename) => {
 // Clean up all expired files
 const cleanupExpiredFiles = async () => {
   const now = Date.now();
-  
+
   try {
     // Clean up tracked files
     for (const [filename, timestamp] of downloadedFiles.entries()) {
@@ -114,7 +117,7 @@ const cleanupExpiredFiles = async () => {
         await removeFile(filename);
       }
     }
-    
+
     // Also check directory for any untracked files (from previous runs)
     const files = await readdir(TEMP_DIR);
     for (const file of files) {

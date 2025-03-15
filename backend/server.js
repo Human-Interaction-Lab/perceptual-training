@@ -153,6 +153,50 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 // Box integration
 //
 
+// Static audio file serving
+app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
+
+// Route for training files
+app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
+  try {
+    const { day, sentence } = req.params;
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const speaker = user.speaker;
+
+    // Check if file exists in Box
+    // We add 1 to the day to match the file naming convention (days are 1-indexed in UI, 2-indexed in files)
+    const pattern = `Trn_${String(parseInt(day) + 1).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    const exists = await boxService.fileExists(speaker, pattern);
+
+    if (!exists) {
+      return res.status(404).json({
+        error: `Training file for day ${day}, sentence ${sentence} not found`
+      });
+    }
+
+    // Stream and save the file from Box
+    const fileInfo = await tempFileService.streamAndSaveFile(
+      speaker,
+      'training',
+      null,  // No test type for training
+      parseInt(day) + 1, // Add 1 to day for file naming
+      parseInt(sentence)
+    );
+
+    // Return the URL to the temporary file
+    res.json({
+      url: fileInfo.relativeUrl,
+      filename: fileInfo.filename
+    });
+  } catch (error) {
+    console.error('Error handling training audio request:', error);
+    res.status(500).json({ error: 'Failed to retrieve training audio file' });
+  }
+});
+
 // Route for pretest and posttest files with test types
 app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (req, res) => {
   try {
@@ -163,56 +207,43 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
     }
     const speaker = user.speaker;
 
-    // Validate phase
+    // Validate phase - ensure this route is only used for pretest and posttest
     if (phase !== 'pretest' && !phase.startsWith('posttest')) {
-      return res.status(400).json({ error: 'Invalid phase specified' });
+      return res.status(400).json({ error: 'Invalid phase specified. Must be pretest or posttest' });
     }
 
-    // Validate test type
-    const validTestTypes = Object.values(boxService.testTypes);
-    if (!validTestTypes.includes(testType)) {
+    // Validate test type against available types in boxService
+    const validTestTypes = Object.keys(boxService.testTypes);
+    if (!validTestTypes.includes(testType.toUpperCase())) {
       return res.status(400).json({
         error: `Invalid test type. Must be one of: ${validTestTypes.join(', ')}`
       });
     }
 
-    // Check if file exists in Box
-    const prefix = phase === 'pretest' ? 'Pre' : 'Post';
-    if (testType === "COMPREHENSION") {
-      const pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
-      const exists = await boxService.fileExists(speaker, pattern);
+    // Check if file exists in Box - use appropriate pattern based on test type
+    let pattern;
+    const testTypeUpper = testType.toUpperCase();
 
-      if (!exists) {
-        return res.status(404).json({
-          error: `${phase} ${testType} file ${version}/${sentence} not found`
-        });
-      }
-    } else if (testType === "INTELLIGIBILITY") {
-      const pattern = `Int${String(sentence).padStart(2, '0')}`;
-      const exists = await boxService.fileExists(speaker, pattern);
-
-      if (!exists) {
-        return res.status(404).json({
-          error: `${phase} ${testType} file ${version}/${sentence} not found`
-        });
-      }
-    } else {
-      const pattern = `EFF${String(sentence).padStart(2, '0')}`;
-      const exists = await boxService.fileExists(speaker, pattern);
-
-      if (!exists) {
-        return res.status(404).json({
-          error: `${phase} ${testType} file ${version}/${sentence} not found`
-        });
-      }
+    if (testTypeUpper === "COMPREHENSION") {
+      pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    } else if (testTypeUpper === "INTELLIGIBILITY") {
+      pattern = `Int${String(sentence).padStart(2, '0')}`;
+    } else { // EFFORT
+      pattern = `EFF${String(sentence).padStart(2, '0')}`;
     }
 
+    const exists = await boxService.fileExists(speaker, pattern);
+    if (!exists) {
+      return res.status(404).json({
+        error: `${phase} ${testType} file ${version}/${sentence} not found`
+      });
+    }
 
     // Stream and save the file from Box
     const fileInfo = await tempFileService.streamAndSaveFile(
       speaker,
       phase,
-      testType,
+      testTypeUpper,
       parseInt(version),
       parseInt(sentence)
     );
@@ -225,47 +256,6 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
   } catch (error) {
     console.error('Error handling audio request:', error);
     res.status(500).json({ error: 'Failed to retrieve audio file' });
-  }
-});
-
-// Route for training files
-app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
-  try {
-    const { day, sentence } = req.params;
-    const user = await User.findOne({ userId: req.user.userId });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const speaker = user.speaker;
-    console.log('Check if training file exists')
-
-    // Check if file exists in Box
-    const pattern = `Trn_${String(day + 1).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
-    const exists = await boxService.fileExists(speaker, pattern);
-    if (!exists) {
-      return res.status(404).json({
-        error: `Training file for day ${day}, sentence ${sentence} not found`
-      });
-    }
-    console.log('Training file exists')
-
-    // Stream and save the file from Box
-    const fileInfo = await tempFileService.streamAndSaveFile(
-      speaker,
-      'training',
-      null,
-      parseInt(day),
-      parseInt(sentence)
-    );
-
-    // Return the URL to the temporary file
-    res.json({
-      url: fileInfo.relativeUrl,
-      filename: fileInfo.filename
-    });
-  } catch (error) {
-    console.error('Error handling training audio request:', error);
-    res.status(500).json({ error: 'Failed to retrieve training audio file' });
   }
 });
 
