@@ -151,39 +151,40 @@ const PhaseSelection = ({
     }
   ];
 
-  // Start background preloading when component mounts
+  // Immediately start preloading files when the component mounts
   useEffect(() => {
-    const backgroundPreload = async () => {
-      // Don't preload if demographics isn't completed yet
-      if (!isDemographicsCompleted) {
-        return;
-      }
+    // Skip if demographics isn't completed yet
+    if (!isDemographicsCompleted) {
+      console.log('Demographics not completed, skipping preload');
+      return;
+    }
 
+    const startPreloading = async () => {
+      console.log('Starting background preloading for', currentPhase);
       setBackgroundPreloading(true);
 
       try {
-        // Determine what needs to be preloaded based on current phase
+        // Determine what phase to preload based on current phase
         if (currentPhase === 'pretest') {
-          if (!preloadingStatus.pretest) {
-            console.log('Background preloading pretest files...');
-            setPreloadingStatus(prev => ({ ...prev, pretest: true }));
-            await audioService.preloadAudioFiles('pretest');
-            console.log('Pretest files preloaded successfully');
-          }
-        } else if (currentPhase === 'training') {
-          if (!preloadingStatus.training) {
-            console.log(`Background preloading training day ${trainingDay} files...`);
-            setPreloadingStatus(prev => ({ ...prev, training: true }));
-            await audioService.preloadAudioFiles('training', trainingDay);
-            console.log(`Training day ${trainingDay} files preloaded successfully`);
-          }
-        } else if (currentPhase === 'posttest') {
-          if (!preloadingStatus.posttest) {
-            console.log('Background preloading posttest files...');
-            setPreloadingStatus(prev => ({ ...prev, posttest: true }));
-            await audioService.preloadAudioFiles('posttest');
-            console.log('Posttest files preloaded successfully');
-          }
+          // Start preloading pretest files immediately
+          console.log('Beginning pretest files preload...');
+          await audioService.preloadAudioFiles('pretest');
+          console.log('Pretest files preloaded successfully');
+          setPreloadingStatus(prev => ({ ...prev, pretest: true }));
+        }
+        else if (currentPhase === 'training') {
+          // Start preloading training day files immediately
+          console.log(`Beginning training day ${trainingDay} files preload...`);
+          await audioService.preloadAudioFiles('training', trainingDay);
+          console.log(`Training day ${trainingDay} files preloaded successfully`);
+          setPreloadingStatus(prev => ({ ...prev, training: true }));
+        }
+        else if (currentPhase === 'posttest') {
+          // Start preloading posttest files immediately
+          console.log('Beginning posttest files preload...');
+          await audioService.preloadAudioFiles('posttest');
+          console.log('Posttest files preloaded successfully');
+          setPreloadingStatus(prev => ({ ...prev, posttest: true }));
         }
       } catch (error) {
         console.error('Background preloading error:', error);
@@ -193,8 +194,9 @@ const PhaseSelection = ({
       }
     };
 
-    backgroundPreload();
-  }, [currentPhase, trainingDay, isDemographicsCompleted, preloadingStatus]);
+    // Call it immediately
+    startPreloading();
+  }, [currentPhase, trainingDay, isDemographicsCompleted]); // Removed preloadingStatus dependency to ensure it always runs
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
