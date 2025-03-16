@@ -606,10 +606,38 @@ const App = () => {
 
 
   // Revised handlePlayAudio function
-  const handlePlayAudio = async () => {
+  // Update the handlePlayAudio function in App.js to support playing entire stories
+  const handlePlayAudio = async (input) => {
     try {
-      // Determine what kind of audio to play based on current test type
-      if (currentTestType === 'comprehension') {
+      // Check if we're playing a full story (input will be storyId like "Comp_01")
+      if (typeof input === 'string' && input.startsWith('Comp_')) {
+        const storyNum = input.replace('Comp_', '');
+
+        // Play all audio clips for this story sequentially
+        console.log(`Playing full story ${storyNum}`);
+
+        // Get the total number of audio clips for this story (typically 10)
+        const totalClips = 10; // Adjust based on your actual story length
+
+        // Play each clip in sequence
+        for (let i = 1; i <= totalClips; i++) {
+          await audioService.playTestAudio(
+            phase,
+            'comprehension',
+            storyNum,
+            i
+          );
+
+          // Add a small pause between clips for better experience
+          if (i < totalClips) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        return true;
+      }
+      // Original behavior for individual clips
+      else if (currentTestType === 'comprehension') {
         const storyNum = currentStoryId.replace('Comp_', '');
         await audioService.playTestAudio(
           phase,
@@ -619,20 +647,18 @@ const App = () => {
         );
         return true;
       } else if (currentTestType === 'effort') {
-        // For effort tests, pass null as version
         await audioService.playTestAudio(
           phase,
           'effort',
-          null, // Effort tests don't use versions 
+          null,
           currentStimulus + 1
         );
         return true;
       } else {
-        // For intelligibility tests
         await audioService.playTestAudio(
           phase,
           'intelligibility',
-          null, // Intelligibility tests don't use versions
+          null,
           currentStimulus + 1
         );
         return true;

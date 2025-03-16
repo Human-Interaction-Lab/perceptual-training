@@ -1,3 +1,4 @@
+// Updated ComprehensionTest.js component
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -16,21 +17,42 @@ const ComprehensionTest = ({
     storyId,
     isSubmitting = false
 }) => {
-    // Add state to track if audio has been played
-    const [audioPlayed, setAudioPlayed] = useState(false);
+    // Track if the entire story audio has been played
+    const [storyAudioPlayed, setStoryAudioPlayed] = useState(false);
+    // Track if we're currently playing the story
+    const [isPlayingStory, setIsPlayingStory] = useState(false);
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
 
-    // Reset audioPlayed when stimulus changes
+    // Reset storyAudioPlayed when story changes
     useEffect(() => {
-        setAudioPlayed(false);
+        setStoryAudioPlayed(false);
     }, [storyId]);
 
-    // Modified play audio handler that updates the state
-    const handlePlayAudio = async () => {
-        await onPlayAudio();
-        setAudioPlayed(true);
+    // Get the story number from the ID (e.g., "Comp_01" -> 1)
+    const storyNumber = parseInt(storyId.replace('Comp_', ''));
+
+    // Function to play the entire story
+    const handlePlayStoryAudio = async () => {
+        if (isPlayingStory) return;
+
+        setIsPlayingStory(true);
+
+        try {
+            // Start by showing a message that the story is playing
+            console.log(`Playing full story audio for ${storyId}`);
+
+            // Call onPlayAudio with storyId instead of current question
+            await onPlayAudio(storyId);
+
+            // Mark the story as played
+            setStoryAudioPlayed(true);
+        } catch (error) {
+            console.error("Error playing story audio:", error);
+        } finally {
+            setIsPlayingStory(false);
+        }
     };
 
     const handleSubmit = () => {
@@ -47,7 +69,7 @@ const ComprehensionTest = ({
                         <div className="flex items-center space-x-2">
                             <BookOpen className="h-5 w-5 text-blue-600" />
                             <span className="text-lg font-medium text-gray-900">
-                                Story {storyId.replace('Comp_', '')}
+                                Story {storyNumber}
                             </span>
                         </div>
                         <span className="text-blue-600 font-medium">
@@ -67,30 +89,38 @@ const ComprehensionTest = ({
                 {/* Audio Control Section */}
                 <div className="pt-2">
                     <Button
-                        onClick={handlePlayAudio}
-                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${audioPlayed
+                        onClick={handlePlayStoryAudio}
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${storyAudioPlayed
                             ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed"
                             : "bg-blue-600 hover:bg-blue-700"
                             }`}
-                        disabled={audioPlayed || isSubmitting}
+                        disabled={storyAudioPlayed || isPlayingStory || isSubmitting}
                     >
-                        <Volume2 className="h-6 w-6" />
-                        <span>{audioPlayed ? "Story Audio Played" : "Play Story Audio"}</span>
+                        {isPlayingStory ? (
+                            <>
+                                <span className="animate-pulse">Playing Story Audio...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Volume2 className="h-6 w-6" />
+                                <span>{storyAudioPlayed ? "Story Audio Played" : "Play Story Audio"}</span>
+                            </>
+                        )}
                     </Button>
 
-                    {!audioPlayed ? (
+                    {!storyAudioPlayed ? (
                         <p className="text-center text-sm text-blue-600 mt-2 font-medium">
-                            You must listen to the story before answering questions
+                            You must listen to the complete story before answering questions
                         </p>
                     ) : (
                         <p className="text-center text-sm text-green-600 mt-2">
-                            Story played successfully. You can now answer the question.
+                            Story played successfully. You can now answer the questions.
                         </p>
                     )}
                 </div>
 
-                {/* Question Section - Disabled until audio is played */}
-                <div className={`space-y-6 ${!audioPlayed ? "opacity-60" : ""}`}>
+                {/* Question Section - Disabled until story audio is played */}
+                <div className={`space-y-6 ${!storyAudioPlayed ? "opacity-60" : ""}`}>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                         <Label className="block text-lg font-medium text-gray-800">
                             {question}
@@ -105,11 +135,11 @@ const ComprehensionTest = ({
                                 className={`p-3 rounded-md border ${userResponse === index
                                     ? 'border-blue-500 bg-blue-50'
                                     : 'border-gray-200 bg-white'
-                                    } ${audioPlayed
+                                    } ${storyAudioPlayed
                                         ? 'cursor-pointer hover:bg-gray-50'
                                         : 'cursor-not-allowed'
                                     }`}
-                                onClick={() => audioPlayed && !isSubmitting && onResponseChange(index)}
+                                onClick={() => storyAudioPlayed && !isSubmitting && onResponseChange(index)}
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`w-6 h-6 flex items-center justify-center rounded-full border ${userResponse === index
@@ -126,7 +156,7 @@ const ComprehensionTest = ({
 
                     <Button
                         onClick={handleSubmit}
-                        disabled={userResponse === null || !audioPlayed || isSubmitting}
+                        disabled={userResponse === null || !storyAudioPlayed || isSubmitting}
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -150,7 +180,7 @@ const ComprehensionTest = ({
                     <ul className="text-sm text-gray-600 space-y-1">
                         <li className="flex items-start">
                             <span className="text-blue-600 mr-2">1.</span>
-                            Listen to the story segment carefully (required)
+                            Listen to the complete story first (required)
                         </li>
                         <li className="flex items-start">
                             <span className="text-blue-600 mr-2">2.</span>
