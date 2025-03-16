@@ -14,6 +14,7 @@ import { COMPREHENSION_DATA } from './components/comprehensionData';
 import DemographicsForm from './demographics'
 import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
+import audioService from './services/audioService';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -593,50 +594,26 @@ const App = () => {
 
   const handlePlayAudio = async () => {
     try {
-      // Temporary placeholder until Box integration
-      //alert("Audio playback would normally play the story audio here. For testing, consider this as having played the audio.");
-
-      const currentStimuli = getCurrentStimuli();
-      if (!currentStimuli || currentStimuli.length === 0) return;
-
-      const stimulus = currentStimuli[currentStimulus];
-      if (!stimulus) {
-        console.error('No stimulus found for current index');
-        return;
-      }
-
-      // Get the user ID from local storage or state
-      const userId = localStorage.getItem('userId'); // You'll need to store this during login
-
-      // Construct filename based on type
-      let filename;
-      if (stimulus.type === 'Comp') {
-        // For comprehension, we use the story ID rather than individual questions
-        const storyNum = String(stimulus.storyNumber || '01').padStart(2, '0');
-        filename = `${userId}_${stimulus.type}_${storyNum}.wav`;
-      } else if (stimulus.type === 'Trn') {
-        const storyNum = String(stimulus.storyNumber || '01').padStart(2, '0');
-        const questionNum = String(stimulus.id).padStart(2, '0');
-        filename = `${userId}_${stimulus.type}_${storyNum}_${questionNum}.wav`;
+      // Determine what kind of audio to play based on current test type
+      if (currentTestType === 'comprehension') {
+        const storyNum = currentStoryId.replace('Comp_', '');
+        await audioService.playTestAudio(
+          phase,
+          'comprehension',
+          storyNum,
+          questionIndex + 1
+        );
+        return true;
       } else {
-        // Format: userid_typeNum (e.g. test1_Int01.wav)
-        filename = `${userId}_${stimulus.type}${String(stimulus.id).padStart(2, '0')}.wav`;
+        // For intelligibility and effort tests
+        await audioService.playTestAudio(
+          phase,
+          currentTestType,
+          '1', // Default version 
+          currentStimulus + 1
+        );
+        return true;
       }
-
-      // Construct the full URL
-      const audioUrl = `http://localhost:3000/audio/${phase}/${filename}`;
-
-      const audio = new Audio(audioUrl);
-      audio.onerror = (e) => {
-        console.error('Error playing audio:', e);
-        alert('Error playing audio. Please try again.');
-      };
-
-      // Play the audio
-      await audio.play();
-
-      // Return true to indicate successful playback
-      return true;
     } catch (error) {
       console.error('Error playing audio:', error);
       alert('Error playing audio. Please try again.');

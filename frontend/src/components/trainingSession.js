@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { Volume2, ArrowRight, Headphones } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './trainingData';
+import audioService from '../services/audioService';
 
 const TrainingSession = ({
     onComplete,
@@ -31,27 +32,10 @@ const TrainingSession = ({
 
     const handlePlayAudio = async () => {
         try {
-            const stimulus = trainingStimuli[currentStimulusIndex];
-            if (!stimulus) return;
-
-            // Get the user ID from local storage
-            const userId = localStorage.getItem('userId');
-
-            // Use the exact ID from the stimulus data (e.g., Trn_02_01)
-            const stimulusId = stimulus.id;
-            const filename = `${userId}_${stimulusId}.wav`;
-
-            // Construct the full URL
-            const audioUrl = `http://localhost:3000/audio/training/${filename}`;
-
-            const audio = new Audio(audioUrl);
-            audio.onerror = (e) => {
-                console.error('Error playing audio:', e);
-                alert('Error playing audio. Please try again.');
-            };
-
-            // Play the audio
-            await audio.play();
+            await audioService.playTrainingAudio(
+                trainingDay,
+                currentStimulusIndex + 1
+            );
             setAudioPlayed(true);
 
             // Auto-advance after 5 seconds if we're in training mode
@@ -136,29 +120,15 @@ const TrainingSession = ({
 
     const handlePlayTestAudio = async () => {
         try {
-            const stimulus = intelligibilityStimuli[currentStimulusIndex];
-            if (!stimulus) return;
+            // The "test" type of training uses a different endpoint format
+            const stimulusIndex = currentStimulusIndex + 1;
 
-            // Get the user ID from local storage
-            const userId = localStorage.getItem('userId');
+            await audioService.playTrainingAudio(
+                trainingDay,
+                stimulusIndex
+            );
 
-            // Use the exact ID from the stimulus data
-            const stimulusId = stimulus.id;
-            const filename = `${userId}_${stimulusId}.wav`;
-
-            // Construct the full URL
-            const audioUrl = `http://localhost:3000/audio/training/test/${filename}`;
-
-            const audio = new Audio(audioUrl);
-            audio.onerror = (e) => {
-                console.error('Error playing audio:', e);
-                alert('Error playing audio. Please try again.');
-            };
-
-            // Play the audio
-            await audio.play();
             setAudioPlayed(true);
-
             return true;
         } catch (error) {
             console.error('Error playing audio:', error);

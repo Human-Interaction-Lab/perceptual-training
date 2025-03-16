@@ -43,16 +43,16 @@ const AudioPlayer = ({ phase, testType, version, sentence, isTraining, day, onPl
 
   return (
     <div className="audio-player">
-      <button 
-        onClick={playAudio} 
+      <button
+        onClick={playAudio}
         disabled={isLoading || isPlaying}
         className={`play-button ${isPlaying ? 'playing' : ''}`}
       >
         {isLoading ? 'Loading...' : isPlaying ? 'Playing...' : 'Play Audio'}
       </button>
-      
+
       {error && <div className="error-message">{error}</div>}
-      
+
       <div className="audio-info">
         {isTraining ? (
           <span>Training Day {day}, Sentence {sentence}</span>
