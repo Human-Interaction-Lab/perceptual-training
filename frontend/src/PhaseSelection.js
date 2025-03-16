@@ -126,6 +126,11 @@ const PhaseSelection = ({
     training: false,
     posttest: false
   });
+  const [preloadedPhases, setPreloadedPhases] = useState({
+    pretest: false,
+    training: {},  // Will store days as keys
+    posttest: false
+  });
 
   const testTypes = [
     {
@@ -171,6 +176,14 @@ const PhaseSelection = ({
       return;
     }
 
+    // Check if this phase is already preloaded
+    if ((currentPhase === 'pretest' && preloadedPhases.pretest) ||
+      (currentPhase === 'training' && preloadedPhases.training[trainingDay]) ||
+      (currentPhase === 'posttest' && preloadedPhases.posttest)) {
+      console.log(`Phase ${currentPhase}${currentPhase === 'training' ? ` day ${trainingDay}` : ''} already preloaded`);
+      return;
+    }
+
     const startPreloading = async () => {
       console.log('Starting background preloading for', currentPhase);
       setBackgroundPreloading(true);
@@ -184,6 +197,7 @@ const PhaseSelection = ({
           if (activeTestTypes.length === 0) {
             console.log('All pretest types completed, skipping preload');
             setPreloadingStatus(prev => ({ ...prev, pretest: true }));
+            setPreloadedPhases(prev => ({ ...prev, pretest: true }));
             return;
           }
 
@@ -192,6 +206,7 @@ const PhaseSelection = ({
           await audioService.preloadAudioFiles('pretest', null, activeTestTypes);
           console.log('Pretest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, pretest: true }));
+          setPreloadedPhases(prev => ({ ...prev, pretest: true }));
         }
         else if (currentPhase === 'training') {
           // For training, we still load all files for the current day
@@ -199,6 +214,10 @@ const PhaseSelection = ({
           await audioService.preloadAudioFiles('training', trainingDay);
           console.log(`Training day ${trainingDay} files preloaded successfully`);
           setPreloadingStatus(prev => ({ ...prev, training: true }));
+          setPreloadedPhases(prev => ({
+            ...prev,
+            training: { ...prev.training, [trainingDay]: true }
+          }));
         }
         else if (currentPhase === 'posttest') {
           // Get only the test types that aren't completed
@@ -207,6 +226,7 @@ const PhaseSelection = ({
           if (activeTestTypes.length === 0) {
             console.log('All posttest types completed, skipping preload');
             setPreloadingStatus(prev => ({ ...prev, posttest: true }));
+            setPreloadedPhases(prev => ({ ...prev, posttest: true }));
             return;
           }
 
@@ -215,6 +235,7 @@ const PhaseSelection = ({
           await audioService.preloadAudioFiles('posttest', null, activeTestTypes);
           console.log('Posttest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, posttest: true }));
+          setPreloadedPhases(prev => ({ ...prev, posttest: true }));
         }
       } catch (error) {
         console.error('Background preloading error:', error);
@@ -326,11 +347,11 @@ const PhaseSelection = ({
     // Check if we have already preloaded the files for this phase
     let alreadyPreloaded = false;
 
-    if (phase === 'pretest' && preloadingStatus.pretest) {
+    if (phase === 'pretest' && preloadedPhases.pretest) {
       alreadyPreloaded = true;
-    } else if (phase === 'training' && preloadingStatus.training && day === trainingDay) {
+    } else if (phase === 'training' && preloadedPhases.training[day || trainingDay]) {
       alreadyPreloaded = true;
-    } else if (phase === 'posttest' && preloadingStatus.posttest) {
+    } else if (phase === 'posttest' && preloadedPhases.posttest) {
       alreadyPreloaded = true;
     }
 
@@ -349,16 +370,22 @@ const PhaseSelection = ({
       if (phase === 'training') {
         await audioService.preloadAudioFiles(phase, day || trainingDay);
         setPreloadingStatus(prev => ({ ...prev, training: true }));
+        setPreloadedPhases(prev => ({
+          ...prev,
+          training: { ...prev.training, [day || trainingDay]: true }
+        }));
       } else if (phase === 'pretest') {
         // Get only the active test types
         const activeTestTypes = testType ? [testType] : getActiveTestTypes('pretest');
         await audioService.preloadAudioFiles(phase, null, activeTestTypes);
         setPreloadingStatus(prev => ({ ...prev, pretest: true }));
+        setPreloadedPhases(prev => ({ ...prev, pretest: true }));
       } else if (phase === 'posttest') {
         // Get only the active test types
         const activeTestTypes = testType ? [testType] : getActiveTestTypes('posttest');
         await audioService.preloadAudioFiles(phase, null, activeTestTypes);
         setPreloadingStatus(prev => ({ ...prev, posttest: true }));
+        setPreloadedPhases(prev => ({ ...prev, posttest: true }));
       }
     } catch (error) {
       console.error('Failed to preload audio files:', error);

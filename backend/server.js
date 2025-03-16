@@ -204,7 +204,19 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
 app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (req, res) => {
   try {
     const { phase, testType, version, sentence } = req.params;
-    const user = await User.findOne({ userId: req.user.userId });
+    const userId = req.user.userId
+
+    // Log the parameters as received
+    console.log('Audio request params:', { phase, testType, version, sentence });
+
+    // Ensure testType is a string and not parsed as a number
+    const safeTestType = testType.toString().toUpperCase();
+    const versionNum = version === 'null' ? null : parseInt(version);
+    const sentenceNum = parseInt(sentence);
+
+    console.log('Processed params:', { phase, safeTestType, versionNum, sentenceNum });
+
+    const user = await User.findOne({ userId: userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -244,11 +256,12 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
 
     // Stream and save the file from Box
     const fileInfo = await tempFileService.streamAndSaveFile(
+      userId,
       speaker,
       phase,
-      testTypeUpper,
-      parseInt(version),
-      parseInt(sentence)
+      safeTestType,  // Use the safe string version
+      versionNum,
+      sentenceNum
     );
 
     // Return the URL to the temporary file

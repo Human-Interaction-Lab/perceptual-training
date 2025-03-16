@@ -93,13 +93,10 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
 
   // Generate filename based on parameters
   let filename;
-  let fileStream;
 
   if (phase === 'training') {
     // For training files: <speaker>_Trn_<day>_<sentence>.wav
-    // Note: in the route, we pass the real day (1-indexed), but internally add 1 to match file naming convention
     filename = `${speaker}_Trn_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
-    fileStream = await boxService.getTrainingFile(speaker, version, sentence);
   } else {
     // For pretest and posttest
     if (testType === 'COMPREHENSION') {
@@ -114,13 +111,44 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
     } else {
       throw new Error(`Invalid test type: ${testType}`);
     }
-
-    fileStream = await boxService.getTestFile(speaker, testType, version, sentence);
   }
 
   // Add a unique user identifier to the saved filename to avoid conflicts
   const userFilename = `${userId}_${filename}`;
   const filePath = path.join(TEMP_DIR, userFilename);
+
+  // First check if this file already exists in the temp directory
+  if (await exists(filePath)) {
+    console.log(`File ${userFilename} already exists in temp directory, using cached version`);
+
+    // Make sure it's tracked in our userFiles map
+    if (!userFiles.has(userId)) {
+      userFiles.set(userId, new Map());
+    }
+
+    // Update or create the file info with fresh timestamp
+    userFiles.get(userId).set(userFilename, {
+      timestamp: Date.now(),
+      originalFilename: filename,
+      played: false
+    });
+
+    return {
+      filename: userFilename,
+      path: filePath,
+      relativeUrl: `/audio/temp/${userFilename}`
+    };
+  }
+
+  // If file doesn't exist locally, fetch it from Box
+  console.log(`File ${userFilename} not found locally, fetching from Box`);
+  let fileStream;
+
+  if (phase === 'training') {
+    fileStream = await boxService.getTrainingFile(speaker, version, sentence);
+  } else {
+    fileStream = await boxService.getTestFile(speaker, testType, version, sentence);
+  }
 
   // Stream to file
   const chunks = [];

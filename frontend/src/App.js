@@ -494,7 +494,7 @@ const App = () => {
 
   // Handle successful response submission
   const handleResponseSuccess = () => {
-    const isLastStimulus = currentStimulus === 19 && (currentTestType === 'intelligibility' || currentTestType === 'comprehension') || currentStimulus === 29;
+    const isLastStimulus = (currentStimulus === 19 && (currentTestType === 'intelligibility' || currentTestType === 'comprehension')) || currentStimulus === 29;
 
     if (isLastStimulus) {
       // Update completedTests for current test type
@@ -605,6 +605,7 @@ const App = () => {
   };
 
 
+  // Revised handlePlayAudio function
   const handlePlayAudio = async () => {
     try {
       // Determine what kind of audio to play based on current test type
@@ -617,12 +618,21 @@ const App = () => {
           questionIndex + 1
         );
         return true;
-      } else {
-        // For intelligibility and effort tests
+      } else if (currentTestType === 'effort') {
+        // For effort tests, pass null as version
         await audioService.playTestAudio(
           phase,
-          currentTestType,
-          '1', // Default version 
+          'effort',
+          null, // Effort tests don't use versions 
+          currentStimulus + 1
+        );
+        return true;
+      } else {
+        // For intelligibility tests
+        await audioService.playTestAudio(
+          phase,
+          'intelligibility',
+          null, // Intelligibility tests don't use versions
           currentStimulus + 1
         );
         return true;
@@ -632,7 +642,7 @@ const App = () => {
       alert('Error playing audio. Please try again.');
       return false;
     }
-  };
+  }
 
   // Handle admin login success
   const handleAdminLoginSuccess = () => {

@@ -12,6 +12,8 @@ const audioService = {
      * @returns {Promise<void>}
      */
     async playTestAudio(phase, testType, version, sentence) {
+        console.log('playTestAudio called with:', { phase, testType, version, sentence });
+
         try {
             // Request the audio file URL from the backend
             const response = await fetch(
