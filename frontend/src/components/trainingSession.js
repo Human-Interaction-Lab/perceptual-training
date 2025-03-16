@@ -38,13 +38,6 @@ const TrainingSession = ({
             );
             setAudioPlayed(true);
 
-            // Auto-advance after 5 seconds if we're in training mode
-            if (currentPhase === 'training') {
-                setTimeout(() => {
-                    handleNext();
-                }, 5000);
-            }
-
             return true;
         } catch (error) {
             console.error('Error playing audio:', error);

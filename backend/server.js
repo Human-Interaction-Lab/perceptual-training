@@ -259,21 +259,76 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
   }
 });
 
+// Preload audio files for a specific phase
+app.post('/api/audio/preload', authenticateToken, async (req, res) => {
+  try {
+    const { phase, trainingDay } = req.body;
+    const userId = req.user.userId;
+
+    // Get user to retrieve speaker information
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate the phase
+    const validPhases = ['pretest', 'training', 'posttest1', 'posttest2', 'posttest3'];
+    if (!validPhases.includes(phase)) {
+      return res.status(400).json({ error: 'Invalid phase specified' });
+    }
+
+    // Validate training day if applicable
+    if (phase === 'training' && (!trainingDay || trainingDay < 1 || trainingDay > 4)) {
+      return res.status(400).json({ error: 'Valid training day (1-4) required for training phase' });
+    }
+
+    // Check if user is allowed to access this phase/day
+    if (!isCorrectDay(user, phase)) {
+      return res.status(403).json({
+        error: 'You are not scheduled for this phase/day yet'
+      });
+    }
+
+    // Preload all audio files for the specified phase
+    const preloadResult = await tempFileService.preloadPhaseFiles(
+      userId,
+      user.speaker,
+      phase,
+      phase === 'training' ? trainingDay : null
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully preloaded ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''}`,
+      files: preloadResult.files
+    });
+  } catch (error) {
+    console.error('Error preloading audio files:', error);
+    res.status(500).json({ error: 'Failed to preload audio files' });
+  }
+});
+
 // Route to notify the server that a file has been played (to clean it up)
 app.post('/api/audio/played', authenticateToken, async (req, res) => {
   try {
-    const { filename } = req.body;
+    const { filename, cleanup = false } = req.body;
+    const userId = req.user.userId;
 
     if (!filename) {
       return res.status(400).json({ error: 'Filename is required' });
     }
 
-    // Schedule file for removal (slight delay to ensure it's fully played)
-    setTimeout(() => {
-      tempFileService.removeFile(filename).catch(err => {
-        console.error(`Error removing file ${filename}:`, err);
-      });
-    }, 5000); // 5 second delay
+    if (cleanup) {
+      // If cleanup is true, remove the file immediately
+      setTimeout(() => {
+        tempFileService.removeFile(filename).catch(err => {
+          console.error(`Error removing file ${filename}:`, err);
+        });
+      }, 5000); // 5 second delay
+    } else {
+      // Otherwise just update the timestamp to prevent early cleanup
+      tempFileService.markFilePlayed(userId, filename);
+    }
 
     res.json({ success: true });
   } catch (error) {
