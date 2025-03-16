@@ -1,40 +1,65 @@
 // src/services/audioService.js
 const BASE_URL = 'http://localhost:3000';
 
-// Centralized audio service for handling audio interactions with the backend
+// Cache audio objects to reduce loading time
+const audioCache = new Map();
+
 const audioService = {
-    /**
-     * Play audio for test phases (pretest and posttest)
-     * @param {string} phase - 'pretest' or 'posttest'
-     * @param {string} testType - 'intelligibility', 'effort', or 'comprehension'
-     * @param {number|string} version - Version/story number for comprehension tests
-     * @param {number|string} sentence - Sentence number
-     * @returns {Promise<void>}
-     */
+    // Preload audio objects into memory
+    _preloadAudioObject(url) {
+        if (!audioCache.has(url)) {
+            const audio = new Audio(url);
+            // Start loading the audio (without playing)
+            audio.load();
+            audioCache.set(url, audio);
+        }
+        return audioCache.get(url);
+    },
+
     async playTestAudio(phase, testType, version, sentence) {
         try {
-            // Request the audio file URL from the backend
-            const response = await fetch(
-                `${BASE_URL}/audio/${phase}/${testType}/${version}/${sentence}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                }
-            );
+            const cacheKey = `${phase}_${testType}_${version}_${sentence}`;
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to get audio file');
+            // Check if we have the URL in localStorage
+            const cachedUrl = localStorage.getItem(`audio_url_${cacheKey}`);
+
+            let audioUrl;
+            let filename;
+
+            if (cachedUrl) {
+                // Use cached URL to avoid server roundtrip
+                audioUrl = cachedUrl;
+                filename = localStorage.getItem(`audio_filename_${cacheKey}`);
+            } else {
+                // Request the audio file URL from the backend
+                const response = await fetch(
+                    `${BASE_URL}/audio/${phase}/${testType}/${version}/${sentence}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to get audio file');
+                }
+
+                const data = await response.json();
+                audioUrl = `${BASE_URL}${data.url}`;
+                filename = data.filename;
+
+                // Cache the URL and filename for future use
+                localStorage.setItem(`audio_url_${cacheKey}`, audioUrl);
+                localStorage.setItem(`audio_filename_${cacheKey}`, filename);
             }
 
-            const data = await response.json();
-
             // Play the audio file
-            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+            await this.playAudioFromUrl(audioUrl);
 
             // Notify backend that file was played
-            await this.notifyAudioPlayed(data.filename);
+            await this.notifyAudioPlayed(filename);
 
             return true;
         } catch (error) {
@@ -43,36 +68,50 @@ const audioService = {
         }
     },
 
-    /**
-     * Play audio for training sessions
-     * @param {number|string} day - Training day (1-4)
-     * @param {number|string} sentence - Sentence number
-     * @returns {Promise<void>}
-     */
     async playTrainingAudio(day, sentence) {
         try {
-            // Request the audio file URL from the backend
-            const response = await fetch(
-                `${BASE_URL}/audio/training/day/${day}/${sentence}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                }
-            );
+            const cacheKey = `training_day${day}_${sentence}`;
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to get audio file');
+            // Check if we have the URL in localStorage
+            const cachedUrl = localStorage.getItem(`audio_url_${cacheKey}`);
+
+            let audioUrl;
+            let filename;
+
+            if (cachedUrl) {
+                // Use cached URL to avoid server roundtrip
+                audioUrl = cachedUrl;
+                filename = localStorage.getItem(`audio_filename_${cacheKey}`);
+            } else {
+                // Request the audio file URL from the backend
+                const response = await fetch(
+                    `${BASE_URL}/audio/training/day/${day}/${sentence}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to get audio file');
+                }
+
+                const data = await response.json();
+                audioUrl = `${BASE_URL}${data.url}`;
+                filename = data.filename;
+
+                // Cache the URL and filename for future use
+                localStorage.setItem(`audio_url_${cacheKey}`, audioUrl);
+                localStorage.setItem(`audio_filename_${cacheKey}`, filename);
             }
 
-            const data = await response.json();
-
             // Play the audio file
-            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+            await this.playAudioFromUrl(audioUrl);
 
             // Notify backend that file was played
-            await this.notifyAudioPlayed(data.filename);
+            await this.notifyAudioPlayed(filename);
 
             return true;
         } catch (error) {
@@ -81,33 +120,53 @@ const audioService = {
         }
     },
 
-    /**
-     * Play audio from a URL and wait for it to complete
-     * @param {string} url - The URL of the audio file
-     * @returns {Promise<void>}
-     */
     playAudioFromUrl(url) {
         return new Promise((resolve, reject) => {
-            const audio = new Audio(url);
+            // Try to use cached audio object if available
+            let audio = audioCache.get(url);
 
-            audio.onended = () => {
+            if (!audio) {
+                audio = new Audio(url);
+                audioCache.set(url, audio);
+            }
+
+            // Reset audio to beginning if it was played before
+            audio.currentTime = 0;
+
+            const onEnd = () => {
+                audio.removeEventListener('ended', onEnd);
                 resolve();
             };
 
-            audio.onerror = (error) => {
+            const onError = (error) => {
+                audio.removeEventListener('error', onError);
                 console.error('Audio playback error:', error);
+                audioCache.delete(url); // Remove from cache on error
                 reject(new Error('Failed to play audio'));
             };
 
-            audio.play().catch(reject);
+            audio.addEventListener('ended', onEnd);
+            audio.addEventListener('error', onError);
+
+            // Attempt to play the audio
+            audio.play().catch(error => {
+                audio.removeEventListener('ended', onEnd);
+                audio.removeEventListener('error', onError);
+                reject(error);
+            });
         });
     },
 
-    /**
-     * Notify the backend that an audio file has been played
-     * @param {string} filename - The filename of the played audio
-     * @returns {Promise<void>}
-     */
+    // Cache URLs during preloading
+    cacheAudioUrls(files) {
+        if (!files || !files.length) return;
+
+        files.forEach(file => {
+            // Preload the audio object for faster playback
+            this._preloadAudioObject(`${BASE_URL}${file.url}`);
+        });
+    },
+
     async notifyAudioPlayed(filename) {
         try {
             await fetch(`${BASE_URL}/api/audio/played`, {
@@ -120,17 +179,9 @@ const audioService = {
             });
         } catch (error) {
             console.error('Error notifying backend about played audio:', error);
-            // Don't throw here to avoid disrupting user experience
         }
     },
 
-    /**
-     * Preload all audio files for a specific phase or training day
-     * @param {string} phase - 'pretest', 'training', 'posttest', etc.
-     * @param {number|null} trainingDay - Required for training phase (1-4)
-     * @param {Array<string>|null} activeTestTypes - Optional array of test types to preload
-     * @returns {Promise<object>} - Information about preloaded files
-     */
     async preloadAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
         try {
             const response = await fetch(`${BASE_URL}/api/audio/preload`, {
@@ -142,7 +193,7 @@ const audioService = {
                 body: JSON.stringify({
                     phase,
                     trainingDay,
-                    activeTestTypes // Send the list of active test types to preload
+                    activeTestTypes
                 })
             });
 
@@ -153,18 +204,17 @@ const audioService = {
 
             const data = await response.json();
             console.log(`Preloaded ${data.files?.length || 0} audio files for ${phase}${trainingDay ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''}`);
+
+            // Cache all URLs when preloaded
+            this.cacheAudioUrls(data.files);
+
             return data;
         } catch (error) {
             console.error('Error preloading audio files:', error);
-            // Don't throw - preloading is an optimization, not a requirement
             return { success: false, error: error.message };
         }
     },
 
-    /**
-     * End session and clean up played files
-     * @returns {Promise<object>} - Information about the cleanup operation
-     */
     async endSession() {
         try {
             const response = await fetch(`${BASE_URL}/api/session/end`, {
@@ -184,17 +234,17 @@ const audioService = {
             return data;
         } catch (error) {
             console.error('Error ending session:', error);
-            // Still return a value even on error
             return { success: false, error: error.message };
         }
     },
 
-    /**
-     * Clean up any resources
-     */
     dispose() {
-        // This method can be used to cancel any ongoing audio playback
-        // For future implementation if needed
+        // Clear any cached audio objects
+        audioCache.forEach(audio => {
+            audio.pause();
+            audio.src = '';
+        });
+        audioCache.clear();
     }
 };
 

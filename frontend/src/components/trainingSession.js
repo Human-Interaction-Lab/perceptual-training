@@ -21,6 +21,7 @@ const TrainingSession = ({
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
     const [cleanupStarted, setCleanupStarted] = useState(false);
+    const [isPreloadingActive, setIsPreloadingActive] = useState(false);
 
     // Load saved progress when component mounts
     useEffect(() => {
@@ -68,6 +69,61 @@ const TrainingSession = ({
         setAudioPlaying(false);
     }, [trainingDay]);
 
+    // Preload next audio file in advance when in training phase
+    useEffect(() => {
+        if (currentPhase === 'training' && !isPreloadingActive) {
+            // Preload the next audio file if it exists
+            const preloadNextAudio = async () => {
+                // Don't preload if we're at the last stimulus
+                if (currentStimulusIndex >= trainingStimuli.length - 1) return;
+
+                const nextIndex = currentStimulusIndex + 2; // +2 because 1-indexed sentences
+                if (nextIndex > trainingStimuli.length) return;
+
+                try {
+                    setIsPreloadingActive(true);
+
+                    // Construct cache key for URL storage
+                    const cacheKey = `training_day${trainingDay}_${nextIndex}`;
+
+                    // Only fetch if URL not already cached
+                    if (!localStorage.getItem(`audio_url_${cacheKey}`)) {
+                        console.log(`Pre-fetching next audio (day ${trainingDay}, sentence ${nextIndex})`);
+
+                        // Fetch quietly in the background
+                        const response = await fetch(
+                            `${BASE_URL}/audio/training/day/${trainingDay}/${nextIndex}`,
+                            {
+                                headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                }
+                            }
+                        );
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const audioUrl = `/audio/temp/${data.filename}`;
+
+                            // Cache the URL and filename for future fast access
+                            localStorage.setItem(`audio_url_${cacheKey}`, audioUrl);
+                            localStorage.setItem(`audio_filename_${cacheKey}`, data.filename);
+
+                            // Preload the audio object
+                            const audio = new Audio(audioUrl);
+                            audio.load();
+                        }
+                    }
+                } catch (error) {
+                    console.log('Background preloading error (non-critical):', error);
+                } finally {
+                    setIsPreloadingActive(false);
+                }
+            };
+
+            preloadNextAudio();
+        }
+    }, [currentPhase, currentStimulusIndex, trainingStimuli?.length, trainingDay, isPreloadingActive]);
+
     // Save progress whenever relevant state changes
     useEffect(() => {
         // Only save progress if we've started training
@@ -110,14 +166,14 @@ const TrainingSession = ({
             // Small delay to ensure the UI has updated before playing
             const timer = setTimeout(() => {
                 autoPlay();
-            }, 500);
+            }, 100); // Reduced delay for faster response
 
             return () => clearTimeout(timer);
         }
     }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay]);
 
     const handleManualPlayAudio = async () => {
-        if (audioPlaying || audioPlayed) return;
+        if (audioPlaying) return;
 
         try {
             setAudioPlaying(true);
@@ -174,7 +230,6 @@ const TrainingSession = ({
         try {
             setIsSubmitting(true);
             const token = localStorage.getItem('token');
-            const stimulus = intelligibilityStimuli[currentStimulusIndex];
 
             await fetch('http://localhost:3000/api/response', {
                 method: 'POST',
