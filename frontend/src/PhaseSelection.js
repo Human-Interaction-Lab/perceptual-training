@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
 import { formatDate } from './lib/utils';
-//import { Headphones } from "lucide-react";
+import audioService from './services/audioService';
 
-const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
+const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date, isPreloading }) => {
   const { isAvailable, isCompleted } = status;
 
   return (
@@ -36,22 +36,29 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable}
+          disabled={!isAvailable || isPreloading}
           variant={isAvailable ? "default" : "secondary"}
           onClick={() => onSelect(phase, testType)}
         >
-          <span>
-            {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
-          </span>
-          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+          {isPreloading ? (
+            <span className="flex items-center">
+              <Loader className="animate-spin h-4 w-4 mr-2" />
+              Preparing Audio...
+            </span>
+          ) : (
+            <span>
+              {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
+            </span>
+          )}
+          {isAvailable && !isPreloading && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>
   );
 };
 
-// Also update the Training Day cards to include icons
-const TrainingDayCard = ({ day, currentDay, onSelect, date }) => {
+// Also update the Training Day cards to include loading state
+const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading }) => {
   const isCompleted = day < currentDay;
   const isAvailable = day === currentDay;
 
@@ -82,14 +89,21 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date }) => {
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable}
+          disabled={!isAvailable || isPreloading}
           variant={isAvailable ? "default" : "secondary"}
           onClick={() => onSelect('training', null, day)}
         >
-          <span>
-            {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
-          </span>
-          {isAvailable && <ArrowRight className="ml-2 h-4 w-4" />}
+          {isPreloading ? (
+            <span className="flex items-center">
+              <Loader className="animate-spin h-4 w-4 mr-2" />
+              Preparing Audio...
+            </span>
+          ) : (
+            <span>
+              {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
+            </span>
+          )}
+          {isAvailable && !isPreloading && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>
@@ -104,6 +118,9 @@ const PhaseSelection = ({
   isDemographicsCompleted,
   completedTests = {} // Track completed test types
 }) => {
+  const [isPreloading, setIsPreloading] = useState(false);
+  const [preloadingPhase, setPreloadingPhase] = useState(null);
+
   const testTypes = [
     {
       id: 'intelligibility',
@@ -129,8 +146,6 @@ const PhaseSelection = ({
   ];
 
   // Helper function to determine if a test type is available
-  // In PhaseSelection.js, modify the getTestStatus function
-
   const getTestStatus = (phase, testType) => {
     // Special handling for demographics
     if (testType === 'demographics') {
@@ -217,6 +232,33 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
 
+  // Modified select handlers with preloading
+  const handleSelectPhase = async (phase, testType, day = null) => {
+    // Don't preload for demographics
+    if (phase === 'demographics') {
+      onSelectPhase(phase, testType);
+      return;
+    }
+
+    setIsPreloading(true);
+    setPreloadingPhase(testType || phase);
+
+    try {
+      if (phase === 'training') {
+        await audioService.preloadAudioFiles(phase, day || trainingDay);
+      } else {
+        await audioService.preloadAudioFiles(phase);
+      }
+    } catch (error) {
+      console.error('Failed to preload audio files:', error);
+      // Continue even if preloading fails
+    } finally {
+      setIsPreloading(false);
+      setPreloadingPhase(null);
+      onSelectPhase(phase, testType, day);
+    }
+  };
+
   const isAllPretestCompleted = testTypes.every(test =>
     completedTests[`pretest_${test.type}`] === true
   );
@@ -247,8 +289,9 @@ const PhaseSelection = ({
                 isAvailable: true,
                 isCompleted: isDemographicsCompleted
               }}
-              onSelect={onSelectPhase}
+              onSelect={handleSelectPhase}
               date="Required now"
+              isPreloading={false}
             />
           </div>
         )}
@@ -257,8 +300,7 @@ const PhaseSelection = ({
         {currentPhase === 'pretest' && isDemographicsCompleted && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
-            {/* <Headphones className="h-4 w-4" /> */}
-            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -271,7 +313,8 @@ const PhaseSelection = ({
                     phase={currentPhase}
                     status={getTestStatus(currentPhase, test.type)}
                     date={getExpectedDate(currentPhase)}
-                    onSelect={onSelectPhase}
+                    onSelect={handleSelectPhase}
+                    isPreloading={isPreloading && preloadingPhase === test.type}
                   />
                 ))}
             </div>
@@ -294,8 +337,7 @@ const PhaseSelection = ({
         {currentPhase === 'training' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Training Sessions</h2>
-            {/* <Headphones className="h-4 w-4" /> */}
-            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -304,8 +346,9 @@ const PhaseSelection = ({
                   key={day}
                   day={day}
                   currentDay={trainingDay}
-                  onSelect={onSelectPhase}
+                  onSelect={handleSelectPhase}
                   date={getExpectedDate('training', day)}
+                  isPreloading={isPreloading && preloadingPhase === 'training' && trainingDay === day}
                 />
               ))}
             </div>
@@ -316,8 +359,7 @@ const PhaseSelection = ({
         {currentPhase === 'posttest' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Post-test Assessment</h2>
-            {/* <Headphones className="h-4 w-4" /> */}
-            <p>  Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -327,7 +369,8 @@ const PhaseSelection = ({
                   {...test}
                   phase="posttest"
                   status={getTestStatus('posttest', test.type)}
-                  onSelect={onSelectPhase}
+                  onSelect={handleSelectPhase}
+                  isPreloading={isPreloading && preloadingPhase === test.type}
                 />
               ))}
             </div>

@@ -64,7 +64,15 @@ const TrainingSession = ({
         }
     };
 
-    const handleStartTraining = () => {
+    const handleStartTraining = async () => {
+        // Try to preload audio files before starting training
+        try {
+            await audioService.preloadAudioFiles('training', trainingDay);
+        } catch (error) {
+            console.error('Failed to preload training audio:', error);
+            // Continue even if preloading fails
+        }
+
         setCurrentPhase('training');
     };
 

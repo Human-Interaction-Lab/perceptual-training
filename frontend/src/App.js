@@ -589,6 +589,19 @@ const App = () => {
     setCurrentStimulus(0);
     setUserResponse('');
     setRating(null);
+
+    // Add preloading after setting the phase
+    try {
+      // Preload the audio files for the selected phase
+      if (selectedPhase === 'training') {
+        audioService.preloadAudioFiles(selectedPhase, dayNumber);
+      } else if (selectedPhase === 'pretest' || selectedPhase === 'posttest') {
+        audioService.preloadAudioFiles(selectedPhase);
+      }
+    } catch (error) {
+      console.error('Failed to preload audio files:', error);
+      // Non-critical error, don't block the UI
+    }
   };
 
 

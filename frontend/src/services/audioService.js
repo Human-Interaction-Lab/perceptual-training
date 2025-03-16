@@ -125,6 +125,41 @@ const audioService = {
     },
 
     /**
+     * Preload all audio files for a specific phase or training day
+     * @param {string} phase - 'pretest', 'training', 'posttest', etc.
+     * @param {number|null} trainingDay - Required for training phase (1-4)
+     * @returns {Promise<object>} - Information about preloaded files
+     */
+    async preloadAudioFiles(phase, trainingDay = null) {
+        try {
+            const response = await fetch(`${BASE_URL}/api/audio/preload`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    phase,
+                    trainingDay
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to preload audio files');
+            }
+
+            const data = await response.json();
+            console.log(`Preloaded ${data.files?.length || 0} audio files for ${phase}${trainingDay ? ` day ${trainingDay}` : ''}`);
+            return data;
+        } catch (error) {
+            console.error('Error preloading audio files:', error);
+            // Don't throw - preloading is an optimization, not a requirement
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
      * Clean up any resources
      */
     dispose() {
