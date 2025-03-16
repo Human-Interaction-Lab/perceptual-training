@@ -265,7 +265,7 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
 // Preload audio files for a specific phase
 app.post('/api/audio/preload', authenticateToken, async (req, res) => {
   try {
-    const { phase, trainingDay } = req.body;
+    const { phase, trainingDay, activeTestTypes } = req.body;
     const userId = req.user.userId;
 
     // Get user to retrieve speaker information
@@ -292,17 +292,18 @@ app.post('/api/audio/preload', authenticateToken, async (req, res) => {
       });
     }
 
-    // Preload all audio files for the specified phase
+    // Preload audio files for the specified phase
     const preloadResult = await tempFileService.preloadPhaseFiles(
       userId,
       user.speaker,
       phase,
-      phase === 'training' ? trainingDay : null
+      phase === 'training' ? trainingDay : null,
+      activeTestTypes // Pass through the active test types
     );
 
     res.json({
       success: true,
-      message: `Successfully processed ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''} (${preloadResult.newlyDownloaded} new, ${preloadResult.skipped} already loaded)`,
+      message: `Successfully processed ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''} (${preloadResult.newlyDownloaded} new, ${preloadResult.skipped} already loaded)`,
       files: preloadResult.files
     });
   } catch (error) {

@@ -128,9 +128,10 @@ const audioService = {
      * Preload all audio files for a specific phase or training day
      * @param {string} phase - 'pretest', 'training', 'posttest', etc.
      * @param {number|null} trainingDay - Required for training phase (1-4)
+     * @param {Array<string>|null} activeTestTypes - Optional array of test types to preload
      * @returns {Promise<object>} - Information about preloaded files
      */
-    async preloadAudioFiles(phase, trainingDay = null) {
+    async preloadAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
         try {
             const response = await fetch(`${BASE_URL}/api/audio/preload`, {
                 method: 'POST',
@@ -140,7 +141,8 @@ const audioService = {
                 },
                 body: JSON.stringify({
                     phase,
-                    trainingDay
+                    trainingDay,
+                    activeTestTypes // Send the list of active test types to preload
                 })
             });
 
@@ -150,7 +152,7 @@ const audioService = {
             }
 
             const data = await response.json();
-            console.log(`Preloaded ${data.files?.length || 0} audio files for ${phase}${trainingDay ? ` day ${trainingDay}` : ''}`);
+            console.log(`Preloaded ${data.files?.length || 0} audio files for ${phase}${trainingDay ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''}`);
             return data;
         } catch (error) {
             console.error('Error preloading audio files:', error);

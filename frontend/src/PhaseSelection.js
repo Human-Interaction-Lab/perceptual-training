@@ -151,6 +151,18 @@ const PhaseSelection = ({
     }
   ];
 
+  // Helper function to get active test types (not completed)
+  const getActiveTestTypes = (phase) => {
+    return testTypes.filter(test => {
+      // Check both formats for completed tests
+      const isCompleted =
+        completedTests[`${phase}_${test.type}`] ||
+        completedTests[test.type];
+
+      return !isCompleted;
+    }).map(test => test.type);
+  };
+
   // Immediately start preloading files when the component mounts
   useEffect(() => {
     // Skip if demographics isn't completed yet
@@ -166,23 +178,41 @@ const PhaseSelection = ({
       try {
         // Determine what phase to preload based on current phase
         if (currentPhase === 'pretest') {
-          // Start preloading pretest files immediately
-          console.log('Beginning pretest files preload...');
-          await audioService.preloadAudioFiles('pretest');
+          // Get only the test types that aren't completed
+          const activeTestTypes = getActiveTestTypes('pretest');
+
+          if (activeTestTypes.length === 0) {
+            console.log('All pretest types completed, skipping preload');
+            setPreloadingStatus(prev => ({ ...prev, pretest: true }));
+            return;
+          }
+
+          // Start preloading pretest files immediately, only for uncompleted tests
+          console.log('Beginning pretest files preload for types:', activeTestTypes);
+          await audioService.preloadAudioFiles('pretest', null, activeTestTypes);
           console.log('Pretest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, pretest: true }));
         }
         else if (currentPhase === 'training') {
-          // Start preloading training day files immediately
+          // For training, we still load all files for the current day
           console.log(`Beginning training day ${trainingDay} files preload...`);
           await audioService.preloadAudioFiles('training', trainingDay);
           console.log(`Training day ${trainingDay} files preloaded successfully`);
           setPreloadingStatus(prev => ({ ...prev, training: true }));
         }
         else if (currentPhase === 'posttest') {
-          // Start preloading posttest files immediately
-          console.log('Beginning posttest files preload...');
-          await audioService.preloadAudioFiles('posttest');
+          // Get only the test types that aren't completed
+          const activeTestTypes = getActiveTestTypes('posttest');
+
+          if (activeTestTypes.length === 0) {
+            console.log('All posttest types completed, skipping preload');
+            setPreloadingStatus(prev => ({ ...prev, posttest: true }));
+            return;
+          }
+
+          // Start preloading posttest files immediately, only for uncompleted tests
+          console.log('Beginning posttest files preload for types:', activeTestTypes);
+          await audioService.preloadAudioFiles('posttest', null, activeTestTypes);
           console.log('Posttest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, posttest: true }));
         }
@@ -196,7 +226,7 @@ const PhaseSelection = ({
 
     // Call it immediately
     startPreloading();
-  }, [currentPhase, trainingDay, isDemographicsCompleted]); // Removed preloadingStatus dependency to ensure it always runs
+  }, [currentPhase, trainingDay, isDemographicsCompleted, completedTests]);
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
@@ -320,10 +350,14 @@ const PhaseSelection = ({
         await audioService.preloadAudioFiles(phase, day || trainingDay);
         setPreloadingStatus(prev => ({ ...prev, training: true }));
       } else if (phase === 'pretest') {
-        await audioService.preloadAudioFiles(phase);
+        // Get only the active test types
+        const activeTestTypes = testType ? [testType] : getActiveTestTypes('pretest');
+        await audioService.preloadAudioFiles(phase, null, activeTestTypes);
         setPreloadingStatus(prev => ({ ...prev, pretest: true }));
       } else if (phase === 'posttest') {
-        await audioService.preloadAudioFiles(phase);
+        // Get only the active test types
+        const activeTestTypes = testType ? [testType] : getActiveTestTypes('posttest');
+        await audioService.preloadAudioFiles(phase, null, activeTestTypes);
         setPreloadingStatus(prev => ({ ...prev, posttest: true }));
       }
     } catch (error) {
