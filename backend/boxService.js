@@ -131,7 +131,7 @@ class BoxService {
       const files = await this.client.folders.getItems(userFolder.id, { limit: 1000 });
 
       console.log(`Looking for file: "${filePattern}" in ${files.entries.length} files`);
-      console.log(`Available files: ${files.entries.map(e => e.name).join(', ')}`);
+      //console.log(`Available files: ${files.entries.map(e => e.name).join(', ')}`);
 
       const file = files.entries.find(entry =>
         entry.type === 'file' && entry.name === filePattern
