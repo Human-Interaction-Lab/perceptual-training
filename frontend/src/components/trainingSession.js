@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
-import { Volume2, ArrowRight, Headphones } from 'lucide-react';
+import { ArrowRight, Headphones, Volume2, Loader } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './trainingData';
 import audioService from '../services/audioService';
@@ -18,6 +18,7 @@ const TrainingSession = ({
     const [showText, setShowText] = useState(false);
     const [userResponse, setUserResponse] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [audioPlaying, setAudioPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
     const [cleanupStarted, setCleanupStarted] = useState(false);
 
@@ -64,6 +65,7 @@ const TrainingSession = ({
         setUserResponse('');
         setIsSubmitting(false);
         setCleanupStarted(false);
+        setAudioPlaying(false);
     }, [trainingDay]);
 
     // Save progress whenever relevant state changes
@@ -86,19 +88,49 @@ const TrainingSession = ({
         }
     }, [trainingDay, currentPhase, currentStimulusIndex, audioPlayed]);
 
-    const handlePlayAudio = async () => {
+    // Auto-play audio when in training phase and stimulus changes
+    useEffect(() => {
+        // Only auto-play in training phase, not when resuming a session
+        if (currentPhase === 'training' && !audioPlayed && !audioPlaying) {
+            const autoPlay = async () => {
+                try {
+                    setAudioPlaying(true);
+                    await audioService.playTrainingAudio(
+                        trainingDay,
+                        currentStimulusIndex + 1
+                    );
+                    setAudioPlayed(true);
+                } catch (error) {
+                    console.error('Error auto-playing audio:', error);
+                } finally {
+                    setAudioPlaying(false);
+                }
+            };
+
+            // Small delay to ensure the UI has updated before playing
+            const timer = setTimeout(() => {
+                autoPlay();
+            }, 500);
+
+            return () => clearTimeout(timer);
+        }
+    }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay]);
+
+    const handleManualPlayAudio = async () => {
+        if (audioPlaying || audioPlayed) return;
+
         try {
+            setAudioPlaying(true);
             await audioService.playTrainingAudio(
                 trainingDay,
                 currentStimulusIndex + 1
             );
             setAudioPlayed(true);
-
-            return true;
         } catch (error) {
             console.error('Error playing audio:', error);
             alert('Error playing audio. Please try again.');
-            return false;
+        } finally {
+            setAudioPlaying(false);
         }
     };
 
@@ -130,6 +162,7 @@ const TrainingSession = ({
         }
 
         setCurrentPhase('training');
+        setAudioPlayed(false); // Reset audio state when starting training
     };
 
     const handleTestSubmit = async () => {
@@ -282,16 +315,33 @@ const TrainingSession = ({
                         </div>
                     </div>
 
+                    {/* Audio status indicator */}
                     <div className="pt-4">
-                        <Button
-                            onClick={handlePlayAudio}
-                            disabled={audioPlayed}
-                            className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${audioPlayed ? "bg-gray-400 hover:bg-gray-500" : "bg-blue-600 hover:bg-blue-700"
+                        <div
+                            className={`w-full h-16 rounded-md flex items-center justify-center space-x-3 ${audioPlaying
+                                ? "bg-blue-100"
+                                : audioPlayed
+                                    ? "bg-blue-50"
+                                    : "bg-gray-50"
                                 }`}
                         >
-                            <Volume2 className="h-6 w-6" />
-                            <span>{audioPlayed ? "Audio Playing..." : "Play Audio"}</span>
-                        </Button>
+                            {audioPlaying ? (
+                                <>
+                                    <Loader className="h-6 w-6 text-blue-500 animate-spin" />
+                                    <span className="text-blue-700 font-medium">Audio Playing...</span>
+                                </>
+                            ) : audioPlayed ? (
+                                <>
+                                    <Volume2 className="h-6 w-6 text-green-500" />
+                                    <span className="text-green-700 font-medium">Audio Played</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Loader className="h-6 w-6 text-gray-500 animate-spin" />
+                                    <span className="text-gray-700">Loading Audio...</span>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     {showText && (
@@ -305,7 +355,7 @@ const TrainingSession = ({
                 <CardFooter className="border-t border-gray-100 pt-4">
                     <Button
                         onClick={handleNext}
-                        disabled={!audioPlayed}
+                        disabled={!audioPlayed || audioPlaying}
                         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
                     >
                         Next
