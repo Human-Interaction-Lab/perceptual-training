@@ -30,7 +30,8 @@
     "build": "react-scripts --openssl-legacy-provider build",
     "testsimple": "react-scripts test",
     "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!@codemirror)/\"",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "fresh": "node ./localstorageclear.js"
   },
   "eslintConfig": {
     "extends": [
