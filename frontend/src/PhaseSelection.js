@@ -45,8 +45,8 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable || isPreloading}
-          variant={isAvailable ? (isPreloading ? "outline" : "default") : "secondary"}
+          disabled={!isAvailable || isPreloading || isCompleted}
+          variant={isCompleted ? "secondary" : (isAvailable ? (isPreloading ? "outline" : "default") : "secondary")}
           onClick={() => onSelect(phase, testType)}
         >
           {isPreloading ? (
@@ -56,7 +56,7 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
+              {isCompleted ? 'Completed' : isPreloading ? 'Preparing audio...' : isAvailable ? 'Begin Test' : 'Locked'}
             </span>
           )}
           {isAvailable && !isPreloading && <ArrowRight className="ml-2 h-4 w-4" />}
@@ -353,7 +353,7 @@ const PhaseSelection = ({
   // Add getExpectedDate function
   const getExpectedDate = (phase, dayNumber = null) => {
     if (!pretestDate) {
-      return 'Complete pretest to unlock';
+      return '';
     }
 
     const baseDate = new Date(pretestDate);
@@ -516,7 +516,7 @@ const PhaseSelection = ({
                     status={getTestStatus(currentPhase, test.type)}
                     date={getExpectedDate(currentPhase)}
                     onSelect={handleSelectPhase}
-                    isPreloading={isPreloading && preloadingPhase === test.type}
+                    isPreloading={isPreloading}
                   />
                 ))}
             </div>
@@ -573,7 +573,7 @@ const PhaseSelection = ({
                   phase="posttest"
                   status={getTestStatus('posttest', test.type)}
                   onSelect={handleSelectPhase}
-                  isPreloading={isPreloading && preloadingPhase === test.type}
+                  isPreloading={isPreloading}
                 />
               ))}
             </div>
