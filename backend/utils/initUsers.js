@@ -56,7 +56,7 @@ const initializeUsers = async () => {
         const baseTestUser = {
             password: 'test1234',
             isActive: true,
-            speaker: 'GraceNorman'
+            speaker: 'Grace Norman'
         };
 
         // Test Users Configuration
