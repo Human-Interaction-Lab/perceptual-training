@@ -9,8 +9,8 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
   const { isAvailable, isCompleted } = status;
 
   return (
-    <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
-      <CardHeader>
+    <Card className={`transition-all ${isPreloading ? "border-blue-400 shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
+      <CardHeader className={isPreloading ? "bg-blue-50" : ""}>
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -19,6 +19,8 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
           <div className="ml-4">
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
+            ) : isPreloading ? (
+              <Loader className="h-6 w-6 text-blue-500 animate-spin" />
             ) : isAvailable ? (
               <Clock className="h-6 w-6 text-blue-500" />
             ) : (
@@ -28,16 +30,23 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-xs text-gray-500">
-          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
-          {date && ` • ${date}`}
-        </p>
+        {isPreloading ? (
+          <p className="text-sm text-blue-600 font-medium flex items-center">
+            <Loader className="animate-spin h-4 w-4 mr-2" />
+            Preparing audio files...
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+            {date && ` • ${date}`}
+          </p>
+        )}
       </CardContent>
       <CardFooter>
         <Button
           className="w-full"
           disabled={!isAvailable || isPreloading}
-          variant={isAvailable ? "default" : "secondary"}
+          variant={isAvailable ? (isPreloading ? "outline" : "default") : "secondary"}
           onClick={() => onSelect(phase, testType)}
         >
           {isPreloading ? (
@@ -58,13 +67,38 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
 };
 
 // Also update the Training Day cards to include loading state
-const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading }) => {
+// Fixed TrainingDayCard component
+const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretestDate }) => {
+  // Keep the original completed check - day is less than current day
   const isCompleted = day < currentDay;
-  const isAvailable = day === currentDay;
+
+  // Helper functions inside the component
+  const isDateToday = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    const checkDate = new Date(date);
+    return today.toDateString() === checkDate.toDateString();
+  };
+
+  const getExpectedTrainingDate = (baseDate, dayNumber) => {
+    if (!baseDate) return null;
+    const date = new Date(baseDate);
+    date.setDate(date.getDate() + dayNumber);
+    return date;
+  };
+
+  // Date availability check only applies to the current training day
+  const expectedDate = getExpectedTrainingDate(pretestDate, day);
+  const isDayAvailableToday = isDateToday(expectedDate) ||
+    (expectedDate && new Date() > expectedDate);
+
+  // Available only if it's current day AND correct calendar day
+  // AND it's not already completed
+  const isAvailable = !isCompleted && day === currentDay && isDayAvailableToday;
 
   return (
-    <Card className={`transition-opacity ${isAvailable ? "" : "opacity-75"}`}>
-      <CardHeader>
+    <Card className={`transition-all ${isPreloading ? "border-blue-400 shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
+      <CardHeader className={isPreloading ? "bg-blue-50" : ""}>
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold text-gray-900">
             Training Day {day}
@@ -72,6 +106,8 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading }) => {
           <div>
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
+            ) : isPreloading ? (
+              <Loader className="h-6 w-6 text-blue-500 animate-spin" />
             ) : isAvailable ? (
               <Clock className="h-6 w-6 text-blue-500" />
             ) : (
@@ -81,16 +117,23 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading }) => {
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-xs text-gray-500">
-          {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
-          {date && ` • ${date}`}
-        </p>
+        {isPreloading ? (
+          <p className="text-sm text-blue-600 font-medium flex items-center">
+            <Loader className="animate-spin h-4 w-4 mr-2" />
+            Preparing audio files...
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+            {date && ` • ${date}`}
+          </p>
+        )}
       </CardContent>
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable || isPreloading}
-          variant={isAvailable ? "default" : "secondary"}
+          disabled={!isAvailable || isPreloading || isCompleted}
+          variant={isCompleted ? "secondary" : (isAvailable ? (isPreloading ? "outline" : "default") : "secondary")}
           onClick={() => onSelect('training', null, day)}
         >
           {isPreloading ? (
@@ -138,34 +181,37 @@ const PhaseSelection = ({
       title: 'Intelligibility',
       description: 'Type the complete phrase you hear',
       type: 'intelligibility',
-      order: 1
+      order: 1  // Make intelligibility the first (priority 1)
     },
     {
       id: 'effort',
       title: 'Listening Effort',
       description: 'Type the final word and rate your listening effort',
       type: 'effort',
-      order: 2
+      order: 2  // Keep effort as second (priority 2)
     },
     {
       id: 'comprehension',
       title: 'Comprehension',
       description: 'Listen to stories and answer questions',
       type: 'comprehension',
-      order: 3
+      order: 3  // Make comprehension last (priority 3)
     }
   ];
 
   // Helper function to get active test types (not completed)
   const getActiveTestTypes = (phase) => {
-    return testTypes.filter(test => {
-      // Check both formats for completed tests
-      const isCompleted =
-        completedTests[`${phase}_${test.type}`] ||
-        completedTests[test.type];
+    return testTypes
+      .filter(test => {
+        // Check both formats for completed tests
+        const isCompleted =
+          completedTests[`${phase}_${test.type}`] ||
+          completedTests[test.type];
 
-      return !isCompleted;
-    }).map(test => test.type);
+        return !isCompleted;
+      })
+      .sort((a, b) => a.order - b.order) // Explicitly sort by the order property
+      .map(test => test.type);
   };
 
   // Immediately start preloading files when the component mounts
@@ -336,7 +382,7 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
 
-  // Modified select handlers with preloading
+  // Modified select phase handlers with preloading
   const handleSelectPhase = async (phase, testType, day = null) => {
     // Don't preload for demographics
     if (phase === 'demographics') {
@@ -344,52 +390,62 @@ const PhaseSelection = ({
       return;
     }
 
-    // Check if we have already preloaded the files for this phase
-    let alreadyPreloaded = false;
-
-    if (phase === 'pretest' && preloadedPhases.pretest) {
-      alreadyPreloaded = true;
-    } else if (phase === 'training' && preloadedPhases.training[day || trainingDay]) {
-      alreadyPreloaded = true;
-    } else if (phase === 'posttest' && preloadedPhases.posttest) {
-      alreadyPreloaded = true;
-    }
-
-    // If already preloaded, just navigate directly
-    if (alreadyPreloaded) {
-      console.log('Files already preloaded, proceeding directly');
-      onSelectPhase(phase, testType, day);
-      return;
-    }
-
-    // Otherwise, do the preloading now
     setIsPreloading(true);
-    setPreloadingPhase(testType || phase);
+    setPreloadingPhase(testType || (phase === 'training' ? 'training' : phase));
 
     try {
       if (phase === 'training') {
+        // For training, only load the specific day's files
         await audioService.preloadAudioFiles(phase, day || trainingDay);
-        setPreloadingStatus(prev => ({ ...prev, training: true }));
         setPreloadedPhases(prev => ({
           ...prev,
           training: { ...prev.training, [day || trainingDay]: true }
         }));
-      } else if (phase === 'pretest') {
-        // Get only the active test types
-        const activeTestTypes = testType ? [testType] : getActiveTestTypes('pretest');
-        await audioService.preloadAudioFiles(phase, null, activeTestTypes);
-        setPreloadingStatus(prev => ({ ...prev, pretest: true }));
-        setPreloadedPhases(prev => ({ ...prev, pretest: true }));
-      } else if (phase === 'posttest') {
-        // Get only the active test types
-        const activeTestTypes = testType ? [testType] : getActiveTestTypes('posttest');
-        await audioService.preloadAudioFiles(phase, null, activeTestTypes);
-        setPreloadingStatus(prev => ({ ...prev, posttest: true }));
-        setPreloadedPhases(prev => ({ ...prev, posttest: true }));
+      }
+      else if ((phase === 'pretest' || phase === 'posttest') && testType) {
+        // Check if we've already completed some tests
+        const completedTestIds = Object.keys(completedTests)
+          .filter(key => key.startsWith(`${phase}_`))
+          .map(key => key.replace(`${phase}_`, ''));
+
+        console.log(`Completed tests for ${phase}:`, completedTestIds);
+
+        // Only load the specific test type - no background loading of others
+        await audioService.preloadAudioFiles(phase, null, [testType]);
+
+        // Mark just this specific test as preloaded
+        const updatedPreloaded = { ...preloadedPhases };
+        if (!updatedPreloaded[phase]) {
+          updatedPreloaded[phase] = {};
+        }
+        updatedPreloaded[phase][testType] = true;
+        setPreloadedPhases(updatedPreloaded);
+
+        // Skip loading other tests that might not be needed
+        console.log(`Only loaded ${testType} for ${phase} - skipping others`);
+      }
+      else {
+        // Only load the first active (not completed) test type
+        const activeTestTypes = getActiveTestTypes(phase);
+
+        if (activeTestTypes.length > 0) {
+          const firstType = activeTestTypes[0];
+          await audioService.preloadAudioFiles(phase, null, [firstType]);
+
+          // Mark just this specific test as preloaded
+          const updatedPreloaded = { ...preloadedPhases };
+          if (!updatedPreloaded[phase]) {
+            updatedPreloaded[phase] = {};
+          }
+          updatedPreloaded[phase][firstType] = true;
+          setPreloadedPhases(updatedPreloaded);
+
+          // Skip background loading entirely
+          console.log(`Only loaded ${firstType} for ${phase} - skipping others`);
+        }
       }
     } catch (error) {
-      console.error('Failed to preload audio files:', error);
-      // Continue even if preloading fails
+      console.error('Error during preloading:', error);
     } finally {
       setIsPreloading(false);
       setPreloadingPhase(null);
@@ -414,10 +470,12 @@ const PhaseSelection = ({
             </p>
           )}
           {backgroundPreloading && (
-            <p className="text-xs text-blue-500 mt-2 flex items-center justify-center">
-              <Loader className="animate-spin h-3 w-3 mr-1" />
-              Preparing audio files in background...
-            </p>
+            <div className="bg-blue-100 border-l-4 border-blue-500 p-3 rounded-md mt-4 mb-4 shadow-md">
+              <p className="text-md text-blue-700 font-medium flex items-center justify-center">
+                <Loader className="animate-spin h-5 w-5 mr-3" />
+                Preparing audio files... Please wait
+              </p>
+            </div>
           )}
         </div>
 
@@ -493,6 +551,7 @@ const PhaseSelection = ({
                   onSelect={handleSelectPhase}
                   date={getExpectedDate('training', day)}
                   isPreloading={isPreloading && preloadingPhase === 'training' && day === trainingDay}
+                  pretestDate={pretestDate} // Pass the pretestDate as a prop
                 />
               ))}
             </div>

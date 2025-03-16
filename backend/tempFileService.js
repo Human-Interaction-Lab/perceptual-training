@@ -194,7 +194,7 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
     if (phase === 'training' && trainingDay) {
       // For training phase, preload all files for the specified day
       // Assume we have up to 20 sentences per training day
-      for (let i = 1; i <= 20; i++) {
+      for (let i = 1; i <= 30; i++) {
         try {
           // Generate the expected filename for this file
           const expectedDay = parseInt(trainingDay) + 1; // Add 1 to day for file naming
@@ -247,16 +247,68 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
 
       // Determine which test types to preload
       const testTypesToPreload = activeTestTypes || ['intelligibility', 'effort', 'comprehension'];
-      console.log(`Preloading test types: ${testTypesToPreload.join(', ')}`);
+      console.log(`Preloading test types in order: ${testTypesToPreload.join(', ')}`);
 
-      // Check if the test type includes 'comprehension' - these have multiple versions
-      if (testTypesToPreload.includes('comprehension')) {
-        // Preload comprehension test files (typically 2 versions with multiple sentences each)
-        for (let version = 1; version <= 2; version++) {
-          for (let sentence = 1; sentence <= 10; sentence++) {
+      // Process each test type in the exact order they're provided in the array
+      for (const testType of testTypesToPreload) {
+        console.log(`Processing test type: ${testType}`);
+
+        if (testType === 'comprehension') {
+          // Preload comprehension test files (typically 2 versions with multiple sentences each)
+          for (let version = 1; version <= 2; version++) {
+            for (let sentence = 1; sentence <= 10; sentence++) {
+              try {
+                // Generate expected filename for this comprehension file
+                const filename = `${speaker}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+                const userFilename = `${userId}_${filename}`;
+
+                // Check if this file is already loaded for this user
+                if (existingUserFiles.has(userFilename)) {
+                  // Update timestamp to refresh the file's expiry
+                  existingUserFiles.get(userFilename).timestamp = Date.now();
+
+                  // Add to preloaded files list but mark as already existing
+                  preloadedFiles.push({
+                    filename: userFilename,
+                    relativeUrl: `/audio/temp/${userFilename}`,
+                    alreadyLoaded: true
+                  });
+
+                  skippedFiles++;
+                  continue; // Skip to next file
+                }
+
+                // Check if file exists in Box
+                const pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+                const exists = await boxService.fileExists(speaker, pattern);
+
+                if (exists) {
+                  const fileInfo = await streamAndSaveFile(
+                    userId,
+                    speaker,
+                    phase,
+                    'COMPREHENSION',
+                    version,
+                    sentence
+                  );
+                  preloadedFiles.push(fileInfo);
+                } else {
+                  // If file doesn't exist, move to next version
+                  break;
+                }
+              } catch (error) {
+                console.log(`Error preloading comprehension file v${version}, s${sentence}:`, error.message);
+                break;
+              }
+            }
+          }
+        }
+        else if (testType === 'effort') {
+          // Preload effort test files
+          for (let sentence = 1; sentence <= 30; sentence++) {
             try {
-              // Generate expected filename for this comprehension file
-              const filename = `${speaker}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+              // Generate expected filename for this effort file
+              const filename = `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`;
               const userFilename = `${userId}_${filename}`;
 
               // Check if this file is already loaded for this user
@@ -276,128 +328,73 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
               }
 
               // Check if file exists in Box
-              const pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+              const pattern = `EFF${String(sentence).padStart(2, '0')}`;
               const exists = await boxService.fileExists(speaker, pattern);
 
               if (exists) {
-                // FIXED: Ensure parameter order is correct
                 const fileInfo = await streamAndSaveFile(
-                  userId,         // userId
-                  speaker,        // speaker
-                  phase,          // phase
-                  'COMPREHENSION', // testType
-                  version,        // version
-                  sentence        // sentence
+                  userId,
+                  speaker,
+                  phase,
+                  'EFFORT',
+                  null,
+                  sentence
                 );
                 preloadedFiles.push(fileInfo);
               } else {
-                // If file doesn't exist, move to next version
                 break;
               }
             } catch (error) {
-              console.log(`Error preloading comprehension file v${version}, s${sentence}:`, error.message);
+              console.log(`Error preloading effort file s${sentence}:`, error.message);
               break;
             }
           }
         }
-      }
+        else if (testType === 'intelligibility') {
+          // Preload intelligibility test files
+          for (let sentence = 1; sentence <= 20; sentence++) {
+            try {
+              // Generate expected filename for this intelligibility file
+              const filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+              const userFilename = `${userId}_${filename}`;
 
-      // Check if the test type includes 'effort'
-      if (testTypesToPreload.includes('effort')) {
-        // Preload effort test files
-        for (let sentence = 1; sentence <= 30; sentence++) {
-          try {
-            // Generate expected filename for this effort file
-            const filename = `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`;
-            const userFilename = `${userId}_${filename}`;
+              // Check if this file is already loaded for this user
+              if (existingUserFiles.has(userFilename)) {
+                // Update timestamp to refresh the file's expiry
+                existingUserFiles.get(userFilename).timestamp = Date.now();
 
-            // Check if this file is already loaded for this user
-            if (existingUserFiles.has(userFilename)) {
-              // Update timestamp to refresh the file's expiry
-              existingUserFiles.get(userFilename).timestamp = Date.now();
+                // Add to preloaded files list but mark as already existing
+                preloadedFiles.push({
+                  filename: userFilename,
+                  relativeUrl: `/audio/temp/${userFilename}`,
+                  alreadyLoaded: true
+                });
 
-              // Add to preloaded files list but mark as already existing
-              preloadedFiles.push({
-                filename: userFilename,
-                relativeUrl: `/audio/temp/${userFilename}`,
-                alreadyLoaded: true
-              });
+                skippedFiles++;
+                continue; // Skip to next file
+              }
 
-              skippedFiles++;
-              continue; // Skip to next file
-            }
+              // Check if file exists in Box
+              const pattern = `Int${String(sentence).padStart(2, '0')}`;
+              const exists = await boxService.fileExists(speaker, pattern);
 
-            // Check if file exists in Box
-            const pattern = `EFF${String(sentence).padStart(2, '0')}`;
-            const exists = await boxService.fileExists(speaker, pattern);
-
-            if (exists) {
-              // FIXED: Ensure parameter order is correct
-              const fileInfo = await streamAndSaveFile(
-                userId,         // userId
-                speaker,        // speaker
-                phase,          // phase
-                'EFFORT',       // testType
-                null,           // version (null for effort)
-                sentence        // sentence
-              );
-              preloadedFiles.push(fileInfo);
-            } else {
+              if (exists) {
+                const fileInfo = await streamAndSaveFile(
+                  userId,
+                  speaker,
+                  phase,
+                  'INTELLIGIBILITY',
+                  null,
+                  sentence
+                );
+                preloadedFiles.push(fileInfo);
+              } else {
+                break;
+              }
+            } catch (error) {
+              console.log(`Error preloading intelligibility file s${sentence}:`, error.message);
               break;
             }
-          } catch (error) {
-            console.log(`Error preloading effort file s${sentence}:`, error.message);
-            break;
-          }
-        }
-      }
-
-      // Check if the test type includes 'intelligibility'
-      if (testTypesToPreload.includes('intelligibility')) {
-        // Preload intelligibility test files
-        for (let sentence = 1; sentence <= 20; sentence++) {
-          try {
-            // Generate expected filename for this intelligibility file
-            const filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
-            const userFilename = `${userId}_${filename}`;
-
-            // Check if this file is already loaded for this user
-            if (existingUserFiles.has(userFilename)) {
-              // Update timestamp to refresh the file's expiry
-              existingUserFiles.get(userFilename).timestamp = Date.now();
-
-              // Add to preloaded files list but mark as already existing
-              preloadedFiles.push({
-                filename: userFilename,
-                relativeUrl: `/audio/temp/${userFilename}`,
-                alreadyLoaded: true
-              });
-
-              skippedFiles++;
-              continue; // Skip to next file
-            }
-
-            // Check if file exists in Box
-            const pattern = `Int${String(sentence).padStart(2, '0')}`;
-            const exists = await boxService.fileExists(speaker, pattern);
-
-            if (exists) {
-              // FIXED: Ensure parameter order is correct
-              const fileInfo = await streamAndSaveFile(
-                userId,             // userId
-                speaker,            // speaker
-                phase,              // phase
-                'INTELLIGIBILITY',  // testType
-                null,               // version (null for intelligibility)
-                sentence            // sentence
-              );
-              preloadedFiles.push(fileInfo);
-            } else {
-              break;
-            }
-          } catch (error) {
-            console.log(`Error preloading intelligibility file s${sentence}:`, error.message);
-            break;
           }
         }
       }

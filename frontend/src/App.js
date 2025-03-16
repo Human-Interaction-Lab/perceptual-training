@@ -188,13 +188,13 @@ const App = () => {
         trainingStimuli={trainData.stimuli}
         intelligibilityStimuli={trainData.testStimuli}
         onComplete={(day) => {
-          // Update training day and return to selection
-          if (day < 4) {
-            setTrainingDay(day + 1);
-          } else {
-            // If all training days are complete, move to posttest
+          // Do NOT automatically advance to the next training day
+          // The server will control when next day is available
+          // Only update phase to posttest if day 4 is completed
+          if (day >= 4) {
             setCurrentPhase('posttest');
           }
+
           setPhase('selection');
           setShowComplete(true);
 
