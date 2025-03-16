@@ -160,6 +160,34 @@ const audioService = {
     },
 
     /**
+     * End session and clean up played files
+     * @returns {Promise<object>} - Information about the cleanup operation
+     */
+    async endSession() {
+        try {
+            const response = await fetch(`${BASE_URL}/api/session/end`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to end session');
+            }
+
+            const data = await response.json();
+            console.log(`Session ended: ${data.message}`);
+            return data;
+        } catch (error) {
+            console.error('Error ending session:', error);
+            // Still return a value even on error
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
      * Clean up any resources
      */
     dispose() {

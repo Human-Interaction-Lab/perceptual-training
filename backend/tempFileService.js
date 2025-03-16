@@ -39,7 +39,55 @@ const initialize = async () => {
   setInterval(cleanupExpiredFiles, 5 * 60 * 1000); // Check every 5 minutes
 };
 
-// Stream and save a file from Box
+// Modified markFilePlayed function to set the played flag
+const markFilePlayed = (userId, filename) => {
+  if (userFiles.has(userId) && userFiles.get(userId).has(filename)) {
+    // Update timestamp to reflect recent usage
+    const fileInfo = userFiles.get(userId).get(filename);
+    fileInfo.timestamp = Date.now();
+    fileInfo.played = true; // Mark as played
+    console.log(`Marked file ${filename} as played for user ${userId}`);
+    return true;
+  }
+  return false;
+};
+
+// New function to clean up only played files when session ends
+const cleanupPlayedUserFiles = async (userId) => {
+  if (userFiles.has(userId)) {
+    const files = userFiles.get(userId);
+    const playedFiles = [];
+    const keptFiles = [];
+
+    // First, identify which files to remove (played ones)
+    for (const [filename, fileInfo] of files.entries()) {
+      if (fileInfo.played) {
+        playedFiles.push(filename);
+      } else {
+        keptFiles.push(filename);
+      }
+    }
+
+    // Remove played files
+    for (const filename of playedFiles) {
+      await removeFile(filename);
+    }
+
+    console.log(`Cleaned up ${playedFiles.length} played files for user ${userId}`);
+    console.log(`Kept ${keptFiles.length} unplayed files for user ${userId}`);
+
+    // If all files were removed, clean up user entry
+    if (files.size === 0) {
+      userFiles.delete(userId);
+      return { removed: playedFiles.length, kept: 0 };
+    }
+
+    return { removed: playedFiles.length, kept: keptFiles.length };
+  }
+  return { removed: 0, kept: 0 };
+};
+
+// Modified streamAndSaveFile to set played flag to false initially
 const streamAndSaveFile = async (userId, speaker, phase, testType, version, sentence) => {
   await ensureTempDir();
 
@@ -89,7 +137,8 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
   }
   userFiles.get(userId).set(userFilename, {
     timestamp: Date.now(),
-    originalFilename: filename
+    originalFilename: filename,
+    played: false // Initialize as not played
   });
 
   return {
@@ -105,6 +154,13 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
     console.log(`Preloading files for user ${userId}, phase ${phase}${trainingDay ? `, day ${trainingDay}` : ''}`);
 
     let preloadedFiles = [];
+    let skippedFiles = 0;
+
+    // First, check if this user has existing files
+    if (!userFiles.has(userId)) {
+      userFiles.set(userId, new Map());
+    }
+    const existingUserFiles = userFiles.get(userId);
 
     // Different preloading logic based on phase
     if (phase === 'training' && trainingDay) {
@@ -112,18 +168,40 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
       // Assume we have up to 20 sentences per training day
       for (let i = 1; i <= 20; i++) {
         try {
-          // Check if file exists before trying to download
-          const pattern = `Trn_${String(parseInt(trainingDay) + 1).padStart(2, '0')}_${String(i).padStart(2, '0')}`;
+          // Generate the expected filename for this file
+          const expectedDay = parseInt(trainingDay) + 1; // Add 1 to day for file naming
+          const filename = `${speaker}_Trn_${String(expectedDay).padStart(2, '0')}_${String(i).padStart(2, '0')}.wav`;
+          const userFilename = `${userId}_${filename}`;
+
+          // Check if this file is already loaded for this user
+          if (existingUserFiles.has(userFilename)) {
+            // Update timestamp to refresh the file's expiry
+            existingUserFiles.get(userFilename).timestamp = Date.now();
+
+            // Add to preloaded files list but mark as already existing
+            preloadedFiles.push({
+              filename: userFilename,
+              relativeUrl: `/audio/temp/${userFilename}`,
+              alreadyLoaded: true
+            });
+
+            skippedFiles++;
+            continue; // Skip to next file
+          }
+
+          // Check if file exists in Box before trying to download
+          const pattern = `Trn_${String(expectedDay).padStart(2, '0')}_${String(i).padStart(2, '0')}`;
           const exists = await boxService.fileExists(speaker, pattern);
 
           if (exists) {
+            // FIXED: Corrected parameter order to match streamAndSaveFile function signature
             const fileInfo = await streamAndSaveFile(
-              userId,
-              speaker,
-              'training',
-              null,
-              parseInt(trainingDay) + 1,
-              i
+              userId,           // userId (was missing userId before)
+              speaker,          // speaker (correct)
+              'training',       // phase (correct)
+              null,             // testType - null for training (was missing this parameter)
+              expectedDay,      // version/day (correct)
+              i                 // sentence (correct)
             );
             preloadedFiles.push(fileInfo);
           } else {
@@ -144,17 +222,39 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
       for (let version = 1; version <= 2; version++) {
         for (let sentence = 1; sentence <= 10; sentence++) {
           try {
+            // Generate expected filename for this comprehension file
+            const filename = `${speaker}_Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+            const userFilename = `${userId}_${filename}`;
+
+            // Check if this file is already loaded for this user
+            if (existingUserFiles.has(userFilename)) {
+              // Update timestamp to refresh the file's expiry
+              existingUserFiles.get(userFilename).timestamp = Date.now();
+
+              // Add to preloaded files list but mark as already existing
+              preloadedFiles.push({
+                filename: userFilename,
+                relativeUrl: `/audio/temp/${userFilename}`,
+                alreadyLoaded: true
+              });
+
+              skippedFiles++;
+              continue; // Skip to next file
+            }
+
+            // Check if file exists in Box
             const pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
             const exists = await boxService.fileExists(speaker, pattern);
 
             if (exists) {
+              // FIXED: Ensure parameter order is correct
               const fileInfo = await streamAndSaveFile(
-                userId,
-                speaker,
-                phase,
-                'COMPREHENSION',
-                version,
-                sentence
+                userId,         // userId
+                speaker,        // speaker
+                phase,          // phase
+                'COMPREHENSION', // testType
+                version,        // version
+                sentence        // sentence
               );
               preloadedFiles.push(fileInfo);
             } else {
@@ -171,17 +271,39 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
       // Preload effort test files
       for (let sentence = 1; sentence <= 5; sentence++) {
         try {
+          // Generate expected filename for this effort file
+          const filename = `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`;
+          const userFilename = `${userId}_${filename}`;
+
+          // Check if this file is already loaded for this user
+          if (existingUserFiles.has(userFilename)) {
+            // Update timestamp to refresh the file's expiry
+            existingUserFiles.get(userFilename).timestamp = Date.now();
+
+            // Add to preloaded files list but mark as already existing
+            preloadedFiles.push({
+              filename: userFilename,
+              relativeUrl: `/audio/temp/${userFilename}`,
+              alreadyLoaded: true
+            });
+
+            skippedFiles++;
+            continue; // Skip to next file
+          }
+
+          // Check if file exists in Box
           const pattern = `EFF${String(sentence).padStart(2, '0')}`;
           const exists = await boxService.fileExists(speaker, pattern);
 
           if (exists) {
+            // FIXED: Ensure parameter order is correct
             const fileInfo = await streamAndSaveFile(
-              userId,
-              speaker,
-              phase,
-              'EFFORT',
-              null,
-              sentence
+              userId,         // userId
+              speaker,        // speaker
+              phase,          // phase
+              'EFFORT',       // testType
+              null,           // version (null for effort)
+              sentence        // sentence
             );
             preloadedFiles.push(fileInfo);
           } else {
@@ -196,17 +318,39 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
       // Preload intelligibility test files
       for (let sentence = 1; sentence <= 5; sentence++) {
         try {
+          // Generate expected filename for this intelligibility file
+          const filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+          const userFilename = `${userId}_${filename}`;
+
+          // Check if this file is already loaded for this user
+          if (existingUserFiles.has(userFilename)) {
+            // Update timestamp to refresh the file's expiry
+            existingUserFiles.get(userFilename).timestamp = Date.now();
+
+            // Add to preloaded files list but mark as already existing
+            preloadedFiles.push({
+              filename: userFilename,
+              relativeUrl: `/audio/temp/${userFilename}`,
+              alreadyLoaded: true
+            });
+
+            skippedFiles++;
+            continue; // Skip to next file
+          }
+
+          // Check if file exists in Box
           const pattern = `Int${String(sentence).padStart(2, '0')}`;
           const exists = await boxService.fileExists(speaker, pattern);
 
           if (exists) {
+            // FIXED: Ensure parameter order is correct
             const fileInfo = await streamAndSaveFile(
-              userId,
-              speaker,
-              phase,
-              'INTELLIGIBILITY',
-              null,
-              sentence
+              userId,             // userId
+              speaker,            // speaker
+              phase,              // phase
+              'INTELLIGIBILITY',  // testType
+              null,               // version (null for intelligibility)
+              sentence            // sentence
             );
             preloadedFiles.push(fileInfo);
           } else {
@@ -219,13 +363,16 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null) => 
       }
     }
 
-    console.log(`Preloaded ${preloadedFiles.length} files for user ${userId}`);
+    console.log(`Preloaded ${preloadedFiles.length - skippedFiles} new files, reused ${skippedFiles} existing files for user ${userId}`);
     return {
       success: true,
       count: preloadedFiles.length,
+      newlyDownloaded: preloadedFiles.length - skippedFiles,
+      skipped: skippedFiles,
       files: preloadedFiles.map(f => ({
         filename: f.filename,
-        url: f.relativeUrl
+        url: f.relativeUrl,
+        alreadyLoaded: f.alreadyLoaded || false
       }))
     };
   } catch (error) {
@@ -259,17 +406,6 @@ const removeFile = async (filename) => {
     console.error(`Error removing file ${filename}:`, error);
     // Don't throw here to prevent affecting the user experience
   }
-};
-
-// Mark a file as played for a user - this updates the timestamp but keeps the file
-const markFilePlayed = (userId, filename) => {
-  if (userFiles.has(userId) && userFiles.get(userId).has(filename)) {
-    // Update timestamp to reflect recent usage
-    userFiles.get(userId).get(filename).timestamp = Date.now();
-    console.log(`Updated timestamp for file ${filename} for user ${userId}`);
-    return true;
-  }
-  return false;
 };
 
 // Clean up user files when they complete a phase or log out
@@ -347,5 +483,6 @@ module.exports = {
   removeFile,
   markFilePlayed,
   cleanupUserFiles,
+  cleanupPlayedUserFiles,
   cleanupExpiredFiles
 };

@@ -160,6 +160,8 @@ app.use('/audio', express.static(path.join(__dirname, 'public', 'audio')));
 app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res) => {
   try {
     const { day, sentence } = req.params;
+    const userId = req.user.userId;  // Get userId from the authenticated request
+
     const user = await User.findOne({ userId: req.user.userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -177,13 +179,14 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
       });
     }
 
-    // Stream and save the file from Box
+    // FIXED: Corrected parameter order in streamAndSaveFile call
     const fileInfo = await tempFileService.streamAndSaveFile(
-      speaker,
-      'training',
-      null,  // No test type for training
-      parseInt(day) + 1, // Add 1 to day for file naming
-      parseInt(sentence)
+      userId,                  // First param should be userId (was speaker)
+      speaker,                 // Second param should be speaker (was 'training')
+      'training',              // Third param should be phase (was null)
+      null,                    // Fourth param should be testType (was day+1)
+      parseInt(day) + 1,       // Fifth param should be version (was sentence)
+      parseInt(sentence)       // Sixth param should be sentence (was missing)
     );
 
     // Return the URL to the temporary file
@@ -299,7 +302,7 @@ app.post('/api/audio/preload', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Successfully preloaded ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''}`,
+      message: `Successfully processed ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''} (${preloadResult.newlyDownloaded} new, ${preloadResult.skipped} already loaded)`,
       files: preloadResult.files
     });
   } catch (error) {
@@ -394,6 +397,28 @@ app.get('/api/check-audio-structure', authenticateToken, async (req, res) => {
   }
 });
 
+
+//
+// SESSION ENDING ROUTE
+//
+
+// New route to handle session end and cleanup only played files
+app.post('/api/session/end', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Clean up only files that were played during the session
+    const cleanupResult = await tempFileService.cleanupPlayedUserFiles(userId);
+
+    res.json({
+      success: true,
+      message: `Session ended successfully. Cleaned up ${cleanupResult.removed} played files, kept ${cleanupResult.kept} unplayed files.`
+    });
+  } catch (error) {
+    console.error('Error ending session:', error);
+    res.status(500).json({ error: 'Failed to end session properly' });
+  }
+});
 
 
 // 

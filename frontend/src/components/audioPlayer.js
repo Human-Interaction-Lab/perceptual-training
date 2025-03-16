@@ -20,6 +20,7 @@ const AudioPlayer = ({ phase, testType, version, sentence, isTraining, day, onPl
       }
 
       setIsPlaying(false);
+
       if (onPlayComplete) {
         onPlayComplete();
       }
@@ -50,9 +51,7 @@ const AudioPlayer = ({ phase, testType, version, sentence, isTraining, day, onPl
       >
         {isLoading ? 'Loading...' : isPlaying ? 'Playing...' : 'Play Audio'}
       </button>
-
       {error && <div className="error-message">{error}</div>}
-
       <div className="audio-info">
         {isTraining ? (
           <span>Training Day {day}, Sentence {sentence}</span>

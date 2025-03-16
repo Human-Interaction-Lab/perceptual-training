@@ -19,16 +19,72 @@ const TrainingSession = ({
     const [userResponse, setUserResponse] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
+    const [cleanupStarted, setCleanupStarted] = useState(false);
 
-    // Reset states when training day changes
+    // Load saved progress when component mounts
     useEffect(() => {
-        setCurrentPhase('instruction');
-        setCurrentStimulusIndex(0);
-        setShowText(true);
+        const loadSavedProgress = () => {
+            const savedProgress = localStorage.getItem(`training_progress_day_${trainingDay}`);
+
+            if (savedProgress) {
+                try {
+                    const progress = JSON.parse(savedProgress);
+
+                    // Only restore if it's for the current training day
+                    if (progress.trainingDay === trainingDay) {
+                        console.log('Resuming from saved progress:', progress);
+
+                        setCurrentPhase(progress.phase);
+                        setCurrentStimulusIndex(progress.stimulusIndex);
+                        setShowText(true);
+
+                        // If we're resuming in the test phase, don't mark audio as played yet
+                        if (progress.phase !== 'test') {
+                            setAudioPlayed(progress.audioPlayed || false);
+                        }
+
+                        return true; // Progress was restored
+                    }
+                } catch (error) {
+                    console.error('Error parsing saved progress:', error);
+                }
+            }
+
+            return false; // No progress was restored
+        };
+
+        // If we couldn't load saved progress, use default initial values
+        if (!loadSavedProgress()) {
+            setCurrentPhase('instruction');
+            setCurrentStimulusIndex(0);
+            setShowText(true);
+            setAudioPlayed(false);
+        }
+
         setUserResponse('');
         setIsSubmitting(false);
-        setAudioPlayed(false);
+        setCleanupStarted(false);
     }, [trainingDay]);
+
+    // Save progress whenever relevant state changes
+    useEffect(() => {
+        // Only save progress if we've started training
+        if (currentPhase !== 'instruction') {
+            const progressData = {
+                trainingDay,
+                phase: currentPhase,
+                stimulusIndex: currentStimulusIndex,
+                audioPlayed
+            };
+
+            localStorage.setItem(
+                `training_progress_day_${trainingDay}`,
+                JSON.stringify(progressData)
+            );
+
+            console.log('Saved progress:', progressData);
+        }
+    }, [trainingDay, currentPhase, currentStimulusIndex, audioPlayed]);
 
     const handlePlayAudio = async () => {
         try {
@@ -108,8 +164,25 @@ const TrainingSession = ({
                 setUserResponse('');
                 setAudioPlayed(false);
             } else {
-                // Complete training day
-                onComplete(trainingDay);
+                // End the session to clean up played files before completing
+                if (!cleanupStarted) {
+                    setCleanupStarted(true);
+
+                    try {
+                        // End session to clean up played files
+                        await audioService.endSession();
+                        console.log('Played files have been cleaned up');
+
+                        // Clear saved progress when completing a training day
+                        localStorage.removeItem(`training_progress_day_${trainingDay}`);
+                    } catch (error) {
+                        console.error('Error cleaning up files:', error);
+                        // Continue even if cleanup fails
+                    }
+
+                    // Complete training day
+                    onComplete(trainingDay);
+                }
             }
         } catch (error) {
             console.error('Error submitting response:', error);
@@ -137,6 +210,18 @@ const TrainingSession = ({
             return false;
         }
     };
+
+    // Clean up resources when component unmounts or when user navigates away
+    useEffect(() => {
+        return () => {
+            // Only clean up if we've started a training session
+            if (currentPhase !== 'instruction' && !cleanupStarted) {
+                audioService.endSession()
+                    .then(() => console.log('Files cleaned up on component unmount'))
+                    .catch(error => console.error('Failed to clean up files:', error));
+            }
+        };
+    }, [currentPhase, cleanupStarted]);
 
     const renderInstructionPhase = () => (
         <Card className="shadow-lg">
@@ -282,7 +367,20 @@ const TrainingSession = ({
             <div className="max-w-2xl mx-auto">
                 <Button
                     variant="ghost"
-                    onClick={onBack}
+                    onClick={() => {
+                        // Clean up played files before going back, but don't remove progress
+                        if (currentPhase !== 'instruction' && !cleanupStarted) {
+                            setCleanupStarted(true);
+                            audioService.endSession()
+                                .then(() => {
+                                    console.log('Files cleaned up on back navigation');
+                                    onBack();
+                                })
+                                .catch(() => onBack());
+                        } else {
+                            onBack();
+                        }
+                    }}
                     className="mb-4 text-gray-600 hover:text-gray-800"
                 >
                     ← Back to Training Selection
