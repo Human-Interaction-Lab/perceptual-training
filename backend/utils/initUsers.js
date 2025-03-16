@@ -91,7 +91,7 @@ const initializeUsers = async () => {
                 email: 'pretest1@test.com',
                 currentPhase: 'pretest',
                 ...baseTestUser
-                // This user has no forms/responses
+                // This user will only have demographics completed
             },
             {
                 userId: 'test_pretest2',
@@ -126,7 +126,7 @@ const initializeUsers = async () => {
             console.log(`Test user ${userData.userId} created successfully`);
         }
 
-        // Create demographics for test_pretest2 and test_pretest3
+        // Create demographics for test_pretest1, test_pretest2 and test_pretest3
         const demographicsData = {
             dateOfBirth: new Date('1980-01-01'),
             ethnicity: 'Not Hispanic or Latino',
@@ -148,7 +148,7 @@ const initializeUsers = async () => {
             }
         };
 
-        for (const userId of ['test_pretest2', 'test_pretest3']) {
+        for (const userId of ['test_pretest1', 'test_pretest2', 'test_pretest3']) {
             const demographics = new Demographics({
                 ...demographicsData,
                 userId
@@ -158,6 +158,7 @@ const initializeUsers = async () => {
         }
 
         // Create responses for test_pretest2 and test_pretest3
+        const pretest1 = await User.findOne({ userId: 'test_pretest1' });
         const pretest2 = await User.findOne({ userId: 'test_pretest2' });
         const pretest3 = await User.findOne({ userId: 'test_pretest3' });
 
@@ -207,6 +208,12 @@ const initializeUsers = async () => {
         }
 
         // Update completedTests property for the users
+        if (pretest1) {
+            pretest1.completedTests.set('pretest_demographics', true);
+            await pretest1.save();
+            console.log('Updated completedTests for test_pretest1 (demographics only)');
+        }
+
         if (pretest2) {
             pretest2.completedTests.set('pretest_demographics', true);
             pretest2.completedTests.set('pretest_intelligibility', true);
