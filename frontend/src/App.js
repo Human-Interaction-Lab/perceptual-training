@@ -414,8 +414,10 @@ const App = () => {
       const currentQuestion = currentStory.questions[questionIndex];
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
-      // Get the assigned stories for the current phase
-      const assignedStories = phaseStories[phase] || [];
+      // Create standardized stimulusId format
+      const storyNum = currentStoryId.replace('Comp_', '');
+      const questionNum = questionIndex + 1;
+      const stimulusId = `${phase}_comprehension_${storyNum}_${questionNum}`;
 
       await fetch('http://localhost:3000/api/response', {
         method: 'POST',
@@ -426,7 +428,7 @@ const App = () => {
         body: JSON.stringify({
           phase,
           testType: 'comprehension',
-          stimulusId: currentQuestion.id,
+          stimulusId: stimulusId,
           response: optionLabels[userResponse],
           isCorrect: optionLabels[userResponse] === currentQuestion.answer
         }),
