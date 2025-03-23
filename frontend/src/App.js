@@ -637,16 +637,17 @@ const App = () => {
         return true;
       }
       // Original behavior for individual clips
-      else if (currentTestType === 'comprehension') {
-        const storyNum = currentStoryId.replace('Comp_', '');
-        await audioService.playTestAudio(
-          phase,
-          'comprehension',
-          storyNum,
-          questionIndex + 1
-        );
-        return true;
-      } else if (currentTestType === 'effort') {
+      //else if (currentTestType === 'comprehension') {
+      //  const storyNum = currentStoryId.replace('Comp_', '');
+      //  await audioService.playTestAudio(
+      //    phase,
+      //    'comprehension',
+      //    storyNum,
+      //    questionIndex + 1
+      //  );
+      //  return true;
+      //} 
+      else if (currentTestType === 'effort') {
         await audioService.playTestAudio(
           phase,
           'effort',
