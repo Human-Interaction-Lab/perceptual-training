@@ -77,4 +77,42 @@ const hashString = (str) => {
     return Math.abs(hash);
 };
 
-export { stratifyAndRandomizeFiles, getGroupForPhase };
+// Function to randomize comprehension stories
+const randomizeComprehensionStories = (userId = null) => {
+    // Define all available comprehension story IDs (assuming there are 6 total stories)
+    const allStoryIds = ["Comp_01", "Comp_02", "Comp_03", "Comp_04", "Comp_05", "Comp_06"];
+
+    // We need to assign 2 stories to each of 3 phases (pretest, posttest1, posttest2)
+    // without repetition
+
+    // Use userId as seed if available for consistent randomization
+    const seed = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+
+    // Use a seeded random function
+    const seededRandom = () => {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+    };
+
+    // Shuffle the story IDs using Fisher-Yates with seeded random
+    const shuffledStories = [...allStoryIds];
+    for (let i = shuffledStories.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [shuffledStories[i], shuffledStories[j]] = [shuffledStories[j], shuffledStories[i]];
+    }
+
+    // Assign 2 stories to each phase
+    return {
+        pretest: shuffledStories.slice(0, 2),
+        posttest1: shuffledStories.slice(2, 4),
+        posttest2: shuffledStories.slice(4, 6)
+    };
+};
+
+// Get stories for a specific phase
+const getStoriesForPhase = (phase, userId = null) => {
+    const allPhaseStories = randomizeComprehensionStories(userId);
+    return allPhaseStories[phase] || [];
+};
+
+export { stratifyAndRandomizeFiles, getGroupForPhase, randomizeComprehensionStories, getStoriesForPhase };

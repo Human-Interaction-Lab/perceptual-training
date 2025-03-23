@@ -1,6 +1,6 @@
 // src/services/audioService.js
-const BASE_URL = 'http://localhost:3000';
 import { getGroupForPhase } from '../utils/randomization';
+const BASE_URL = 'http://localhost:3000';
 
 // Centralized audio service for handling audio interactions with the backend
 const audioService = {
