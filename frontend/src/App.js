@@ -41,6 +41,8 @@ const App = () => {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDemographicsCompleted, setIsDemographicsCompleted] = useState(false);
+  const [phaseStories, setPhaseStories] = useState({});
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   // const [comprehensionResponses, setComprehensionResponses] = useState([]);
 
   // Reset states when phase changes
@@ -148,6 +150,15 @@ const App = () => {
     return currentStimuli;
   };
 
+  // Add a function to initialize story assignments when user logs in
+  const initializeStoryAssignments = (uid) => {
+    const { randomizeComprehensionStories } = require('./utils/randomization');
+    const storyAssignments = randomizeComprehensionStories(uid);
+    setPhaseStories(storyAssignments);
+    console.log('Comprehension story assignments:', storyAssignments);
+  };
+
+
   const renderTrainingSession = () => {
     // Get training data based on day
     const getTrainingData = () => {
@@ -234,6 +245,8 @@ const App = () => {
         setPretestDate(data.pretestDate);
         setCanProceedToday(data.canProceedToday);
         setCompletedTests(data.completedTests || {});
+        // Initialize story assignments
+        initializeStoryAssignments(userId);
 
         // Check if demographics is completed by looking at completedTests
         const demographicsCompleted =
@@ -401,6 +414,9 @@ const App = () => {
       const currentQuestion = currentStory.questions[questionIndex];
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
+      // Get the assigned stories for the current phase
+      const assignedStories = phaseStories[phase] || [];
+
       await fetch('http://localhost:3000/api/response', {
         method: 'POST',
         headers: {
@@ -420,9 +436,9 @@ const App = () => {
       if (questionIndex < currentStory.questions.length - 1) {
         // Move to next question in current story
         setQuestionIndex(prevIndex => prevIndex + 1);
-      } else if (currentStoryId === 'Comp_01') {
-        // Move to second story
-        setCurrentStoryId('Comp_02');
+      } else if (currentStoryIndex < assignedStories.length - 1) {
+        // Move to the next assigned story
+        setCurrentStoryIndex(prevIndex => prevIndex + 1);
         setQuestionIndex(0);
       } else {
         // Complete the comprehension test
@@ -436,7 +452,7 @@ const App = () => {
         setTimeout(() => {
           setPhase('selection');
           setShowComplete(false);
-          setCurrentStoryId('Comp_01');
+          setCurrentStoryIndex(0);
           setQuestionIndex(0);
           setUserResponse('');
         }, 2000);
@@ -860,18 +876,27 @@ const App = () => {
           );
 
         case 'comprehension':
-          const currentStory = COMPREHENSION_DATA[currentStoryId];
-          const currentQuestion = currentStory.questions[questionIndex];
+          // Get the assigned stories for the current phase
+          const assignedStories = phaseStories[phase] || [];
+
+          // If no stories are assigned yet, use default
+          const storyId = assignedStories.length > 0
+            ? assignedStories[currentStoryIndex % assignedStories.length]
+            : "Comp_01";
+
+          const currentStory = COMPREHENSION_DATA[storyId];
+          const currentQuestion = currentStory?.questions[questionIndex] || {};
+
           return (
             <ComprehensionTest
-              storyId={currentStoryId}
+              storyId={storyId}
               question={currentQuestion.question}
               options={currentQuestion.options}
               userResponse={userResponse}
               onResponseChange={setUserResponse}
               onSubmit={handleComprehensionSubmit}
               currentStimulus={questionIndex}
-              totalStimuli={currentStory.questions.length}
+              totalStimuli={currentStory?.questions.length || 10}
               onPlayAudio={handlePlayAudio}
             />
           );
