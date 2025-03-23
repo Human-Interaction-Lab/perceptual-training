@@ -23,15 +23,18 @@ const IntelligibilityTest = ({
         setAudioError(false);
 
         try {
-            const result = await onPlayAudio();
-            // If playback was successful, result will be true
+            // Use randomized audio playback instead of sequential
+            if (onPlayRandomizedAudio) {
+                await onPlayRandomizedAudio();
+            } else {
+                await onPlayAudio();
+            }
+            setAudioPlayed(true);
         } catch (error) {
             if (error.message === 'AUDIO_NOT_FOUND') {
                 setAudioError(true);
-                // Auto-fill "NA" as response when audio is not found
                 onResponseChange("NA");
             } else {
-                // Handle other errors
                 console.error('Error playing audio:', error);
             }
         } finally {

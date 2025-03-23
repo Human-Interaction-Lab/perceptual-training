@@ -1,8 +1,83 @@
 // src/services/audioService.js
 const BASE_URL = 'http://localhost:3000';
+import { getGroupForPhase } from '../utils/randomization';
 
 // Centralized audio service for handling audio interactions with the backend
 const audioService = {
+
+    /**
+    * A method to map file number to actual file ID
+    * @param {string} phase - 'pretest', 'training', 'posttest', etc.
+    * @param {string} testType - the test
+    * @param {string} version - version of file
+    * @param {string} index - index of file between 1 - 20
+    * @param {string} userId - userId
+    * @returns {Promise<void>}
+    */
+    async playRandomizedTestAudio(phase, testType, version, index, userId = null) {
+        try {
+            // Get the userId from localStorage if not provided
+            if (!userId) {
+                const token = localStorage.getItem('token');
+                const tokenParts = token.split('.');
+                if (tokenParts.length === 3) {
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    userId = payload.userId;
+                }
+            }
+
+            // Get randomized file numbers for this phase
+            const groupFiles = getGroupForPhase(phase, null, userId);
+
+            // Map the sequential index (1-20) to the actual file number
+            const actualFileNumber = groupFiles[index - 1];
+
+            console.log(`Playing randomized ${testType} audio: ${phase}/${version}/${index} -> File #${actualFileNumber}`);
+
+            // Call the regular playTestAudio with the mapped file number
+            return await this.playTestAudio(phase, testType, version, actualFileNumber);
+        } catch (error) {
+            console.error('Error playing randomized test audio:', error);
+            throw error;
+        }
+    },
+
+    /**
+    * Also add a method for randomized training test audio
+    * @param {string} day - day of training
+    * @param {string} index - index between 1 and 20
+    * @param {string} userId - userId
+    * @returns {Promise<void>}
+    */
+    async playRandomizedTrainingAudio(day, index, userId = null) {
+        try {
+            // Get the userId from localStorage if not provided
+            if (!userId) {
+                const token = localStorage.getItem('token');
+                const tokenParts = token.split('.');
+                if (tokenParts.length === 3) {
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    userId = payload.userId;
+                }
+            }
+
+            // Get randomized file numbers for training day
+            const groupFiles = getGroupForPhase('training', day, userId);
+
+            // Map the sequential index to the actual file number
+            const actualFileNumber = groupFiles[index - 1];
+
+            console.log(`Playing randomized training audio: Day ${day}/${index} -> File #${actualFileNumber}`);
+
+            // Call the regular playTrainingAudio with the mapped file number
+            return await this.playTrainingAudio(day, actualFileNumber);
+        } catch (error) {
+            console.error('Error playing randomized training audio:', error);
+            throw error;
+        }
+    },
+
+
     /**
      * Play audio for test phases (pretest and posttest)
      * @param {string} phase - 'pretest' or 'posttest'

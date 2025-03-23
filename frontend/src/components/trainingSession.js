@@ -227,19 +227,28 @@ const TrainingSession = ({
 
     const handlePlayTestAudio = async () => {
         try {
-            // The "test" type of training uses a different endpoint format
             const stimulusIndex = currentStimulusIndex + 1;
 
-            await audioService.playTrainingAudio(
+            // Use randomized training audio
+            await audioService.playRandomizedTrainingAudio(
                 trainingDay,
-                stimulusIndex
+                stimulusIndex,
+                userId // You'll need to pass userId from props
             );
 
             setAudioPlayed(true);
             return true;
         } catch (error) {
             console.error('Error playing audio:', error);
-            alert('Error playing audio. Please try again.');
+
+            if (error.message === 'AUDIO_NOT_FOUND') {
+                alert('Audio file not available. Please submit "NA" as your response.');
+                setUserResponse('NA');
+                setAudioPlayed(true);
+            } else {
+                alert('Error playing audio. Please try again.');
+            }
+
             return false;
         }
     };

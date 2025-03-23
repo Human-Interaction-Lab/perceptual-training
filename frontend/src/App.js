@@ -62,7 +62,7 @@ const App = () => {
     });
   }, [phase, currentPhase, trainingDay, currentStimulus, showComplete]);
 
-  // Sample stimuli data structure
+  // stimuli data structure
   const stimuli = {
     pretest: {
       intelligibility: Array.from({ length: 20 }, (_, i) => ({
@@ -187,18 +187,13 @@ const App = () => {
         trainingDay={trainingDay}
         trainingStimuli={trainData.stimuli}
         intelligibilityStimuli={trainData.testStimuli}
+        userId={userId}
         onComplete={(day) => {
-          // Do NOT automatically advance to the next training day
-          // The server will control when next day is available
-          // Only update phase to posttest if day 4 is completed
           if (day >= 4) {
             setCurrentPhase('posttest');
           }
-
           setPhase('selection');
           setShowComplete(true);
-
-          // Hide completion message after delay
           setTimeout(() => {
             setShowComplete(false);
           }, 2000);
@@ -605,21 +600,16 @@ const App = () => {
   };
 
 
-  // Revised handlePlayAudio function
-  // Update the handlePlayAudio function in App.js to support playing entire stories
+  // Revised handlePlayAudio function to handle randomization
   const handlePlayAudio = async (input) => {
     try {
       // Check if we're playing a full story (input will be storyId like "Comp_01")
       if (typeof input === 'string' && input.startsWith('Comp_')) {
+        // Story playback remains the same
         const storyNum = input.replace('Comp_', '');
-
-        // Play all audio clips for this story sequentially
         console.log(`Playing full story ${storyNum}`);
 
-        // Get the total number of audio clips for this story (typically 10)
-        const totalClips = 10; // Adjust based on your actual story length
-
-        // Play each clip in sequence
+        const totalClips = 10;
         for (let i = 1; i <= totalClips; i++) {
           await audioService.playTestAudio(
             phase,
@@ -628,7 +618,6 @@ const App = () => {
             i
           );
 
-          // Add a small pause between clips for better experience
           if (i < totalClips) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
@@ -636,17 +625,18 @@ const App = () => {
 
         return true;
       }
-      // Original behavior for individual clips
-      //else if (currentTestType === 'comprehension') {
-      //  const storyNum = currentStoryId.replace('Comp_', '');
-      //  await audioService.playTestAudio(
-      //    phase,
-      //    'comprehension',
-      //    storyNum,
-      //    questionIndex + 1
-      //  );
-      //  return true;
-      //} 
+      // Use randomized playback for intelligibility tests 
+      else if (currentTestType === 'intelligibility') {
+        await audioService.playRandomizedTestAudio(
+          phase,
+          'intelligibility',
+          null,
+          currentStimulus + 1,
+          userId
+        );
+        return true;
+      }
+      // For other test types, use normal playback for now
       else if (currentTestType === 'effort') {
         await audioService.playTestAudio(
           phase,
@@ -666,10 +656,12 @@ const App = () => {
       }
     } catch (error) {
       console.error('Error playing audio:', error);
-      alert('Error playing audio. Please try again.');
+      if (error.message !== 'AUDIO_NOT_FOUND') {
+        alert('Error playing audio. Please try again.');
+      }
       return false;
     }
-  }
+  };
 
   // Handle admin login success
   const handleAdminLoginSuccess = () => {
