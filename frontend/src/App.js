@@ -630,7 +630,7 @@ const App = () => {
 
           // Add a small pause between clips for better experience
           if (i < totalClips) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
 
