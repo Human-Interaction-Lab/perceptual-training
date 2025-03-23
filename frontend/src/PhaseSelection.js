@@ -249,7 +249,7 @@ const PhaseSelection = ({
 
           // Start preloading pretest files immediately, only for uncompleted tests
           console.log('Beginning pretest files preload for types:', activeTestTypes);
-          await audioService.preloadAudioFiles('pretest', null, activeTestTypes);
+          await audioService.preloadRandomizedAudioFiles('pretest', null, activeTestTypes);
           console.log('Pretest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, pretest: true }));
           setPreloadedPhases(prev => ({ ...prev, pretest: true }));
@@ -257,7 +257,7 @@ const PhaseSelection = ({
         else if (currentPhase === 'training') {
           // For training, we still load all files for the current day
           console.log(`Beginning training day ${trainingDay} files preload...`);
-          await audioService.preloadAudioFiles('training', trainingDay);
+          await audioService.preloadRandomizedAudioFiles('training', trainingDay);
           console.log(`Training day ${trainingDay} files preloaded successfully`);
           setPreloadingStatus(prev => ({ ...prev, training: true }));
           setPreloadedPhases(prev => ({
@@ -278,7 +278,7 @@ const PhaseSelection = ({
 
           // Start preloading posttest files immediately, only for uncompleted tests
           console.log('Beginning posttest files preload for types:', activeTestTypes);
-          await audioService.preloadAudioFiles('posttest', null, activeTestTypes);
+          await audioService.preloadRandomizedAudioFiles('posttest', null, activeTestTypes);
           console.log('Posttest files preloaded successfully');
           setPreloadingStatus(prev => ({ ...prev, posttest: true }));
           setPreloadedPhases(prev => ({ ...prev, posttest: true }));
@@ -396,7 +396,7 @@ const PhaseSelection = ({
     try {
       if (phase === 'training') {
         // For training, only load the specific day's files
-        await audioService.preloadAudioFiles(phase, day || trainingDay);
+        await audioService.preloadRandomizedAudioFiles(phase, day || trainingDay);
         setPreloadedPhases(prev => ({
           ...prev,
           training: { ...prev.training, [day || trainingDay]: true }
@@ -411,7 +411,7 @@ const PhaseSelection = ({
         console.log(`Completed tests for ${phase}:`, completedTestIds);
 
         // Only load the specific test type - no background loading of others
-        await audioService.preloadAudioFiles(phase, null, [testType]);
+        await audioService.preloadRandomizedAudioFiles(phase, null, [testType]);
 
         // Mark just this specific test as preloaded
         const updatedPreloaded = { ...preloadedPhases };
@@ -430,7 +430,7 @@ const PhaseSelection = ({
 
         if (activeTestTypes.length > 0) {
           const firstType = activeTestTypes[0];
-          await audioService.preloadAudioFiles(phase, null, [firstType]);
+          await audioService.preloadRandomizedAudioFiles(phase, null, [firstType]);
 
           // Mark just this specific test as preloaded
           const updatedPreloaded = { ...preloadedPhases };

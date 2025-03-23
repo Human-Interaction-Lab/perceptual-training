@@ -77,6 +77,154 @@ const audioService = {
         }
     },
 
+    /**
+     * A method to preload randomized audio files
+     * @param {string} phase - 'pretest' or 'posttest'
+     * @param {string} trainingDay - day of training if applicable
+     * @param {string} activeTestTypes - active testTypes to know which files are relevant
+     * @returns {success: true, count: successful, failed: failed}
+     */
+    async preloadRandomizedAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
+        try {
+            const userId = this.extractUserIdFromToken();
+
+            // Get the randomized file indices for this phase/day
+            let filesToPreload = [];
+
+            if (phase === 'training' && trainingDay) {
+                // For training, get the group for this day
+                const groupFiles = getGroupForPhase('training', trainingDay, userId);
+
+                // Create array of training file info objects
+                filesToPreload = groupFiles.map(fileIndex => ({
+                    phase: 'training',
+                    day: trainingDay,
+                    actualFile: fileIndex
+                }));
+            }
+            else if (phase === 'pretest' || phase.startsWith('posttest')) {
+                // For test phases, handle intelligibility tests
+                if (!activeTestTypes || activeTestTypes.includes('intelligibility')) {
+                    const groupFiles = getGroupForPhase(phase, null, userId);
+
+                    // Create array of intelligibility file info
+                    const intelligibilityFiles = groupFiles.map(fileIndex => ({
+                        phase,
+                        testType: 'intelligibility',
+                        actualFile: fileIndex
+                    }));
+
+                    filesToPreload.push(...intelligibilityFiles);
+                }
+
+                // For comprehension, preload the assigned stories
+                if (!activeTestTypes || activeTestTypes.includes('comprehension')) {
+                    const assignedStories = getStoriesForPhase(phase, userId);
+
+                    // Create array of comprehension story files (each story has 10 files)
+                    const comprehensionFiles = [];
+
+                    assignedStories.forEach(storyId => {
+                        const storyNum = storyId.replace('Comp_', '');
+                        for (let i = 1; i <= 10; i++) {
+                            comprehensionFiles.push({
+                                phase,
+                                testType: 'comprehension',
+                                version: storyNum,
+                                sentence: i
+                            });
+                        }
+                    });
+
+                    filesToPreload.push(...comprehensionFiles);
+                }
+
+                // Keep effort test preloading sequential for now
+                if (!activeTestTypes || activeTestTypes.includes('effort')) {
+                    // Create sequential effort files (not randomized yet)
+                    const effortFiles = Array.from({ length: 30 }, (_, i) => ({
+                        phase,
+                        testType: 'effort',
+                        actualFile: i + 1
+                    }));
+
+                    filesToPreload.push(...effortFiles);
+                }
+            }
+
+            console.log(`Preloading ${filesToPreload.length} randomized files for ${phase}`);
+
+            // Now preload all the files we identified
+            const preloadPromises = filesToPreload.map(async fileInfo => {
+                try {
+                    // Determine which API endpoint to use based on the file type
+                    let url;
+
+                    if (fileInfo.phase === 'training') {
+                        url = `${BASE_URL}/audio/training/day/${fileInfo.day}/${fileInfo.actualFile}`;
+                    } else if (fileInfo.testType === 'comprehension') {
+                        url = `${BASE_URL}/audio/${fileInfo.phase}/${fileInfo.testType}/${fileInfo.version}/${fileInfo.sentence}`;
+                    } else {
+                        url = `${BASE_URL}/audio/${fileInfo.phase}/${fileInfo.testType}/null/${fileInfo.actualFile}`;
+                    }
+
+                    // Request the file
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        console.warn(`Failed to preload file: ${url}`);
+                        return null;
+                    }
+
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.warn(`Error preloading file:`, fileInfo, error);
+                    return null;
+                }
+            });
+
+            // Wait for all preloading to complete
+            const results = await Promise.allSettled(preloadPromises);
+
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value).length;
+            const failed = results.length - successful;
+
+            console.log(`Preloaded ${successful} files successfully, ${failed} failed`);
+
+            return {
+                success: true,
+                count: successful,
+                failed: failed
+            };
+        } catch (error) {
+            console.error('Error in randomized preloading:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    // Helper to extract userId from token
+    extractUserIdFromToken() {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                return payload.userId;
+            }
+        } catch (e) {
+            console.error('Error extracting userId from token:', e);
+        }
+
+        return null;
+    },
+
 
     /**
      * Play audio for test phases (pretest and posttest)

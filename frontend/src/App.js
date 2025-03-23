@@ -605,9 +605,9 @@ const App = () => {
     try {
       // Preload the audio files for the selected phase
       if (selectedPhase === 'training') {
-        audioService.preloadAudioFiles(selectedPhase, dayNumber);
-      } else if (selectedPhase === 'pretest' || selectedPhase === 'posttest') {
-        audioService.preloadAudioFiles(selectedPhase);
+        audioService.preloadRandomizedAudioFiles(selectedPhase, dayNumber);
+      } else if (selectedPhase === 'pretest' || selectedPhase.startsWith('posttest')) {
+        audioService.preloadRandomizedAudioFiles(selectedPhase);
       }
     } catch (error) {
       console.error('Failed to preload audio files:', error);
