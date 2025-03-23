@@ -652,16 +652,17 @@ const App = () => {
         );
         return true;
       }
-      // For other test types, use normal playback for now
+      // Use randomized playback for effort
       else if (currentTestType === 'effort') {
-        await audioService.playTestAudio(
+        await audioService.playRandomizedEffortAudio(
           phase,
-          'effort',
-          null,
-          currentStimulus + 1
+          currentStimulus + 1,
+          userId
         );
         return true;
-      } else {
+      }
+      // if randomization not working do sequential
+      else {
         await audioService.playTestAudio(
           phase,
           'intelligibility',

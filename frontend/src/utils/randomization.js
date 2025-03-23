@@ -118,4 +118,53 @@ const getStoriesForPhase = (phase, userId = null) => {
     return allPhaseStories[phase] || [];
 };
 
-export { stratifyAndRandomizeFiles, getGroupForPhase, randomizeComprehensionStories, getStoriesForPhase };
+// Function to randomize effort files in groups of 30
+const randomizeEffortFiles = (userId = null) => {
+    // Total of 90 files in 3 groups of 30 (each containing 15 high + 15 low predictability)
+    const totalFiles = 90;
+    const groupSize = 30;
+
+    // Get random seed from userId
+    let seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+
+    // Generate array of all file indices [1...90]
+    const allIndices = Array.from({ length: totalFiles }, (_, i) => i + 1);
+
+    // Split into 3 groups of 30 files each
+    const groups = [];
+    for (let i = 0; i < allIndices.length; i += groupSize) {
+        groups.push(allIndices.slice(i, i + groupSize));
+    }
+
+    // Shuffle groups using seeded random
+    const seededRandom = () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+    };
+
+    for (let i = groups.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [groups[i], groups[j]] = [groups[j], groups[i]];
+    }
+
+    return {
+        pretest: groups[0],
+        posttest1: groups[1],
+        posttest2: groups[2]
+    };
+};
+
+// Get effort files for a specific phase
+const getEffortFilesForPhase = (phase, userId = null) => {
+    const allPhaseEffortFiles = randomizeEffortFiles(userId);
+    return allPhaseEffortFiles[phase] || [];
+};
+
+export {
+    stratifyAndRandomizeFiles,
+    getGroupForPhase,
+    randomizeComprehensionStories,
+    getStoriesForPhase,
+    randomizeEffortFiles,
+    getEffortFilesForPhase
+};

@@ -1,5 +1,9 @@
 // src/services/audioService.js
-import { getGroupForPhase } from '../utils/randomization';
+import {
+    getGroupForPhase,
+    getStoriesForPhase,
+    getEffortFilesForPhase
+} from '../utils/randomization';
 const BASE_URL = 'http://localhost:3000';
 
 // Centralized audio service for handling audio interactions with the backend
@@ -38,6 +42,33 @@ const audioService = {
             return await this.playTestAudio(phase, testType, version, actualFileNumber);
         } catch (error) {
             console.error('Error playing randomized test audio:', error);
+            throw error;
+        }
+    },
+
+
+    /**
+    * A method to map file number to actual file ID
+    * @param {string} phase - 'pretest', 'training', 'posttest', etc.
+    * @param {string} index - index of file between 1 - 30
+    * @param {string} userId - userId
+    * @returns {Promise<void>}
+    */
+    async playRandomizedEffortAudio(phase, index, userId = null) {
+        try {
+            if (!userId) userId = this.extractUserIdFromToken();
+
+            // Get randomized effort files for this phase
+            const effortFiles = getEffortFilesForPhase(phase, userId);
+
+            // Map sequential index to actual file number
+            const actualFileNumber = effortFiles[index - 1];
+
+            console.log(`Playing randomized effort audio: ${phase}/${index} -> File #${actualFileNumber}`);
+
+            return await this.playTestAudio(phase, 'effort', null, actualFileNumber);
+        } catch (error) {
+            console.error('Error playing randomized effort audio:', error);
             throw error;
         }
     },
@@ -139,16 +170,18 @@ const audioService = {
                     filesToPreload.push(...comprehensionFiles);
                 }
 
-                // Keep effort test preloading sequential for now
+                // randomize effort audio file order
                 if (!activeTestTypes || activeTestTypes.includes('effort')) {
-                    // Create sequential effort files (not randomized yet)
-                    const effortFiles = Array.from({ length: 30 }, (_, i) => ({
+                    const effortFiles = getEffortFilesForPhase(phase, userId);
+
+                    // Create effort files info objects
+                    const randomizedEffortFiles = effortFiles.map(fileIndex => ({
                         phase,
                         testType: 'effort',
-                        actualFile: i + 1
+                        actualFile: fileIndex
                     }));
 
-                    filesToPreload.push(...effortFiles);
+                    filesToPreload.push(...randomizedEffortFiles);
                 }
             }
 
