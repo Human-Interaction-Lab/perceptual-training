@@ -11,10 +11,13 @@ const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
 
     // Seed random selection if provided
     if (seed !== null) {
-        // Simple seeded random function
+        // Generate a seed based on userId
+        let seedValue = seed ? hashString(seed) : Math.floor(Math.random() * 10000);
+
+        // Use a seeded random function that doesn't modify the seed directly
         const seededRandom = () => {
-            seed = (seed * 9301 + 49297) % 233280;
-            return seed / 233280;
+            seedValue = (seedValue * 9301 + 49297) % 233280;
+            return seedValue / 233280;
         };
 
         // Fisher-Yates shuffle with seeded random
@@ -85,13 +88,13 @@ const randomizeComprehensionStories = (userId = null) => {
     // We need to assign 2 stories to each of 3 phases (pretest, posttest1, posttest2)
     // without repetition
 
-    // Use userId as seed if available for consistent randomization
-    const seed = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    // Generate a seed based on userId
+    let seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
 
-    // Use a seeded random function
+    // Use a seeded random function that doesn't modify the seed directly
     const seededRandom = () => {
-        seed = (seed * 9301 + 49297) % 233280;
-        return seed / 233280;
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
     };
 
     // Shuffle the story IDs using Fisher-Yates with seeded random
