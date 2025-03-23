@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Volume2, Send, Activity } from 'lucide-react';
+import { Volume2, Send, Activity, AlertCircle } from 'lucide-react';
 
 const ListeningEffortTest = ({
     userResponse,
@@ -17,6 +17,8 @@ const ListeningEffortTest = ({
 }) => {
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
     const [audioPlayed, setAudioPlayed] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [audioError, setAudioError] = useState(false);
 
     const getRatingLabel = (value) => {
         if (value <= 20) return 'Very Easy';
@@ -29,12 +31,34 @@ const ListeningEffortTest = ({
     // Reset audioPlayed when stimulus changes
     useEffect(() => {
         setAudioPlayed(false);
+        setAudioError(false);
     }, [currentStimulus]);
 
     // Handler to track when audio has been played
     const handlePlayAudio = async () => {
-        await onPlayAudio();
-        setAudioPlayed(true);
+        setIsPlaying(true);
+        setAudioError(false);
+
+        try {
+            await onPlayAudio();
+            setAudioPlayed(true);
+        } catch (error) {
+            if (error.message === 'AUDIO_NOT_FOUND') {
+                setAudioError(true);
+                setAudioPlayed(true); // Mark as played even if not found
+                // Auto-fill "NA" as response when audio is not found
+                onResponseChange("NA");
+
+                // Set a default rating value
+                if (!rating) {
+                    onRatingChange(1); // Set minimum rating
+                }
+            } else {
+                console.error('Error playing audio:', error);
+            }
+        } finally {
+            setIsPlaying(false);
+        }
     };
 
     return (
@@ -62,17 +86,37 @@ const ListeningEffortTest = ({
                 <div className="pt-4">
                     <Button
                         onClick={handlePlayAudio}
-                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioPlayed ? "bg-gray-400 hover:bg-gray-500" : "bg-blue-600 hover:bg-blue-700"
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 
+                            ${isPlaying ? "bg-blue-400" :
+                                audioError ? "bg-red-500 hover:bg-red-600" :
+                                    audioPlayed ? "bg-gray-400 hover:bg-gray-500" :
+                                        "bg-blue-600 hover:bg-blue-700"
                             } transition-colors`}
-                        disabled={audioPlayed}
+                        disabled={audioPlayed || isPlaying}
                     >
-                        <Volume2 className="h-6 w-6" />
-                        <span>{audioPlayed ? "Audio Played" : "Play Audio Stimulus"}</span>
+                        {isPlaying ? (
+                            <span>Playing...</span>
+                        ) : audioError ? (
+                            <>
+                                <AlertCircle className="h-6 w-6" />
+                                <span>Audio Not Available</span>
+                            </>
+                        ) : (
+                            <>
+                                <Volume2 className="h-6 w-6" />
+                                <span>{audioPlayed ? "Audio Played" : "Play Audio Stimulus"}</span>
+                            </>
+                        )}
                     </Button>
                     <p className="text-center text-sm text-gray-600 mt-2">
-                        {audioPlayed ?
+                        {audioError ? (
+                            <span className="text-red-500">
+                                Audio file could not be found. Please enter "NA" as your response.
+                            </span>
+                        ) : audioPlayed ?
                             "Audio played successfully. Please complete your response below." :
-                            "Click to play the audio clip"}
+                            isPlaying ? "Playing audio clip..." : "Click to play the audio clip"
+                        }
                     </p>
                 </div>
 
@@ -90,7 +134,7 @@ const ListeningEffortTest = ({
                             type="text"
                             value={userResponse}
                             onChange={(e) => onResponseChange(e.target.value)}
-                            placeholder="Enter the final word..."
+                            placeholder={audioError ? "Type NA" : "Enter the final word..."}
                             className="w-full p-3 text-lg border-gray-200 focus:ring-blue-500 focus:border-blue-500"
                             disabled={!audioPlayed}
                         />
@@ -159,6 +203,11 @@ const ListeningEffortTest = ({
                         <li>2. Type the final word you heard</li>
                         <li>3. Rate how much effort it took to understand the audio</li>
                         <li>4. Click "Submit Response" when you're ready</li>
+                        {audioError && (
+                            <li className="text-red-500">
+                                If audio is not available, enter "NA" as your response
+                            </li>
+                        )}
                     </ul>
                 </div>
             </CardContent>

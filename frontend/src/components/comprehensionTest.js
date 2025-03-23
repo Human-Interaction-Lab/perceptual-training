@@ -1,4 +1,3 @@
-// Updated ComprehensionTest.js component
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -21,6 +20,8 @@ const ComprehensionTest = ({
     const [storyAudioPlayed, setStoryAudioPlayed] = useState(false);
     // Track if we're currently playing the story
     const [isPlayingStory, setIsPlayingStory] = useState(false);
+    // Track audio errors
+    const [audioError, setAudioError] = useState(false);
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
@@ -28,6 +29,7 @@ const ComprehensionTest = ({
     // Reset storyAudioPlayed when story changes
     useEffect(() => {
         setStoryAudioPlayed(false);
+        setAudioError(false);
     }, [storyId]);
 
     // Get the story number from the ID (e.g., "Comp_01" -> 1)
@@ -38,6 +40,7 @@ const ComprehensionTest = ({
         if (isPlayingStory) return;
 
         setIsPlayingStory(true);
+        setAudioError(false);
 
         try {
             // Start by showing a message that the story is playing
@@ -50,6 +53,14 @@ const ComprehensionTest = ({
             setStoryAudioPlayed(true);
         } catch (error) {
             console.error("Error playing story audio:", error);
+            if (error.message === 'AUDIO_NOT_FOUND') {
+                setAudioError(true);
+                setStoryAudioPlayed(true); // Mark as played even if not found
+                // Set the first option as the default (can be adjusted later if needed)
+                if (userResponse === null) {
+                    onResponseChange(0);
+                }
+            }
         } finally {
             setIsPlayingStory(false);
         }
@@ -90,15 +101,21 @@ const ComprehensionTest = ({
                 <div className="pt-2">
                     <Button
                         onClick={handlePlayStoryAudio}
-                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${storyAudioPlayed
-                            ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700"
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${isPlayingStory ? "bg-blue-400" :
+                                audioError ? "bg-red-500 hover:bg-red-600" :
+                                    storyAudioPlayed ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed" :
+                                        "bg-blue-600 hover:bg-blue-700"
                             }`}
                         disabled={storyAudioPlayed || isPlayingStory || isSubmitting}
                     >
                         {isPlayingStory ? (
                             <>
                                 <span className="animate-pulse">Playing Story Audio...</span>
+                            </>
+                        ) : audioError ? (
+                            <>
+                                <AlertCircle className="h-6 w-6" />
+                                <span>Audio Not Available</span>
                             </>
                         ) : (
                             <>
@@ -108,7 +125,11 @@ const ComprehensionTest = ({
                         )}
                     </Button>
 
-                    {!storyAudioPlayed ? (
+                    {audioError ? (
+                        <p className="text-center text-sm text-red-600 mt-2 font-medium">
+                            Story audio could not be found. Please continue with the questions.
+                        </p>
+                    ) : !storyAudioPlayed ? (
                         <p className="text-center text-sm text-blue-600 mt-2 font-medium">
                             You must listen to the complete story before answering questions
                         </p>
@@ -194,6 +215,12 @@ const ComprehensionTest = ({
                             <span className="text-blue-600 mr-2">4.</span>
                             Click "Submit Answer" when you're ready
                         </li>
+                        {audioError && (
+                            <li className="flex items-start text-red-500">
+                                <span className="text-red-500 mr-2">*</span>
+                                If audio is not available, select an answer to continue
+                            </li>
+                        )}
                     </ul>
                 </div>
             </CardContent>

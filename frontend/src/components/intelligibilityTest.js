@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Play, Send, Volume2 } from 'lucide-react';
+import { Play, Send, Volume2, AlertCircle } from 'lucide-react';
 
 const IntelligibilityTest = ({
     userResponse,
@@ -13,7 +13,31 @@ const IntelligibilityTest = ({
     totalStimuli,
     onPlayAudio
 }) => {
+    const [audioError, setAudioError] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+
+    const handlePlayAudio = async () => {
+        setIsPlaying(true);
+        setAudioError(false);
+
+        try {
+            const result = await onPlayAudio();
+            // If playback was successful, result will be true
+        } catch (error) {
+            if (error.message === 'AUDIO_NOT_FOUND') {
+                setAudioError(true);
+                // Auto-fill "NA" as response when audio is not found
+                onResponseChange("NA");
+            } else {
+                // Handle other errors
+                console.error('Error playing audio:', error);
+            }
+        } finally {
+            setIsPlaying(false);
+        }
+    };
 
     return (
         <Card className="shadow-lg border-gray-200">
@@ -39,14 +63,35 @@ const IntelligibilityTest = ({
                 {/* Audio Control Section */}
                 <div className="pt-4">
                     <Button
-                        onClick={onPlayAudio}
-                        className="w-full h-16 text-lg flex items-center justify-center space-x-3 bg-blue-600 hover:bg-blue-700 transition-colors"
+                        onClick={handlePlayAudio}
+                        disabled={isPlaying}
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioError ? "bg-red-500 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700"
+                            } transition-colors`}
                     >
-                        <Volume2 className="h-6 w-6" />
-                        <span>Play Audio Stimulus</span>
+                        {isPlaying ? (
+                            <span>Playing...</span>
+                        ) : audioError ? (
+                            <>
+                                <AlertCircle className="h-6 w-6" />
+                                <span>Audio Not Available</span>
+                            </>
+                        ) : (
+                            <>
+                                <Volume2 className="h-6 w-6" />
+                                <span>Play Audio Stimulus</span>
+                            </>
+                        )}
                     </Button>
                     <p className="text-center text-sm text-gray-600 mt-2">
-                        Click to play the audio clip
+                        {audioError ? (
+                            <span className="text-red-500">
+                                Audio file could not be found. Please enter "NA" as your response.
+                            </span>
+                        ) : isPlaying ? (
+                            "Playing audio clip..."
+                        ) : (
+                            "Click to play the audio clip"
+                        )}
                     </p>
                 </div>
 
@@ -64,7 +109,7 @@ const IntelligibilityTest = ({
                             type="text"
                             value={userResponse}
                             onChange={(e) => onResponseChange(e.target.value)}
-                            placeholder="Enter the phrase..."
+                            placeholder={audioError ? "Type NA" : "Enter the phrase..."}
                             className="w-full p-3 text-lg border-gray-200 focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
@@ -88,6 +133,11 @@ const IntelligibilityTest = ({
                         <li>2. Listen carefully to the entire phrase</li>
                         <li>3. Type exactly what you heard in the text box</li>
                         <li>4. Click "Submit Response" when you're ready</li>
+                        {audioError && (
+                            <li className="text-red-500">
+                                If audio is not available, enter "NA" as your response
+                            </li>
+                        )}
                     </ul>
                 </div>
             </CardContent>

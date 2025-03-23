@@ -27,6 +27,10 @@ const audioService = {
 
             if (!response.ok) {
                 const error = await response.json();
+                // Specifically check for 404 "not found" errors
+                if (response.status === 404) {
+                    throw new Error('AUDIO_NOT_FOUND');
+                }
                 throw new Error(error.error || 'Failed to get audio file');
             }
 
@@ -65,6 +69,10 @@ const audioService = {
 
             if (!response.ok) {
                 const error = await response.json();
+                // Specifically check for 404 "not found" errors
+                if (response.status === 404) {
+                    throw new Error('AUDIO_NOT_FOUND');
+                }
                 throw new Error(error.error || 'Failed to get audio file');
             }
 
