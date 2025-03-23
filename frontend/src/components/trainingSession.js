@@ -11,7 +11,8 @@ const TrainingSession = ({
     onBack,
     trainingDay,
     trainingStimuli,
-    intelligibilityStimuli
+    intelligibilityStimuli,
+    userId
 }) => {
     const [currentPhase, setCurrentPhase] = useState('instruction'); // 'instruction', 'training', 'test'
     const [currentStimulusIndex, setCurrentStimulusIndex] = useState(0);
@@ -233,7 +234,7 @@ const TrainingSession = ({
             await audioService.playRandomizedTrainingAudio(
                 trainingDay,
                 stimulusIndex,
-                userId // You'll need to pass userId from props
+                userId
             );
 
             setAudioPlayed(true);
