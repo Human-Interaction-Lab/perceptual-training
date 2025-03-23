@@ -41,7 +41,7 @@ export const COMPREHENSION_DATA = {
             {
                 id: "Comp_01_07",
                 question: "The ball was found by:",
-                options: ["Hotdog vendor", "George", "A security guard", "A bat boy", "A recruiter"],
+                options: ["Hotdog vender", "George", "A security guard", "A bat boy", "A recruiter"],
                 answer: "E"
             },
             {
@@ -52,7 +52,7 @@ export const COMPREHENSION_DATA = {
             },
             {
                 id: "Comp_01_09",
-                question: "The man gave George:",
+                question: "The man gave George",
                 options: ["A business card", "An autographed baseball", "A ride to the hospital", "Help getting up", "A hotdog"],
                 answer: "A"
             },
@@ -123,7 +123,7 @@ export const COMPREHENSION_DATA = {
             },
             {
                 id: "Comp_02_10",
-                question: "The gas station:",
+                question: "The gas station was:",
                 options: ["Over two miles", "About a mile", "Just around the bend", "Closed that day", "Out of gas"],
                 answer: "A"
             }
@@ -147,7 +147,7 @@ export const COMPREHENSION_DATA = {
             {
                 id: "Comp_03_03",
                 question: "The woman Henry spoke to:",
-                options: ["Had long hair", "Wore glasses", "Had gray hair", "Wore a skirt", "Wore a skirt"],
+                options: ["Had long hair", "Wore glasses", "Had gray hair", "Wore a skirt", "Wore a sweater"],
                 answer: "C"
             },
             {
@@ -171,7 +171,7 @@ export const COMPREHENSION_DATA = {
             {
                 id: "Comp_03_07",
                 question: "The woman:",
-                options: ["Asked Henry to leave", "Filled out a report", "Took back the book", "Called the supervisor", "Took away Henry's priviledges"],
+                options: ["Asked Henry to leave", "Filled out a report", "Took back the book", "Called the supervisor", "Took away Henry's privileges"],
                 answer: "B"
             },
             {
@@ -230,7 +230,7 @@ export const COMPREHENSION_DATA = {
             {
                 id: "Comp_04_06",
                 question: "The woman asked Neil:",
-                options: ["About his monthly expenses", "About his martial status", "For his parents' signatures", "To fill out a form", "About his grades"],
+                options: ["About his monthly expenses", "About his marital status", "For his parents' signatures", "To fill out a form", "About his grades"],
                 answer: "E"
             },
             {
@@ -247,7 +247,7 @@ export const COMPREHENSION_DATA = {
             },
             {
                 id: "Comp_04_09",
-                question: "The woman throught Neil's lunch was:",
+                question: "The woman thought Neil's lunch was:",
                 options: ["Tasty", "Expensive", "Healthy", "Not enough", "Strange"],
                 answer: "E"
             },
@@ -384,7 +384,7 @@ export const COMPREHENSION_DATA = {
             {
                 id: "Comp_06_10",
                 question: "The price of the sandwich was:",
-                options: ["$1.49", "$0.99", "$2.99", "$1.99", "$2.09"],
+                options: ["$1.49", "$.99", "$2.99", "$1.99", "$2.09"],
                 answer: "D"
             }
         ]
