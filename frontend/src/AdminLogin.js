@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
+import config from './config';
 
 const AdminLogin = ({ onBack, onLoginSuccess }) => {
   const [userId, setUserId] = useState('');
@@ -11,7 +12,7 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {
   const handleAdminLogin = async () => {
     try {
       setError('');
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch(`${config.API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

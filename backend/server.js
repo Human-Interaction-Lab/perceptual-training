@@ -18,6 +18,12 @@ const { initializeUsers } = require('./utils/initUsers');
 const tempFileService = require('./tempFileService');
 require('dotenv').config();
 const helmet = require('helmet');
+const config = {
+  PORT: process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 28303),
+  CLIENT_ORIGIN: process.env.NODE_ENV === 'production'
+    ? 'https://speechtraining.usu.edu'
+    : 'http://localhost:3001'
+};
 
 let server;
 
@@ -31,7 +37,7 @@ let server;
 
 // Basic middleware
 app.use(cors({
-  origin: 'https://speechtraining.usu.edu',
+  origin: [config.CLIENT_ORIGIN],
   credentials: true,
   methods: ['GET', 'POST', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -161,7 +167,7 @@ const startServer = async () => {
   await connectDB();
   await tempFileService.initialize();
   const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 28303);
-  const server = app.listen(PORT, () => {
+  const server = app.listen(config.PORT, () => {
     const actualPort = server.address().port;
     console.log(`Server running on port ${actualPort}`);
   });

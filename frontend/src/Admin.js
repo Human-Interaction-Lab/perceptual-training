@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from './config';
 
 const Admin = () => {
   const [users, setUsers] = useState([]);
@@ -39,12 +40,12 @@ const Admin = () => {
     try {
       setLoading(true);
       const [usersResponse, statsResponse] = await Promise.all([
-        fetch('http://localhost:3000/api/admin/users', {
+        fetch(`${config.API_BASE_URL}/api/admin/users`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
           }
         }),
-        fetch('http://localhost:3000/api/admin/stats', {
+        fetch(`${config.API_BASE_URL}/api/admin/stats`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
           }
@@ -73,7 +74,7 @@ const Admin = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -99,7 +100,7 @@ const Admin = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}/reset-password`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +126,7 @@ const Admin = () => {
 
   const handleToggleStatus = async (userId, currentStatus) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}/toggle-status`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}/toggle-status`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -147,7 +148,7 @@ const Admin = () => {
   // New function to handle updating user details
   const handleUpdateUser = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -228,19 +229,19 @@ const Admin = () => {
     return (
       <div className="mt-8 space-x-4">
         <button
-          onClick={() => downloadFile('http://localhost:3000/api/admin/export/responses', 'responses.csv')}
+          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/responses`, 'responses.csv')}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
         >
           Export Responses
         </button>
         <button
-          onClick={() => downloadFile('http://localhost:3000/api/admin/export/users', 'users.csv')}
+          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/users`, 'users.csv')}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
         >
           Export Users
         </button>
         <button
-          onClick={() => downloadFile('http://localhost:3000/api/admin/export/all', 'all_data.zip')}
+          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/all`, 'all_data.zip')}
           className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
         >
           Export All Data (ZIP)

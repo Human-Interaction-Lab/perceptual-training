@@ -28,6 +28,7 @@ yarn-error.log*
 .env
 /.env
 /backend/.env
+/frontend/.env
 
 # temp files
 /backend/public

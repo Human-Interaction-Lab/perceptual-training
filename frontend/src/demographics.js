@@ -5,6 +5,7 @@ import { Label } from "./components/ui/label";
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { ArrowLeft, CheckCircle } from 'lucide-react';
 import HearingAssessment from "./hearingAssessment";
+import config from './config';
 
 const SelectField = ({ label, name, value, onChange, options, error }) => (
   <div className="space-y-2 mb-6">
@@ -82,7 +83,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         // Get userId from somewhere - could be stored in localStorage during login
         const userId = localStorage.getItem('userId');
 
-        const response = await fetch(`http://localhost:3000/api/demographics/${userId}`, {
+        const response = await fetch(`${config.API_BASE_URL}/api/demographics/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -211,7 +212,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       };
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/demographics', {
+      const response = await fetch(`${config.API_BASE_URL}/api/demographics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -16,6 +16,7 @@ import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 import audioService from './services/audioService';
 import { getStoriesForPhase } from './utils/randomization';
+import config from './config';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -245,7 +246,7 @@ const App = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch(`${config.API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -300,7 +301,7 @@ const App = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3000/api/register', {
+      const response = await fetch(`${config.API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -330,7 +331,7 @@ const App = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch('http://localhost:3000/api/response', {
+      await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -367,7 +368,7 @@ const App = () => {
       // Ensure rating is a number and at least 1
       const ratingValue = typeof rating === 'number' ? Math.max(1, rating) : 1;
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/response', {
+      const response = await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -439,7 +440,7 @@ const App = () => {
       const questionNum = questionIndex + 1;
       const stimulusId = `${phase}_comprehension_${storyNum}_${questionNum}`;
 
-      await fetch('http://localhost:3000/api/response', {
+      await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

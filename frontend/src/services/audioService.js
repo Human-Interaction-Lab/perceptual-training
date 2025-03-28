@@ -4,7 +4,10 @@ import {
     getStoriesForPhase,
     getEffortFilesForPhase
 } from '../utils/randomization';
-const BASE_URL = 'http://localhost:3000';
+import config from '../config';
+
+// Use the constant instead of hardcoded URL
+const BASE_URL = config.API_BASE_URL;
 
 // Centralized audio service for handling audio interactions with the backend
 const audioService = {

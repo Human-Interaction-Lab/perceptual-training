@@ -177,7 +177,7 @@ const TrainingSession = ({
             const token = localStorage.getItem('token');
             //const stimulus = intelligibilityStimuli[currentStimulusIndex];
 
-            await fetch('http://localhost:3000/api/response', {
+            await fetch(`${config.API_BASE_URL}/api/response`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
