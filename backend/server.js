@@ -680,6 +680,40 @@ function checkAllPosttestCompleted(user, postTestPhase) {
 //
 // ADMIN ROUTES
 //
+
+app.use('/api/admin/export', (req, res, next) => {
+  console.log('Export request headers:', req.headers);
+  console.log('Auth header:', req.headers.authorization);
+  next();
+});
+
+// Helper function to handle authorization for export routes
+const handleExportRequest = async (req, res, exportFunction) => {
+  try {
+    // Check for authorization token
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Access denied - No token provided' });
+    }
+
+    // Verify the token
+    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const user = await User.findOne({ userId: verified.userId });
+
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ error: 'Access denied - Admin only' });
+    }
+
+    // If authorization passes, execute the export function
+    await exportFunction(req, res);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+};
+
 app.use('/api/admin', authenticateAdmin)
 
 app.get('/api/admin/users', async (req, res) => {
@@ -740,6 +774,68 @@ app.delete('/api/admin/users/:userId', async (req, res) => {
   }
 });
 
+// Route to update user details
+app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email, trainingDay, pretestDate, currentPhase, speaker } = req.body;
+
+    // Input validation
+    if (email && !email.includes('@')) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (trainingDay && (trainingDay < 1 || trainingDay > 4)) {
+      return res.status(400).json({ error: 'Training day must be between 1 and 4' });
+    }
+
+    // Find the user
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update fields if provided
+    if (email) user.email = email;
+    if (trainingDay) user.trainingDay = trainingDay;
+    if (currentPhase) user.currentPhase = currentPhase;
+    if (speaker) user.speaker = speaker;
+
+    // Handle pretest date specially
+    if (pretestDate) {
+      try {
+        user.pretestDate = new Date(pretestDate);
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid pretest date format' });
+      }
+    }
+
+    // Save the updated user
+    await user.save();
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        userId: user.userId,
+        email: user.email,
+        trainingDay: user.trainingDay,
+        currentPhase: user.currentPhase,
+        pretestDate: user.pretestDate,
+        speaker: user.speaker
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
 app.post('/api/admin/users/:userId/reset-password', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -785,139 +881,157 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   }
 });
 
+// 
+// ADMIN DOWNLOAD DATA
+//
 
-// exporting
-app.get('/api/admin/export/responses', async (req, res) => {
-  try {
-    // Fetch all responses with user information
-    const responses = await Response.aggregate([
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: 'userId',
-          as: 'user'
+// Support both GET and POST for all export routes
+// Responses export
+app.all('/api/admin/export/responses',
+  express.urlencoded({ extended: true }), // To parse form data
+  extractAdminToken,
+  verifyAdmin,
+  async (req, res) => {
+    try {
+      // Fetch all responses with user information
+      const responses = await Response.aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: 'userId',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            userId: 1,
+            email: '$user.email',
+            phase: 1,
+            trainingDay: 1,
+            stimulusId: 1,
+            response: 1,
+            rating: 1,
+            correct: 1,
+            timestamp: 1
+          }
         }
-      },
-      {
-        $unwind: '$user'
-      },
-      {
-        $project: {
-          userId: 1,
-          email: '$user.email',
-          phase: 1,
-          trainingDay: 1,
-          stimulusId: 1,
-          response: 1,
-          rating: 1,
-          correct: 1,
-          timestamp: 1
-        }
-      }
-    ]);
+      ]);
 
-    // Define fields for CSV
-    const fields = [
-      'userId',
-      'email',
-      'phase',
-      'trainingDay',
-      'stimulusId',
-      'response',
-      'rating',
-      'correct',
-      'timestamp'
-    ];
+      // Define fields for CSV
+      const fields = [
+        'userId',
+        'email',
+        'phase',
+        'trainingDay',
+        'stimulusId',
+        'response',
+        'rating',
+        'correct',
+        'timestamp'
+      ];
 
-    // Convert to CSV
-    const csv = json2csv(responses, { fields });
+      // Convert to CSV
+      const csv = json2csv(responses, { fields });
 
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=responses.csv');
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=responses.csv');
 
-    // Send CSV
-    res.send(csv);
+      // Send CSV
+      res.send(csv);
+    } catch (error) {
+      console.error('Export error:', error);
+      res.status(500).json({ error: 'Failed to export data' });
+    }
+  });
 
-  } catch (error) {
-    console.error('Export error:', error);
-    res.status(500).json({ error: 'Failed to export data' });
-  }
-});
+// Users export
+app.all('/api/admin/export/users',
+  express.urlencoded({ extended: true }),
+  extractAdminToken,
+  verifyAdmin,
+  async (req, res) => {
+    try {
+      const users = await User.find({}, {
+        password: 0,
+        _id: 0
+      });
 
-// Route to download user data
-app.get('/api/admin/export/users', async (req, res) => {
-  try {
-    const users = await User.find({}, {
-      password: 0,
-      _id: 0
-    });
+      const fields = [
+        'userId',
+        'email',
+        'speaker',
+        'currentPhase',
+        'trainingDay',
+        'pretestDate',
+        'completed',
+        'isActive',
+        'createdAt'
+      ];
 
-    const fields = [
-      'userId',
-      'email',
-      'currentPhase',
-      'trainingDay',
-      'completed',
-      'isActive',
-      'createdAt'
-    ];
+      const csv = json2csv(users, { fields });
 
-    const csv = json2csv(users, { fields });
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
 
-    // Set headers for file download
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
+      res.send(csv);
+    } catch (error) {
+      console.error('Export error:', error);
+      res.status(500).json({ error: 'Failed to export data' });
+    }
+  });
 
-    res.send(csv);
-  } catch (error) {
-    console.error('Export error:', error);
-    res.status(500).json({ error: 'Failed to export data' });
-  }
-});
+// All data export
+app.all('/api/admin/export/all',
+  express.urlencoded({ extended: true }),
+  extractAdminToken,
+  verifyAdmin,
+  async (req, res) => {
+    try {
+      // Fetch all users and responses
+      const [users, responses] = await Promise.all([
+        User.find({}, { password: 0, __v: 0 }),
+        Response.find({})
+      ]);
 
-// Route to download all data (both users and responses)
-app.get('/api/admin/export/all', async (req, res) => {
-  try {
-    // Fetch all users and responses
-    const [users, responses] = await Promise.all([
-      User.find({}, { password: 0, __v: 0 }),
-      Response.find({})
-    ]);
+      // Create separate CSV files
+      const usersCsv = json2csv(users, {
+        fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
+      });
+      const responsesCsv = json2csv(responses, {
+        fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
+      });
 
-    // Create separate CSV files
-    const usersCsv = json2csv(users, {
-      fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
-    });
-    const responsesCsv = json2csv(responses, {
-      fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
-    });
+      // Create a zip file containing both CSVs
+      const archiver = require('archiver');
+      const archive = archiver('zip');
 
-    // Create a zip file containing both CSVs
-    const archiver = require('archiver');
-    const archive = archiver('zip');
+      // Set headers for zip file download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename=all_data.zip');
 
-    // Set headers for zip file download
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename=all_data.zip');
+      // Pipe archive data to response
+      archive.pipe(res);
 
-    // Pipe archive data to response
-    archive.pipe(res);
+      // Add CSV files to the zip
+      archive.append(usersCsv, { name: 'users.csv' });
+      archive.append(responsesCsv, { name: 'responses.csv' });
 
-    // Add CSV files to the zip
-    archive.append(usersCsv, { name: 'users.csv' });
-    archive.append(responsesCsv, { name: 'responses.csv' });
-
-    // Finalize archive
-    archive.finalize();
-
-  } catch (error) {
-    console.error('Export error:', error);
-    res.status(500).json({ error: 'Failed to export data' });
-  }
-});
-
+      // Finalize archive
+      archive.finalize();
+    } catch (error) {
+      console.error('Export error:', error);
+      res.status(500).json({ error: 'Failed to export data' });
+    }
+  });
 
 
 // Utility function to list files in a directory
