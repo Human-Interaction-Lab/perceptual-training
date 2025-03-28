@@ -111,7 +111,7 @@ const initializeUsers = async () => {
                 userId: 'test_pretest2',
                 email: 'pretest2@test.com',
                 currentPhase: 'pretest',
-                speaker: 'Emma01',
+                speaker: 'Emma01Test',
                 ...baseTestUser
                 // Will add demographics + intelligibility responses
             },
