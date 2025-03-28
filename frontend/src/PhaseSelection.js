@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
@@ -207,13 +207,6 @@ const PhaseSelection = ({
     training: {},  // Will store days as keys
     posttest1: false,
     posttest2: false
-  });
-
-  const [phasePreloadingStatus, setPhasePreloadingStatus] = useState({
-    pretest: false,
-    posttest1: false,
-    posttest2: false,
-    training: false
   });
 
   const [showLoadingIndicator, setShowLoadingIndicator] = useState({

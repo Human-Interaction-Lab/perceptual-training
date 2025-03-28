@@ -117,23 +117,23 @@ const TrainingSession = ({
         }
     }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay]);
 
-    const handleManualPlayAudio = async () => {
-        if (audioPlaying || audioPlayed) return;
-
-        try {
-            setAudioPlaying(true);
-            await audioService.playTrainingAudio(
-                trainingDay,
-                currentStimulusIndex + 1
-            );
-            setAudioPlayed(true);
-        } catch (error) {
-            console.error('Error playing audio:', error);
-            alert('Error playing audio. Please try again.');
-        } finally {
-            setAudioPlaying(false);
-        }
-    };
+    //const handleManualPlayAudio = async () => {
+    //    if (audioPlaying || audioPlayed) return;
+    //
+    //    try {
+    //        setAudioPlaying(true);
+    //        await audioService.playTrainingAudio(
+    //            trainingDay,
+    //            currentStimulusIndex + 1
+    //        );
+    //        setAudioPlayed(true);
+    //    } catch (error) {
+    //        console.error('Error playing audio:', error);
+    //        alert('Error playing audio. Please try again.');
+    //    } finally {
+    //        setAudioPlaying(false);
+    //    }
+    //};
 
     const handleNext = () => {
         // If we're still in training phase
@@ -175,7 +175,7 @@ const TrainingSession = ({
         try {
             setIsSubmitting(true);
             const token = localStorage.getItem('token');
-            const stimulus = intelligibilityStimuli[currentStimulusIndex];
+            //const stimulus = intelligibilityStimuli[currentStimulusIndex];
 
             await fetch('http://localhost:3000/api/response', {
                 method: 'POST',
@@ -392,35 +392,35 @@ const TrainingSession = ({
     );
 
     // Get training data based on day
-    const getTrainingData = () => {
-        switch (trainingDay) {
-            case 1:
-                return {
-                    stimuli: TRAINING_DATA.day1,
-                    testStimuli: TRAINING_TEST_STIMULI.day1
-                };
-            case 2:
-                return {
-                    stimuli: TRAINING_DATA.day2,
-                    testStimuli: TRAINING_TEST_STIMULI.day2
-                };
-            case 3:
-                return {
-                    stimuli: TRAINING_DATA.day3,
-                    testStimuli: TRAINING_TEST_STIMULI.day3
-                };
-            case 4:
-                return {
-                    stimuli: TRAINING_DATA.day4,
-                    testStimuli: TRAINING_TEST_STIMULI.day4
-                };
-            default:
-                return {
-                    stimuli: TRAINING_DATA.day1,
-                    testStimuli: TRAINING_TEST_STIMULI.day1
-                };
-        }
-    };
+    //const getTrainingData = () => {
+    //    switch (trainingDay) {
+    //        case 1:
+    //            return {
+    //                stimuli: TRAINING_DATA.day1,
+    //                testStimuli: TRAINING_TEST_STIMULI.day1
+    //            };
+    //        case 2:
+    //            return {
+    //                stimuli: TRAINING_DATA.day2,
+    //                testStimuli: TRAINING_TEST_STIMULI.day2
+    //            };
+    //        case 3:
+    //            return {
+    //                stimuli: TRAINING_DATA.day3,
+    //                testStimuli: TRAINING_TEST_STIMULI.day3
+    //            };
+    //        case 4:
+    //            return {
+    //                stimuli: TRAINING_DATA.day4,
+    //                testStimuli: TRAINING_TEST_STIMULI.day4
+    //            };
+    //        default:
+    //            return {
+    //                stimuli: TRAINING_DATA.day1,
+    //                testStimuli: TRAINING_TEST_STIMULI.day1
+    //            };
+    //    }
+    //};
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">

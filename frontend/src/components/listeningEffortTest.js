@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Volume2, Send, Activity, AlertCircle } from 'lucide-react';
+import { Volume2, Send, AlertCircle } from 'lucide-react';
 
 const ListeningEffortTest = ({
     userResponse,
