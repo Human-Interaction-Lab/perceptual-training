@@ -57,8 +57,7 @@ const initializeUsers = async () => {
         // Base test user configuration for reuse
         const baseTestUser = {
             password: 'test1234',
-            isActive: true,
-            speaker: 'Grace Norman'
+            isActive: true
         };
 
         // Test Users Configuration
@@ -68,12 +67,14 @@ const initializeUsers = async () => {
                 userId: 'test_pretest',
                 email: 'pretest@test.com',
                 currentPhase: 'pretest',
+                speaker: 'Grace Norman',
                 ...baseTestUser
             },
             {
                 userId: 'test_training',
                 email: 'training@test.com',
                 currentPhase: 'training',
+                speaker: 'Grace Norman',
                 trainingDay: 1,
                 pretestDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
                 ...baseTestUser
@@ -82,7 +83,7 @@ const initializeUsers = async () => {
                 userId: 'test_training2',
                 email: 'training2@test.com',
                 currentPhase: 'training',
-                speaker: 'Taylia',
+                speaker: 'Taylian',
                 trainingDay: 2,
                 pretestDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
                 ...baseTestUser
@@ -91,6 +92,7 @@ const initializeUsers = async () => {
                 userId: 'test_posttest',
                 email: 'posttest@test.com',
                 currentPhase: 'posttest1',
+                speaker: 'Grace Norman',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
                 ...baseTestUser
@@ -101,6 +103,7 @@ const initializeUsers = async () => {
                 userId: 'test_pretest1',
                 email: 'pretest1@test.com',
                 currentPhase: 'pretest',
+                speaker: 'Grace Norman',
                 ...baseTestUser
                 // This user will only have demographics completed
             },
@@ -108,7 +111,7 @@ const initializeUsers = async () => {
                 userId: 'test_pretest2',
                 email: 'pretest2@test.com',
                 currentPhase: 'pretest',
-                speaker: 'Emma',
+                speaker: 'Emma01',
                 ...baseTestUser
                 // Will add demographics + intelligibility responses
             },
@@ -116,6 +119,7 @@ const initializeUsers = async () => {
                 userId: 'test_pretest3',
                 email: 'pretest3@test.com',
                 currentPhase: 'pretest',
+                speaker: 'Grace Norman',
                 ...baseTestUser
                 // Will add demographics + intelligibility + effort responses
             },
@@ -125,6 +129,7 @@ const initializeUsers = async () => {
                 userId: 'test_posttest1',
                 email: 'posttest1@test.com',
                 currentPhase: 'posttest1',
+                speaker: 'Grace Norman',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
                 ...baseTestUser
@@ -134,6 +139,7 @@ const initializeUsers = async () => {
                 userId: 'test_posttest2',
                 email: 'posttest2@test.com',
                 currentPhase: 'posttest1',
+                speaker: 'Taylian',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
                 ...baseTestUser
@@ -143,6 +149,7 @@ const initializeUsers = async () => {
                 userId: 'test_posttest3',
                 email: 'posttest3@test.com',
                 currentPhase: 'posttest1',
+                speaker: 'Grace Norman',
                 trainingDay: 4,
                 pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
                 ...baseTestUser
