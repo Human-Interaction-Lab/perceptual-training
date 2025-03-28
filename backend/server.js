@@ -16,6 +16,8 @@ const boxService = require('./boxService');
 //const initializeAdmin = require('./utils/initAdmin');
 const { initializeUsers } = require('./utils/initUsers');
 const tempFileService = require('./tempFileService');
+require('dotenv').config();
+const helmet = require('helmet');
 
 let server;
 
@@ -29,13 +31,24 @@ let server;
 
 // Basic middleware
 app.use(cors({
-  origin: 'http://localhost:3001',
+  origin: 'https://speechtraining.usu.edu',
   credentials: true,
   methods: ['GET', 'POST', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.static('public'));
+app.use(helmet());
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: true,
+    httpOnly: true,
+    sameSite: 'strict'
+  }
+}));
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -147,7 +160,7 @@ const connectDB = async () => {
 const startServer = async () => {
   await connectDB();
   await tempFileService.initialize();
-  const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 3000);
+  const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 28303);
   const server = app.listen(PORT, () => {
     const actualPort = server.address().port;
     console.log(`Server running on port ${actualPort}`);
