@@ -101,7 +101,7 @@ const IntelligibilityTest = ({
                         ) : isPlaying ? (
                             "Playing audio clip..."
                         ) : (
-                            "Click to play the audio clip"
+                            "Click to play the audio clip (may take a moment to load)"
                         )}
                     </p>
                 </div>

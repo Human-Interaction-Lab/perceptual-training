@@ -115,7 +115,7 @@ const ListeningEffortTest = ({
                             </span>
                         ) : audioPlayed ?
                             "Audio played successfully. Please complete your response below." :
-                            isPlaying ? "Playing audio clip..." : "Click to play the audio clip"
+                            isPlaying ? "Playing audio clip..." : "Click to play the audio clip (may take a moment to load)"
                         }
                     </p>
                 </div>
