@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -19,6 +19,12 @@ const IntelligibilityTest = ({
     const [audioPlayed, setAudioPlayed] = useState(false);
 
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+
+    // Reset audioPlayed when stimulus changes
+    useEffect(() => {
+        setAudioPlayed(false);
+        setAudioError(false);
+    }, [currentStimulus]);
 
     const handlePlayAudio = async () => {
         setIsPlaying(true);
@@ -69,7 +75,7 @@ const IntelligibilityTest = ({
                 <div className="pt-4">
                     <Button
                         onClick={handlePlayAudio}
-                        disabled={isPlaying}
+                        disabled={isPlaying || audioPlayed}
                         className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioError ? "bg-red-500 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700"
                             } transition-colors`}
                     >
