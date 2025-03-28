@@ -137,7 +137,23 @@ userSchema.methods.needsReminder = function () {
         };
     }
 
-    // Posttest reminder (day 5)
+    // Posttest1 reminder (day 12)
+    if (daysDiff === 12) {
+        return {
+            type: 'posttest1',
+            day: null
+        };
+    }
+
+    // Posttest2 reminder (day 35)
+    if (daysDiff === 35) {
+        return {
+            type: 'posttest2',
+            day: null
+        };
+    }
+
+    // Backward compatibility - generic posttest reminder
     if (daysDiff === 5) {
         return {
             type: 'posttest',

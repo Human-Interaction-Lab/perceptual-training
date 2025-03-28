@@ -96,8 +96,18 @@ const isCorrectDay = (user, phase) => {
     return daysSincePretest >= user.trainingDay;  // Allow catching up
   }
 
+  // Updated to handle specific posttest phases
+  if (phase === 'posttest1') {
+    return daysSincePretest >= 12;  // Allow posttest1 on or after day 12
+  }
+
+  if (phase === 'posttest2') {
+    return daysSincePretest >= 35;  // Allow posttest2 on or after day 35
+  }
+
+  // For backward compatibility with general 'posttest'
   if (phase === 'posttest') {
-    return daysSincePretest >= 4;  // Allow posttest on or after day 4
+    return daysSincePretest >= 12;  // Same as posttest1
   }
 
   return false;
@@ -514,11 +524,15 @@ app.post('/api/login', async (req, res) => {
 
       if (user.currentPhase === 'training') {
         canProceedToday = daysSincePretest === user.trainingDay;
-      } else if (user.currentPhase.startsWith('posttest')) {
+      } else if (user.currentPhase === 'posttest1') {
         // For posttest1, we use day 12
-        // You can add additional logic for posttest2, posttest3, etc.
-        const expectedPosttestDay = user.currentPhase === 'posttest1' ? 12 : null;
-        canProceedToday = daysSincePretest === expectedPosttestDay;
+        canProceedToday = daysSincePretest >= 12;
+      } else if (user.currentPhase === 'posttest2') {
+        // For posttest2, we use day 35
+        canProceedToday = daysSincePretest >= 35;
+      } else if (user.currentPhase === 'posttest') {
+        // Backward compatibility - generic posttest
+        canProceedToday = daysSincePretest >= 12;
       }
     }
 

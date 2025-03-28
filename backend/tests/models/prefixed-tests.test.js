@@ -143,7 +143,7 @@ describe('Prefixed Test Tracking', () => {
 
             // Set pretest date to 5 days ago
             const fiveDaysAgo = new Date();
-            fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+            fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 12);
             testUser.pretestDate = fiveDaysAgo;
 
             // Should be able to proceed with posttest1 now

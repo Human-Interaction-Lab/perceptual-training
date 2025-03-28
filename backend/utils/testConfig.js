@@ -47,6 +47,13 @@ const testConfig = {
             'EFFORT_1',
             'INTELLIGIBILITY_1',
             // Add all required posttest3 items
+        ],
+        // For backward compatibility
+        posttest: [
+            'COMPREHENSION_1',
+            'COMPREHENSION_2',
+            'EFFORT_1',
+            'INTELLIGIBILITY_1'
         ]
     },
 
@@ -56,16 +63,18 @@ const testConfig = {
         'training': 'posttest1',
         'posttest1': 'posttest2',
         'posttest2': 'posttest3',
-        'posttest3': null // End of progression
+        'posttest3': null, // End of progression
+        'posttest': 'completed' // For backward compatibility
     },
 
     // Expected days from pretest date for each phase
     expectedDays: {
         'pretest': 0,
         'training': [1, 2, 3, 4], // Training days 1-4
-        'posttest1': 5,
-        'posttest2': 30, // Example: 1 month follow-up
-        'posttest3': 90  // Example: 3 month follow-up
+        'posttest1': 12, // Updated to 12 days after pretest
+        'posttest2': 35, // Updated to 35 days after pretest
+        'posttest3': 90, // Example: 3 month follow-up
+        'posttest': 12 // For backward compatibility
     },
 
     /**
@@ -153,8 +162,18 @@ const testConfig = {
             return this.expectedDays.training.includes(daysSincePretest);
         }
 
-        // For posttests, check the expected day
-        return daysSincePretest === this.expectedDays[phase];
+        // For posttests, check the expected day - use explicit phases
+        if (phase === 'posttest1' || phase === 'posttest2' || phase === 'posttest3') {
+            const expectedDay = this.expectedDays[phase];
+            return daysSincePretest >= expectedDay;
+        }
+
+        // Backward compatibility
+        if (phase === 'posttest') {
+            return daysSincePretest >= this.expectedDays.posttest1;
+        }
+
+        return false;
     }
 };
 
