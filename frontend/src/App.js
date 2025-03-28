@@ -593,42 +593,61 @@ const App = () => {
 
 
   // handle phase select
-  const handlePhaseSelect = (selectedPhase, testType, dayNumber = null) => {
+  const handlePhaseSelect = async (selectedPhase, testType, day = null) => {
     // Special handling for demographics
     if (selectedPhase === 'demographics') {
-      console.log('Setting phase to demographics');  // Debug log
+      console.log('Setting phase to demographics');
       setPhase('demographics');
       return;
     }
 
     // For training phase
     if (selectedPhase === 'training') {
-      console.log(`Setting training day ${dayNumber}`);  // Debug log
+      console.log(`Setting training day ${day}`);
       setCurrentPhase(selectedPhase);
       setCurrentTestType('training');
-      if (dayNumber) {
-        setTrainingDay(dayNumber);
+      if (day) {
+        setTrainingDay(day);
       }
       setPhase(selectedPhase);
+
+      // Start preloading in the background without awaiting completion
+      try {
+        audioService.preloadAudioFiles(selectedPhase, day || trainingDay)
+          .catch(error => console.error('Error preloading training files:', error));
+      } catch (error) {
+        console.error('Failed to start preloading training files:', error);
+        // Non-critical error, don't block navigation
+      }
+
       return;
     }
 
     // For pretest and posttest phases
     // Determine which test type to start based on completed tests
     let startingTestType = testType || 'intelligibility';
-    if (testType !== 'intelligibility' && !completedTests[`${selectedPhase}_intelligibility`]) {
+
+    // Ensure we have consistent phase names
+    const phasePrefix = selectedPhase; // Could be 'pretest', 'posttest1', or 'posttest2'
+
+    console.log(`Phase select: ${selectedPhase}, test type: ${testType}`);
+    console.log(`Completed tests:`, completedTests);
+
+    // Simple check for completed tests - don't block navigation
+    if (testType !== 'intelligibility' && !completedTests[`${phasePrefix}_intelligibility`]) {
       startingTestType = 'intelligibility';
     } else if (testType !== 'effort' &&
-      completedTests[`${selectedPhase}_intelligibility`] &&
-      !completedTests[`${selectedPhase}_effort`]) {
+      completedTests[`${phasePrefix}_intelligibility`] &&
+      !completedTests[`${phasePrefix}_effort`]) {
       startingTestType = 'effort';
     } else if (testType !== 'comprehension' &&
-      completedTests[`${selectedPhase}_intelligibility`] &&
-      completedTests[`${selectedPhase}_effort`] &&
-      !completedTests[`${selectedPhase}_comprehension`]) {
+      completedTests[`${phasePrefix}_intelligibility`] &&
+      completedTests[`${phasePrefix}_effort`] &&
+      !completedTests[`${phasePrefix}_comprehension`]) {
       startingTestType = 'comprehension';
     }
 
+    // Immediately update state to navigate to the test
     setCurrentPhase(selectedPhase);
     setCurrentTestType(startingTestType);
     setPhase(selectedPhase);
@@ -636,17 +655,17 @@ const App = () => {
     setUserResponse('');
     setRating(null);
 
-    // Add preloading after setting the phase
+    // Start preloading in the background AFTER navigation is triggered
     try {
-      // Preload the audio files for the selected phase
-      if (selectedPhase === 'training') {
-        audioService.preloadRandomizedAudioFiles(selectedPhase, dayNumber);
-      } else if (selectedPhase === 'pretest' || selectedPhase.startsWith('posttest')) {
-        audioService.preloadRandomizedAudioFiles(selectedPhase);
+      // Start preloading in the background without awaiting completion
+      if (selectedPhase === 'pretest' || selectedPhase.startsWith('posttest')) {
+        // Pass the specific phase name (posttest1, posttest2, etc.)
+        audioService.preloadAudioFiles(selectedPhase, null, [startingTestType])
+          .catch(error => console.error(`Error preloading ${selectedPhase} files:`, error));
       }
     } catch (error) {
-      console.error('Failed to preload audio files:', error);
-      // Non-critical error, don't block the UI
+      console.error(`Failed to start preloading ${selectedPhase} files:`, error);
+      // Non-critical error, don't block navigation
     }
   };
 

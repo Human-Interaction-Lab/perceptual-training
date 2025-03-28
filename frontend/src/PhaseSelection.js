@@ -1,16 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
 import { formatDate } from './lib/utils';
 import audioService from './services/audioService';
 
-const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date, isPreloading }) => {
+const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
   const { isAvailable, isCompleted } = status;
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Handle the loading and selection
+  const handleClick = () => {
+    // Only proceed if the card is available and not completed
+    if (!isAvailable || isCompleted || isLoading) return;
+
+    // Set loading state
+    setIsLoading(true);
+
+    // After 6 seconds, trigger the selection and reset loading state
+    setTimeout(() => {
+      setIsLoading(false);
+      onSelect(phase, testType);
+    }, 6000);
+  };
 
   return (
-    <Card className={`transition-all ${isPreloading ? "border-blue-400 shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
-      <CardHeader className={isPreloading ? "bg-blue-50" : ""}>
+    <Card className={`transition-all ${isLoading ? "border-blue-400 shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
+      <CardHeader className={isLoading ? "bg-blue-50" : ""}>
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -19,7 +35,7 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
           <div className="ml-4">
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
-            ) : isPreloading ? (
+            ) : isLoading ? (
               <Loader className="h-6 w-6 text-blue-500 animate-spin" />
             ) : isAvailable ? (
               <Clock className="h-6 w-6 text-blue-500" />
@@ -30,7 +46,7 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
         </div>
       </CardHeader>
       <CardContent>
-        {isPreloading ? (
+        {isLoading ? (
           <p className="text-sm text-blue-600 font-medium flex items-center">
             <Loader className="animate-spin h-4 w-4 mr-2" />
             Preparing audio files...
@@ -45,31 +61,32 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable || isPreloading || isCompleted}
-          variant={isCompleted ? "secondary" : (isAvailable ? (isPreloading ? "outline" : "default") : "secondary")}
-          onClick={() => onSelect(phase, testType)}
+          disabled={!isAvailable || isLoading || isCompleted}
+          variant={isCompleted ? "secondary" : (isAvailable ? (isLoading ? "outline" : "default") : "secondary")}
+          onClick={handleClick}
         >
-          {isPreloading ? (
+          {isLoading ? (
             <span className="flex items-center">
               <Loader className="animate-spin h-4 w-4 mr-2" />
-              Preparing Audio...
+              Preparing Audio... ({Math.ceil(6 - (Date.now() % 6000) / 1000)}s)
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : isPreloading ? 'Preparing audio...' : isAvailable ? 'Begin Test' : 'Locked'}
+              {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
             </span>
           )}
-          {isAvailable && !isPreloading && <ArrowRight className="ml-2 h-4 w-4" />}
+          {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>
   );
 };
 
-// Fixed TrainingDayCard component
-const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretestDate }) => {
+// TrainingDayCard component that mirrors the testing days
+const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Keep the original completed check - day is less than current day
   const isCompleted = day < currentDay;
+  const [isLoading, setIsLoading] = useState(false);
 
   // Helper functions inside the component
   const isDateToday = (date) => {
@@ -95,9 +112,24 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretes
   // AND it's not already completed
   const isAvailable = !isCompleted && day === currentDay && isDayAvailableToday;
 
+  // Handle the loading and selection
+  const handleClick = () => {
+    // Only proceed if the card is available and not completed
+    if (!isAvailable || isCompleted || isLoading) return;
+
+    // Set loading state
+    setIsLoading(true);
+
+    // After 6 seconds, trigger the selection and reset loading state
+    setTimeout(() => {
+      setIsLoading(false);
+      onSelect('training', null, day);
+    }, 6000);
+  };
+
   return (
-    <Card className={`transition-all ${isPreloading ? "border-blue-400 shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
-      <CardHeader className={isPreloading ? "bg-blue-50" : ""}>
+    <Card className={`transition-all ${isLoading ? "border-blue-400 shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
+      <CardHeader className={isLoading ? "bg-blue-50" : ""}>
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold text-gray-900">
             Training Day {day}
@@ -105,7 +137,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretes
           <div>
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
-            ) : isPreloading ? (
+            ) : isLoading ? (
               <Loader className="h-6 w-6 text-blue-500 animate-spin" />
             ) : isAvailable ? (
               <Clock className="h-6 w-6 text-blue-500" />
@@ -116,7 +148,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretes
         </div>
       </CardHeader>
       <CardContent>
-        {isPreloading ? (
+        {isLoading ? (
           <p className="text-sm text-blue-600 font-medium flex items-center">
             <Loader className="animate-spin h-4 w-4 mr-2" />
             Preparing audio files...
@@ -131,26 +163,27 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretes
       <CardFooter>
         <Button
           className="w-full"
-          disabled={!isAvailable || isPreloading || isCompleted}
-          variant={isCompleted ? "secondary" : (isAvailable ? (isPreloading ? "outline" : "default") : "secondary")}
-          onClick={() => onSelect('training', null, day)}
+          disabled={!isAvailable || isLoading || isCompleted}
+          variant={isCompleted ? "secondary" : (isAvailable ? (isLoading ? "outline" : "default") : "secondary")}
+          onClick={handleClick}
         >
-          {isPreloading ? (
+          {isLoading ? (
             <span className="flex items-center">
               <Loader className="animate-spin h-4 w-4 mr-2" />
-              Preparing Audio...
+              Preparing Audio... ({Math.ceil(6 - (Date.now() % 6000) / 1000)}s)
             </span>
           ) : (
             <span>
               {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
             </span>
           )}
-          {isAvailable && !isPreloading && <ArrowRight className="ml-2 h-4 w-4" />}
+          {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
     </Card>
   );
 };
+
 
 const PhaseSelection = ({
   currentPhase,
@@ -162,16 +195,36 @@ const PhaseSelection = ({
 }) => {
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadingPhase, setPreloadingPhase] = useState(null);
-  const [backgroundPreloading, setBackgroundPreloading] = useState(false);
-  const [preloadingStatus, setPreloadingStatus] = useState({
-    pretest: { completed: false },
-    training: { completed: false },
-    posttest1: { completed: false },
-    posttest2: { completed: false }
-  });
+  //const [backgroundPreloading, setBackgroundPreloading] = useState(false);
+  //const [preloadingStatus, setPreloadingStatus] = useState({
+  //  pretest: { completed: false },
+  //  training: { completed: false },
+  //  posttest1: { completed: false },
+  //  posttest2: { completed: false }
+  //});
   const [preloadedPhases, setPreloadedPhases] = useState({
     pretest: false,
     training: {},  // Will store days as keys
+    posttest1: false,
+    posttest2: false
+  });
+
+  const [phasePreloadingStatus, setPhasePreloadingStatus] = useState({
+    pretest: false,
+    posttest1: false,
+    posttest2: false,
+    training: false
+  });
+
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState({
+    pretest: false,
+    posttest1: false,
+    posttest2: false,
+    training: false
+  });
+
+  // Add state to track posttest availability
+  const [posttestAvailability, setPosttestAvailability] = useState({
     posttest1: false,
     posttest2: false
   });
@@ -224,98 +277,72 @@ const PhaseSelection = ({
   // Immediately start preloading files when the component mounts
   useEffect(() => {
     // Skip if demographics isn't completed yet
-    if (!isDemographicsCompleted) {
-      console.log('Demographics not completed, skipping preload');
-      return;
-    }
+    //if (!isDemographicsCompleted) {
+    //  console.log('Demographics not completed, skipping preload');
+    //  return;
+    //}
 
-    // Check if this phase is already preloaded
-    if ((currentPhase === 'pretest' && preloadedPhases.pretest) ||
-      (currentPhase === 'training' && preloadedPhases.training[trainingDay]) ||
-      ((currentPhase === 'posttest1' || currentPhase === 'posttest2') && preloadedPhases[currentPhase])) {
-      console.log(`Phase ${currentPhase}${currentPhase === 'training' ? ` day ${trainingDay}` : ''} already preloaded`);
-      return;
-    }
+    // Function to start preloading for a specific phase
+    const startPreloading = async (phase, day = null) => {
+      // Set loading indicator for 6 seconds
+      const updatedIndicators = { ...showLoadingIndicator };
+      updatedIndicators[phase] = true;
+      setShowLoadingIndicator(updatedIndicators);
 
-    const startPreloading = async () => {
-      console.log('Starting background preloading for', currentPhase);
-      setBackgroundPreloading(true);
+      console.log(`Starting preload for ${phase}${day ? ` day ${day}` : ''}`);
 
-      try {
-        // Determine what phase to preload based on current phase
-        if (currentPhase === 'pretest') {
-          // Get only the test types that aren't completed
-          const activeTestTypes = getActiveTestTypes('pretest');
+      // Start background preloading without waiting for it to finish
+      let activeTestTypes = [];
 
-          if (activeTestTypes.length === 0) {
-            console.log('All pretest types completed, skipping preload');
-            setPreloadingStatus(prev => ({
-              ...prev,
-              pretest: { ...prev.pretest, completed: true }
-            }));
-            setPreloadedPhases(prev => ({ ...prev, pretest: true }));
-            return;
-          }
+      if (phase !== 'training') {
+        // Get test types that aren't completed yet
+        activeTestTypes = getActiveTestTypes(phase);
 
-          // Start preloading pretest files immediately, only for uncompleted tests
-          console.log('Beginning pretest files preload for types:', activeTestTypes);
-          await audioService.preloadRandomizedAudioFiles('pretest', null, activeTestTypes);
-          console.log('Pretest files preloaded successfully');
-          setPreloadingStatus(prev => ({
-            ...prev,
-            pretest: { ...prev.pretest, completed: true }
-          }));
-          setPreloadedPhases(prev => ({ ...prev, pretest: true }));
+        if (activeTestTypes.length > 0) {
+          // Start preloading in the background - don't await
+          audioService.preloadRandomizedAudioFiles(phase, null, activeTestTypes)
+            .then(() => console.log(`${phase} files preloaded successfully`))
+            .catch(error => console.error(`Error preloading ${phase} files:`, error));
         }
-        else if (currentPhase === 'training') {
-          // For training, we still load all files for the current day
-          console.log(`Beginning training day ${trainingDay} files preload...`);
-          await audioService.preloadRandomizedAudioFiles('training', trainingDay);
-          console.log(`Training day ${trainingDay} files preloaded successfully`);
-          setPreloadingStatus(prev => ({
-            ...prev,
-            training: { ...prev.training, completed: true }
-          }));
-          setPreloadedPhases(prev => ({
-            ...prev,
-            training: { ...prev.training, [trainingDay]: true }
-          }));
-        }
-        else if (currentPhase === 'posttest1' || currentPhase === 'posttest2') {
-          // Get only the test types that aren't completed
-          const activeTestTypes = getActiveTestTypes(currentPhase);
-
-          if (activeTestTypes.length === 0) {
-            console.log(`All ${currentPhase} types completed, skipping preload`);
-            setPreloadingStatus(prev => ({
-              ...prev,
-              [currentPhase]: { ...prev[currentPhase], completed: true }
-            }));
-            setPreloadedPhases(prev => ({ ...prev, [currentPhase]: true }));
-            return;
-          }
-
-          // Start preloading posttest files immediately, only for uncompleted tests
-          console.log(`Beginning ${currentPhase} files preload for types:`, activeTestTypes);
-          await audioService.preloadRandomizedAudioFiles(currentPhase, null, activeTestTypes);
-          console.log(`${currentPhase} files preloaded successfully`);
-          setPreloadingStatus(prev => ({
-            ...prev,
-            [currentPhase]: { ...prev[currentPhase], completed: true }
-          }));
-          setPreloadedPhases(prev => ({ ...prev, [currentPhase]: true }));
-        }
-      } catch (error) {
-        console.error('Background preloading error:', error);
-        // Fail silently - this is just an optimization
-      } finally {
-        setBackgroundPreloading(false);
+      } else if (phase === 'training' && day) {
+        // For training, preload the specific day
+        audioService.preloadRandomizedAudioFiles('training', day)
+          .then(() => console.log(`Training day ${day} files preloaded successfully`))
+          .catch(error => console.error(`Error preloading training day ${day} files:`, error));
       }
+
+      // Hide loading indicator after 6 seconds regardless of preload status
+      setTimeout(() => {
+        const updatedIndicators = { ...showLoadingIndicator };
+        updatedIndicators[phase] = false;
+        setShowLoadingIndicator(updatedIndicators);
+        console.log(`Hiding loading indicator for ${phase}`);
+      }, 6000); // 6 seconds
     };
 
-    // Call it immediately
-    startPreloading();
-  }, [currentPhase, trainingDay, isDemographicsCompleted, completedTests, preloadedPhases]);
+    // Check current phase and start preloading accordingly
+    if (currentPhase === 'pretest') {
+      startPreloading('pretest');
+    } else if (currentPhase === 'training') {
+      startPreloading('training', trainingDay);
+    } else if (currentPhase === 'posttest1') {
+      startPreloading('posttest1');
+    } else if (currentPhase === 'posttest2') {
+      startPreloading('posttest2');
+    }
+
+    // When posttest1 is available but not current phase, preload in background
+    if (posttestAvailability.posttest1 && currentPhase !== 'posttest1') {
+      startPreloading('posttest1');
+    }
+
+    // When posttest2 is available but not current phase, preload in background
+    if (posttestAvailability.posttest2 && currentPhase !== 'posttest2') {
+      startPreloading('posttest2');
+    }
+
+  }, [currentPhase, trainingDay, isDemographicsCompleted, posttestAvailability]);
+
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
@@ -477,12 +504,6 @@ const PhaseSelection = ({
     };
   };
 
-  // Add state to track posttest availability
-  const [posttestAvailability, setPosttestAvailability] = useState({
-    posttest1: false,
-    posttest2: false
-  });
-
   // Calculate posttest availability when component mounts or pretestDate changes
   useEffect(() => {
     const availability = calculatePosttestAvailability(pretestDate, trainingDay);
@@ -491,74 +512,92 @@ const PhaseSelection = ({
   }, [pretestDate, trainingDay, currentPhase]);
 
   // Modified select phase handlers with preloading
-  const handleSelectPhase = async (phase, testType, day = null) => {
+  const handleSelectPhase = (phase, testType, day = null) => {
     // Don't preload for demographics
     if (phase === 'demographics') {
       onSelectPhase(phase, testType);
       return;
     }
 
+    // Set loading indicators but don't wait
     setIsPreloading(true);
     setPreloadingPhase(testType || (phase === 'training' ? 'training' : phase));
 
-    try {
-      if (phase === 'training') {
-        // For training, only load the specific day's files
-        await audioService.preloadRandomizedAudioFiles(phase, day || trainingDay);
-        setPreloadedPhases(prev => ({
-          ...prev,
-          training: { ...prev.training, [day || trainingDay]: true }
-        }));
-      }
-      else if ((phase === 'pretest' || phase === 'posttest1' || phase === 'posttest2') && testType) {
-        // Check if we've already completed some tests
-        const completedTestIds = Object.keys(completedTests)
-          .filter(key => key.startsWith(`${phase}_`))
-          .map(key => key.replace(`${phase}_`, ''));
+    // First, navigate to the phase immediately
+    onSelectPhase(phase, testType, day);
 
-        console.log(`Completed tests for ${phase}:`, completedTestIds);
-
-        // Only load the specific test type - no background loading of others
-        await audioService.preloadRandomizedAudioFiles(phase, null, [testType]);
-
-        // Mark just this specific test as preloaded
-        const updatedPreloaded = { ...preloadedPhases };
-        if (!updatedPreloaded[phase]) {
-          updatedPreloaded[phase] = {};
+    // Then start preloading in the background
+    setTimeout(() => {
+      // Do preloading in background without awaiting completion
+      try {
+        if (phase === 'training') {
+          // For training, only load the specific day's files
+          audioService.preloadRandomizedAudioFiles(phase, day || trainingDay)
+            .then(() => {
+              console.log(`Finished preloading ${phase} day ${day || trainingDay}`);
+              setPreloadedPhases(prev => ({
+                ...prev,
+                training: { ...prev.training, [day || trainingDay]: true }
+              }));
+            })
+            .catch(error => console.error(`Error preloading ${phase} day ${day || trainingDay}:`, error))
+            .finally(() => {
+              setIsPreloading(false);
+              setPreloadingPhase(null);
+            });
         }
-        updatedPreloaded[phase][testType] = true;
-        setPreloadedPhases(updatedPreloaded);
-
-        // Skip loading other tests that might not be needed
-        console.log(`Only loaded ${testType} for ${phase} - skipping others`);
-      }
-      else {
-        // Only load the first active (not completed) test type
-        const activeTestTypes = getActiveTestTypes(phase);
-
-        if (activeTestTypes.length > 0) {
-          const firstType = activeTestTypes[0];
-          await audioService.preloadRandomizedAudioFiles(phase, null, [firstType]);
-
-          // Mark just this specific test as preloaded
-          const updatedPreloaded = { ...preloadedPhases };
-          if (!updatedPreloaded[phase]) {
-            updatedPreloaded[phase] = {};
+        else if ((phase === 'pretest' || phase === 'posttest1' || phase === 'posttest2') && testType) {
+          // Only load the specific test type in background
+          audioService.preloadRandomizedAudioFiles(phase, null, [testType])
+            .then(() => {
+              console.log(`Finished preloading ${phase} test type ${testType}`);
+              // Mark just this specific test as preloaded
+              const updatedPreloaded = { ...preloadedPhases };
+              if (!updatedPreloaded[phase]) {
+                updatedPreloaded[phase] = {};
+              }
+              updatedPreloaded[phase][testType] = true;
+              setPreloadedPhases(updatedPreloaded);
+            })
+            .catch(error => console.error(`Error preloading ${phase} test type ${testType}:`, error))
+            .finally(() => {
+              setIsPreloading(false);
+              setPreloadingPhase(null);
+            });
+        }
+        else {
+          // Load first active test type in background
+          const activeTestTypes = getActiveTestTypes(phase);
+          if (activeTestTypes.length > 0) {
+            const firstType = activeTestTypes[0];
+            audioService.preloadRandomizedAudioFiles(phase, null, [firstType])
+              .then(() => {
+                console.log(`Finished preloading ${phase} test type ${firstType}`);
+                // Mark just this specific test as preloaded
+                const updatedPreloaded = { ...preloadedPhases };
+                if (!updatedPreloaded[phase]) {
+                  updatedPreloaded[phase] = {};
+                }
+                updatedPreloaded[phase][firstType] = true;
+                setPreloadedPhases(updatedPreloaded);
+              })
+              .catch(error => console.error(`Error preloading ${phase} test type ${firstType}:`, error))
+              .finally(() => {
+                setIsPreloading(false);
+                setPreloadingPhase(null);
+              });
+          } else {
+            // If no active test types, just reset loading state
+            setIsPreloading(false);
+            setPreloadingPhase(null);
           }
-          updatedPreloaded[phase][firstType] = true;
-          setPreloadedPhases(updatedPreloaded);
-
-          // Skip background loading entirely
-          console.log(`Only loaded ${firstType} for ${phase} - skipping others`);
         }
+      } catch (error) {
+        console.error('Error starting preload:', error);
+        setIsPreloading(false);
+        setPreloadingPhase(null);
       }
-    } catch (error) {
-      console.error('Error during preloading:', error);
-    } finally {
-      setIsPreloading(false);
-      setPreloadingPhase(null);
-      onSelectPhase(phase, testType, day);
-    }
+    }, 100); // Small delay to ensure navigation happens first
   };
 
   const isAllPretestCompleted = testTypes.every(test =>
@@ -576,14 +615,6 @@ const PhaseSelection = ({
             <p className="text-sm text-gray-500 mt-2">
               Started: {new Date(pretestDate).toLocaleDateString()}
             </p>
-          )}
-          {backgroundPreloading && (
-            <div className="bg-blue-100 border-l-4 border-blue-500 p-3 rounded-md mt-4 mb-4 shadow-md">
-              <p className="text-md text-blue-700 font-medium flex items-center justify-center">
-                <Loader className="animate-spin h-5 w-5 mr-3" />
-                Preparing audio files... Please wait
-              </p>
-            </div>
           )}
         </div>
 
@@ -624,7 +655,6 @@ const PhaseSelection = ({
                     status={getTestStatus("pretest", test.type)}
                     date={getExpectedDate("pretest")}
                     onSelect={handleSelectPhase}
-                    isPreloading={isPreloading && preloadingPhase === test.type}
                   />
                 ))}
             </div>
@@ -669,13 +699,13 @@ const PhaseSelection = ({
         {/* Posttest1 Section - Show based on availability or current phase */}
         {(currentPhase === 'posttest1' || posttestAvailability.posttest1) && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Post-test #1 Assessment (1-week follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4">Posttest #1 Assessment (1-week follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}
             <p className="text-xs text-gray-400 mt-1">
-              Current Phase: {currentPhase},
-              Posttest1 Available: {posttestAvailability.posttest1 ? 'Yes' : 'No'},
+              {/* Current Phase: {currentPhase},*/}
+              {/* Posttest1 Available: {posttestAvailability.posttest1 ? 'Yes' : 'No'},*/}
               Expected Date: {getExpectedDate('posttest1')}
             </p>
 
@@ -689,7 +719,6 @@ const PhaseSelection = ({
                   status={getTestStatus('posttest1', test.type)}
                   date={getExpectedDate('posttest1')}
                   onSelect={handleSelectPhase}
-                  isPreloading={isPreloading && preloadingPhase === test.type}
                 />
               ))}
             </div>
@@ -699,13 +728,13 @@ const PhaseSelection = ({
         {/* Posttest2 Section - Show based on availability or current phase */}
         {(currentPhase === 'posttest2' || posttestAvailability.posttest2) && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Post-test #2 Assessment (1-month follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4">Posttest #2 Assessment (1-month follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}
             <p className="text-xs text-gray-400 mt-1">
-              Current Phase: {currentPhase},
-              Posttest2 Available: {posttestAvailability.posttest2 ? 'Yes' : 'No'},
+              {/* Current Phase: {currentPhase},*/}
+              {/* Posttest2 Available: {posttestAvailability.posttest2 ? 'Yes' : 'No'},*/}
               Expected Date: {getExpectedDate('posttest2')}
             </p>
 
@@ -719,7 +748,6 @@ const PhaseSelection = ({
                   status={getTestStatus('posttest2', test.type)}
                   date={getExpectedDate('posttest2')}
                   onSelect={handleSelectPhase}
-                  isPreloading={isPreloading && preloadingPhase === test.type}
                 />
               ))}
             </div>
