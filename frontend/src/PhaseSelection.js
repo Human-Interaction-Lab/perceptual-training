@@ -397,6 +397,43 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
 
+  // Findout if either posttest should be available
+  const calculatePosttestAvailability = (pretestDate, trainingDay) => {
+    if (!pretestDate) return { posttest1: false, posttest2: false };
+
+    const baseDate = new Date(pretestDate);
+    const today = new Date();
+
+    // Add days for 4 training days
+    const lastTrainingDate = new Date(baseDate);
+    lastTrainingDate.setDate(lastTrainingDate.getDate() + 4);
+
+    // Posttest1 available 1 week after last training day
+    const posttest1Date = new Date(lastTrainingDate);
+    posttest1Date.setDate(posttest1Date.getDate() + 7);
+
+    // Posttest2 available 1 month after last training day
+    const posttest2Date = new Date(lastTrainingDate);
+    posttest2Date.setDate(posttest2Date.getDate() + 30);
+
+    return {
+      posttest1: today >= posttest1Date,
+      posttest2: today >= posttest2Date
+    };
+  };
+
+  // Add state to track posttest availability
+  const [posttestAvailability, setPosttestAvailability] = useState({
+    posttest1: false,
+    posttest2: false
+  });
+
+  // Calculate posttest availability when component mounts or pretestDate changes
+  useEffect(() => {
+    const availability = calculatePosttestAvailability(pretestDate, trainingDay);
+    setPosttestAvailability(availability);
+  }, [pretestDate, trainingDay]);
+
   // Modified select phase handlers with preloading
   const handleSelectPhase = async (phase, testType, day = null) => {
     // Don't preload for demographics
@@ -573,10 +610,10 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Posttest Section */}
-        {currentPhase === 'posttest' && (
+        {/* Posttest1 Section */}
+        {currentPhase === 'posttest1' || (currentPhase === 'training' && trainingDay >= 4 && posttestAvailability.posttest1) && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Post-test Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4">Post-test #1 Assessment (1-week follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <br></br>
@@ -585,10 +622,32 @@ const PhaseSelection = ({
                 <TestTypeCard
                   key={test.id}
                   {...test}
-                  phase="posttest"
-                  status={getTestStatus('posttest', test.type)}
+                  phase="posttest1"
+                  status={getTestStatus('posttest1', test.type)}
                   onSelect={handleSelectPhase}
-                  isPreloading={isPreloading}
+                  isPreloading={isPreloading && preloadingPhase === test.type}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Posttest2 Section */}
+        {(currentPhase === 'posttest2' || (currentPhase === 'posttest1' && posttestAvailability.posttest2)) && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Post-test #2 Assessment (1-month follow-up)</h2>
+            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            <br></br>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {testTypes.map(test => (
+                <TestTypeCard
+                  key={test.id}
+                  {...test}
+                  phase="posttest2"
+                  status={getTestStatus('posttest2', test.type)}
+                  onSelect={handleSelectPhase}
+                  isPreloading={isPreloading && preloadingPhase === test.type}
                 />
               ))}
             </div>

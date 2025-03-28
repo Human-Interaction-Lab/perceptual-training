@@ -15,6 +15,7 @@ import DemographicsForm from './demographics'
 import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 import audioService from './services/audioService';
+import { getStoriesForPhase } from './utils/randomization';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
 const App = () => {
@@ -157,6 +158,22 @@ const App = () => {
     setPhaseStories(storyAssignments);
     console.log('Comprehension story assignments:', storyAssignments);
   };
+
+  // if all phases completed and submited, give thank you message
+  const renderCompleted = () => (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Study Completed
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Thank you for completing all phases of the study! Your participation is greatly appreciated.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
 
   const renderTrainingSession = () => {
@@ -413,6 +430,7 @@ const App = () => {
       const currentStory = COMPREHENSION_DATA[currentStoryId];
       const currentQuestion = currentStory.questions[questionIndex];
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+      const assignedStories = getStoriesForPhase(phase, userId);
 
       // Create standardized stimulusId format
       const storyNum = currentStoryId.replace('Comp_', '');
@@ -449,6 +467,16 @@ const App = () => {
           [`${phase}_comprehension`]: true
         }));
         setShowComplete(true);
+
+        // Update phase if needed
+        if (phase === 'pretest') {
+          setCurrentPhase('training');
+        } else if (phase === 'posttest1') {
+          // When posttest1 is completed, show posttest2 if available
+          setCurrentPhase('posttest2');
+        } else if (phase === 'posttest2') {
+          setCurrentPhase('completed');
+        }
 
         // Reset states after delay
         setTimeout(() => {
@@ -1014,6 +1042,8 @@ const App = () => {
             <NotAvailableMessage />
           ) : phase === 'training' ? (
             renderTrainingSession()
+          ) : currentPhase === 'completed' ? (
+            renderCompleted()
           ) : (
             renderAudioTest()
           )}
