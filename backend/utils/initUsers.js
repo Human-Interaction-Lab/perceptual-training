@@ -78,6 +78,15 @@ const initializeUsers = async () => {
                 ...baseTestUser
             },
             {
+                userId: 'test_training2',
+                email: 'training@test.com',
+                currentPhase: 'training',
+                speaker: 'Taylia',
+                trainingDay: 1,
+                pretestDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
+                ...baseTestUser
+            },
+            {
                 userId: 'test_posttest',
                 email: 'posttest@test.com',
                 currentPhase: 'posttest1',
@@ -98,6 +107,7 @@ const initializeUsers = async () => {
                 userId: 'test_pretest2',
                 email: 'pretest2@test.com',
                 currentPhase: 'pretest',
+                speaker: 'Emma',
                 ...baseTestUser
                 // Will add demographics + intelligibility responses
             },
