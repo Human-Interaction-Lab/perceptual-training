@@ -66,7 +66,6 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
   );
 };
 
-// Also update the Training Day cards to include loading state
 // Fixed TrainingDayCard component
 const TrainingDayCard = ({ day, currentDay, onSelect, date, isPreloading, pretestDate }) => {
   // Keep the original completed check - day is less than current day
@@ -167,12 +166,14 @@ const PhaseSelection = ({
   const [preloadingStatus, setPreloadingStatus] = useState({
     pretest: { completed: false },
     training: { completed: false },
-    posttest: { completed: false }
+    posttest1: { completed: false },
+    posttest2: { completed: false }
   });
   const [preloadedPhases, setPreloadedPhases] = useState({
     pretest: false,
     training: {},  // Will store days as keys
-    posttest: false
+    posttest1: false,
+    posttest2: false
   });
 
   const testTypes = [
@@ -198,6 +199,12 @@ const PhaseSelection = ({
       order: 3  // Make comprehension last (priority 3)
     }
   ];
+
+  // Debug log to see current phase and completed tests
+  useEffect(() => {
+    console.log("Current phase:", currentPhase);
+    console.log("Completed tests:", completedTests);
+  }, [currentPhase, completedTests]);
 
   // Helper function to get active test types (not completed)
   const getActiveTestTypes = (phase) => {
@@ -225,7 +232,7 @@ const PhaseSelection = ({
     // Check if this phase is already preloaded
     if ((currentPhase === 'pretest' && preloadedPhases.pretest) ||
       (currentPhase === 'training' && preloadedPhases.training[trainingDay]) ||
-      ((currentPhase === 'posttest1' || currentPhase === 'posttest2') && preloadedPhases.posttest)) {
+      ((currentPhase === 'posttest1' || currentPhase === 'posttest2') && preloadedPhases[currentPhase])) {
       console.log(`Phase ${currentPhase}${currentPhase === 'training' ? ` day ${trainingDay}` : ''} already preloaded`);
       return;
     }
@@ -267,36 +274,36 @@ const PhaseSelection = ({
           console.log(`Training day ${trainingDay} files preloaded successfully`);
           setPreloadingStatus(prev => ({
             ...prev,
-            pretest: { ...prev.pretest, completed: true }
+            training: { ...prev.training, completed: true }
           }));
           setPreloadedPhases(prev => ({
             ...prev,
             training: { ...prev.training, [trainingDay]: true }
           }));
         }
-        else if (currentPhase === 'posttest') {
+        else if (currentPhase === 'posttest1' || currentPhase === 'posttest2') {
           // Get only the test types that aren't completed
-          const activeTestTypes = getActiveTestTypes('posttest');
+          const activeTestTypes = getActiveTestTypes(currentPhase);
 
           if (activeTestTypes.length === 0) {
-            console.log('All posttest types completed, skipping preload');
+            console.log(`All ${currentPhase} types completed, skipping preload`);
             setPreloadingStatus(prev => ({
               ...prev,
-              pretest: { ...prev.pretest, completed: true }
+              [currentPhase]: { ...prev[currentPhase], completed: true }
             }));
-            setPreloadedPhases(prev => ({ ...prev, posttest: true }));
+            setPreloadedPhases(prev => ({ ...prev, [currentPhase]: true }));
             return;
           }
 
           // Start preloading posttest files immediately, only for uncompleted tests
-          console.log('Beginning posttest files preload for types:', activeTestTypes);
-          await audioService.preloadRandomizedAudioFiles('posttest', null, activeTestTypes);
-          console.log('Posttest files preloaded successfully');
+          console.log(`Beginning ${currentPhase} files preload for types:`, activeTestTypes);
+          await audioService.preloadRandomizedAudioFiles(currentPhase, null, activeTestTypes);
+          console.log(`${currentPhase} files preloaded successfully`);
           setPreloadingStatus(prev => ({
             ...prev,
-            pretest: { ...prev.pretest, completed: true }
+            [currentPhase]: { ...prev[currentPhase], completed: true }
           }));
-          setPreloadedPhases(prev => ({ ...prev, posttest: true }));
+          setPreloadedPhases(prev => ({ ...prev, [currentPhase]: true }));
         }
       } catch (error) {
         console.error('Background preloading error:', error);
@@ -308,7 +315,7 @@ const PhaseSelection = ({
 
     // Call it immediately
     startPreloading();
-  }, [currentPhase, trainingDay, isDemographicsCompleted, completedTests]);
+  }, [currentPhase, trainingDay, isDemographicsCompleted, completedTests, preloadedPhases]);
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
@@ -332,6 +339,45 @@ const PhaseSelection = ({
       };
     }
 
+    // For posttest phases, we need to check availability based on the calculated dates
+    if (phase === 'posttest1' || phase === 'posttest2') {
+      const isPosttestAvailable = phase === 'posttest1'
+        ? posttestAvailability.posttest1
+        : posttestAvailability.posttest2;
+
+      // Debug log
+      console.log(`${phase} availability:`, isPosttestAvailable);
+      console.log(`Current phase:`, currentPhase);
+
+      const test = testTypes.find(t => t.type === testType);
+      if (!test) return { isAvailable: false, isCompleted: false };
+
+      // Check for completed test
+      const isTestCompleted = completedTests[`${phase}_${testType}`] || false;
+
+      // First test in a phase
+      if (test.order === 1) {
+        return {
+          // Available if it's the current phase, OR if this is posttest1 and it's available by date
+          isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
+            !isTestCompleted,
+          isCompleted: isTestCompleted
+        };
+      }
+
+      // Subsequent tests in a posttest phase
+      const previousTest = testTypes.find(t => t.order === test.order - 1);
+      const previousTestCompleted = completedTests[`${phase}_${previousTest.type}`] || false;
+
+      return {
+        isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
+          previousTestCompleted &&
+          !isTestCompleted,
+        isCompleted: isTestCompleted
+      };
+    }
+
+    // For pretest phase and other phases (original logic)
     const test = testTypes.find(t => t.type === testType);
     if (!test) return { isAvailable: false, isCompleted: false };
 
@@ -384,8 +430,12 @@ const PhaseSelection = ({
         }
         break;
 
-      case 'posttest':
-        daysToAdd = 11; // Posttest starts 1 week after 4 days of training
+      case 'posttest1':
+        daysToAdd = 12; // Posttest1 starts after 4 days of training + 1 week
+        break;
+
+      case 'posttest2':
+        daysToAdd = 35; // Posttest2 is about a month after training
         break;
 
       default:
@@ -397,28 +447,33 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
 
-  // Findout if either posttest should be available
+  // Calculate posttest availability when current time is after expected date
   const calculatePosttestAvailability = (pretestDate, trainingDay) => {
     if (!pretestDate) return { posttest1: false, posttest2: false };
 
     const baseDate = new Date(pretestDate);
     const today = new Date();
 
-    // Add days for 4 training days
-    const lastTrainingDate = new Date(baseDate);
-    lastTrainingDate.setDate(lastTrainingDate.getDate() + 4);
+    // Now following the correct timeline:
+    // Posttest1 is 12 days after pretest (1 week after 4 days of training + 1 day)
+    const posttest1Date = new Date(baseDate);
+    posttest1Date.setDate(posttest1Date.getDate() + 12);
 
-    // Posttest1 available 1 week after last training day
-    const posttest1Date = new Date(lastTrainingDate);
-    posttest1Date.setDate(posttest1Date.getDate() + 7);
+    // Posttest2 is 35 days after pretest
+    const posttest2Date = new Date(baseDate);
+    posttest2Date.setDate(posttest2Date.getDate() + 35);
 
-    // Posttest2 available 1 month after last training day
-    const posttest2Date = new Date(lastTrainingDate);
-    posttest2Date.setDate(posttest2Date.getDate() + 30);
+    // For debugging
+    console.log("Today:", today);
+    console.log("Pretest date:", baseDate);
+    console.log("Posttest1 date:", posttest1Date);
+    console.log("Posttest2 date:", posttest2Date);
+    console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
 
     return {
-      posttest1: today >= posttest1Date,
-      posttest2: today >= posttest2Date
+      // Also consider actual phase from currentPhase as a condition
+      posttest1: today >= posttest1Date || currentPhase === 'posttest1',
+      posttest2: today >= posttest2Date || currentPhase === 'posttest2'
     };
   };
 
@@ -431,8 +486,9 @@ const PhaseSelection = ({
   // Calculate posttest availability when component mounts or pretestDate changes
   useEffect(() => {
     const availability = calculatePosttestAvailability(pretestDate, trainingDay);
+    console.log("Posttest availability:", availability);
     setPosttestAvailability(availability);
-  }, [pretestDate, trainingDay]);
+  }, [pretestDate, trainingDay, currentPhase]);
 
   // Modified select phase handlers with preloading
   const handleSelectPhase = async (phase, testType, day = null) => {
@@ -454,7 +510,7 @@ const PhaseSelection = ({
           training: { ...prev.training, [day || trainingDay]: true }
         }));
       }
-      else if ((phase === 'pretest' || phase === 'posttest') && testType) {
+      else if ((phase === 'pretest' || phase === 'posttest1' || phase === 'posttest2') && testType) {
         // Check if we've already completed some tests
         const completedTestIds = Object.keys(completedTests)
           .filter(key => key.startsWith(`${phase}_`))
@@ -551,7 +607,7 @@ const PhaseSelection = ({
         )}
 
         {/* Pretest Section */}
-        {currentPhase === 'pretest' && isDemographicsCompleted && (
+        {isDemographicsCompleted && (currentPhase === 'pretest' || (currentPhase === 'training' && isAllPretestCompleted)) && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
@@ -564,11 +620,11 @@ const PhaseSelection = ({
                   <TestTypeCard
                     key={test.id}
                     {...test}
-                    phase={currentPhase}
-                    status={getTestStatus(currentPhase, test.type)}
-                    date={getExpectedDate(currentPhase)}
+                    phase="pretest"
+                    status={getTestStatus("pretest", test.type)}
+                    date={getExpectedDate("pretest")}
                     onSelect={handleSelectPhase}
-                    isPreloading={isPreloading}
+                    isPreloading={isPreloading && preloadingPhase === test.type}
                   />
                 ))}
             </div>
@@ -610,11 +666,18 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Posttest1 Section */}
-        {currentPhase === 'posttest1' || (currentPhase === 'training' && trainingDay >= 4 && posttestAvailability.posttest1) && (
+        {/* Posttest1 Section - Show based on availability or current phase */}
+        {(currentPhase === 'posttest1' || posttestAvailability.posttest1) && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Post-test #1 Assessment (1-week follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            {/* Debug info - can be removed in production */}
+            <p className="text-xs text-gray-400 mt-1">
+              Current Phase: {currentPhase},
+              Posttest1 Available: {posttestAvailability.posttest1 ? 'Yes' : 'No'},
+              Expected Date: {getExpectedDate('posttest1')}
+            </p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -624,6 +687,7 @@ const PhaseSelection = ({
                   {...test}
                   phase="posttest1"
                   status={getTestStatus('posttest1', test.type)}
+                  date={getExpectedDate('posttest1')}
                   onSelect={handleSelectPhase}
                   isPreloading={isPreloading && preloadingPhase === test.type}
                 />
@@ -632,11 +696,18 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Posttest2 Section */}
-        {(currentPhase === 'posttest2' || (currentPhase === 'posttest1' && posttestAvailability.posttest2)) && (
+        {/* Posttest2 Section - Show based on availability or current phase */}
+        {(currentPhase === 'posttest2' || posttestAvailability.posttest2) && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Post-test #2 Assessment (1-month follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            {/* Debug info - can be removed in production */}
+            <p className="text-xs text-gray-400 mt-1">
+              Current Phase: {currentPhase},
+              Posttest2 Available: {posttestAvailability.posttest2 ? 'Yes' : 'No'},
+              Expected Date: {getExpectedDate('posttest2')}
+            </p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -646,6 +717,7 @@ const PhaseSelection = ({
                   {...test}
                   phase="posttest2"
                   status={getTestStatus('posttest2', test.type)}
+                  date={getExpectedDate('posttest2')}
                   onSelect={handleSelectPhase}
                   isPreloading={isPreloading && preloadingPhase === test.type}
                 />

@@ -11,37 +11,44 @@ const audioService = {
 
     /**
     * A method to map file number to actual file ID
-    * @param {string} phase - 'pretest', 'training', 'posttest', etc.
+    * @param {string} phase - 'pretest', 'training', 'posttest1', etc.
     * @param {string} testType - the test
     * @param {string} version - version of file
     * @param {string} index - index of file between 1 - 20
     * @param {string} userId - userId
     * @returns {Promise<void>}
     */
-    async playRandomizedTestAudio(phase, testType, version, index, userId = null) {
+    async playRandomizedTestAudio(phase, testType, version, sentence, userId) {
         try {
-            // Get the userId from localStorage if not provided
-            if (!userId) {
-                const token = localStorage.getItem('token');
-                const tokenParts = token.split('.');
-                if (tokenParts.length === 3) {
-                    const payload = JSON.parse(atob(tokenParts[1]));
-                    userId = payload.userId;
+            // Normalize phase name to ensure consistency
+            const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+
+            // Request the audio file URL from the backend
+            const response = await fetch(
+                `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
                 }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to get audio file');
             }
 
-            // Get randomized file numbers for this phase
-            const groupFiles = getGroupForPhase(phase, null, userId);
+            const data = await response.json();
 
-            // Map the sequential index (1-20) to the actual file number
-            const actualFileNumber = groupFiles[index - 1];
+            // Play the audio file
+            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
 
-            console.log(`Playing randomized ${testType} audio: ${phase}/${version}/${index} -> File #${actualFileNumber}`);
+            // Notify backend that file was played
+            await this.notifyAudioPlayed(data.filename);
 
-            // Call the regular playTestAudio with the mapped file number
-            return await this.playTestAudio(phase, testType, version, actualFileNumber);
+            return true;
         } catch (error) {
-            console.error('Error playing randomized test audio:', error);
+            console.error(`Error playing ${testType} audio for ${phase}:`, error);
             throw error;
         }
     },
@@ -49,7 +56,7 @@ const audioService = {
 
     /**
     * A method to map file number to actual file ID
-    * @param {string} phase - 'pretest', 'training', 'posttest', etc.
+    * @param {string} phase - 'pretest', 'training', 'posttest1', etc.
     * @param {string} index - index of file between 1 - 30
     * @param {string} userId - userId
     * @returns {Promise<void>}
@@ -271,9 +278,12 @@ const audioService = {
         console.log('playTestAudio called with:', { phase, testType, version, sentence });
 
         try {
+            // Normalize phase name to ensure consistency
+            const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+
             // Request the audio file URL from the backend
             const response = await fetch(
-                `${BASE_URL}/audio/${phase}/${testType}/${version}/${sentence}`,
+                `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -283,10 +293,6 @@ const audioService = {
 
             if (!response.ok) {
                 const error = await response.json();
-                // Specifically check for 404 "not found" errors
-                if (response.status === 404) {
-                    throw new Error('AUDIO_NOT_FOUND');
-                }
                 throw new Error(error.error || 'Failed to get audio file');
             }
 
@@ -399,6 +405,11 @@ const audioService = {
      */
     async preloadAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
         try {
+            // Normalize the phase parameter to ensure consistency
+            const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+
+            console.log(`Preloading audio files for ${normalizedPhase}${trainingDay ? ` day ${trainingDay}` : ''}`);
+
             const response = await fetch(`${BASE_URL}/api/audio/preload`, {
                 method: 'POST',
                 headers: {
@@ -406,7 +417,7 @@ const audioService = {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
-                    phase,
+                    phase: normalizedPhase, // Use the normalized phase name
                     trainingDay,
                     activeTestTypes // Send the list of active test types to preload
                 })
@@ -418,13 +429,21 @@ const audioService = {
             }
 
             const data = await response.json();
-            console.log(`Preloaded ${data.files?.length || 0} audio files for ${phase}${trainingDay ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''}`);
+            console.log(`Preloaded ${data.files?.length || 0} audio files for ${normalizedPhase}${trainingDay ? ` day ${trainingDay}` : ''}`);
             return data;
         } catch (error) {
             console.error('Error preloading audio files:', error);
             // Don't throw - preloading is an optimization, not a requirement
             return { success: false, error: error.message };
         }
+    },
+
+    // Add a specific function for randomized audio files that handles posttest phases
+    async preloadRandomizedAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
+        // Make sure phase names are consistent in the API call
+        const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+
+        return this.preloadAudioFiles(normalizedPhase, trainingDay, activeTestTypes);
     },
 
     /**

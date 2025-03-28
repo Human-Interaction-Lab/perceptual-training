@@ -257,6 +257,8 @@ const App = () => {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('userId', userId);
+        setUserId(userId); // Ensure this is also set in component state
         setCurrentPhase(data.currentPhase);
         setTrainingDay(data.trainingDay);
         setPretestDate(data.pretestDate);
@@ -563,7 +565,10 @@ const App = () => {
             // Move to next major phase
             if (phase === 'pretest') {
               setCurrentPhase('training');
-            } else if (phase === 'posttest') {
+            } else if (phase === 'posttest1') {
+              // Don't automatically advance to posttest2
+              // This will let the UI decide when to show posttest2 based on dates
+            } else if (phase === 'posttest2') {
               setCurrentPhase('completed');
             }
             break;
