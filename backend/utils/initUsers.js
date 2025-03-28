@@ -16,8 +16,9 @@ const initializeUsers = async () => {
         console.log('Removing existing test users...');
         const testUserIds = [
             'test_pretest', 'test_training', 'test_posttest',
+            'test_training2',
             'test_pretest1', 'test_pretest2', 'test_pretest3',
-            'test_posttest1', 'test_posttest2', 'test_posttest3' // Added new test users
+            'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
         await User.deleteMany({ userId: { $in: testUserIds } });
         await Demographics.deleteMany({ userId: { $in: testUserIds } });
@@ -79,11 +80,11 @@ const initializeUsers = async () => {
             },
             {
                 userId: 'test_training2',
-                email: 'training@test.com',
+                email: 'training2@test.com',
                 currentPhase: 'training',
                 speaker: 'Taylia',
-                trainingDay: 1,
-                pretestDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
+                trainingDay: 2,
+                pretestDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
                 ...baseTestUser
             },
             {
@@ -190,6 +191,7 @@ const initializeUsers = async () => {
 
         const allTestUsers = [
             'test_pretest1', 'test_pretest2', 'test_pretest3',
+            'test_training', 'test_training2',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
 
