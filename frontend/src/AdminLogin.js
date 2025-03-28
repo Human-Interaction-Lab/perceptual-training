@@ -1,10 +1,9 @@
-// AdminLogin.js
 import React, { useState } from 'react';
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 
-const AdminLogin = ({ onBack, onLoginSuccess }) => {  // Add onLoginSuccess prop
+const AdminLogin = ({ onBack, onLoginSuccess }) => {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -38,6 +37,12 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {  // Add onLoginSuccess prop
     }
   };
 
+  // Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleAdminLogin();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
@@ -57,36 +62,38 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {  // Add onLoginSuccess prop
             </div>
           )}
 
-          <div className="space-y-5">
-            <div>
-              <Label htmlFor="adminUserId">User ID</Label>
-              <Input
-                id="adminUserId"
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="Enter admin user ID"
-              />
-            </div>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-5">
+              <div>
+                <Label htmlFor="adminUserId">User ID</Label>
+                <Input
+                  id="adminUserId"
+                  type="text"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="Enter admin user ID"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="adminPassword">Password</Label>
-              <Input
-                id="adminPassword"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-              />
-            </div>
+              <div>
+                <Label htmlFor="adminPassword">Password</Label>
+                <Input
+                  id="adminPassword"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                />
+              </div>
 
-            <Button
-              onClick={handleAdminLogin}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Sign In as Admin
-            </Button>
-          </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Sign In as Admin
+              </Button>
+            </div>
+          </form>
         </div>
 
         <div className="text-center">

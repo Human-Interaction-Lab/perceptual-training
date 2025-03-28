@@ -764,6 +764,15 @@ const App = () => {
     setShowAdminLogin(false);
   };
 
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (authMode === 'login') {
+      handleLogin();
+    } else {
+      handleRegister();
+    }
+  };
+
 
   // renderAuth() updated
   const renderAuth = () => (
@@ -795,75 +804,69 @@ const App = () => {
             </div>
           )}
 
-          <div className="space-y-5">
-            <div>
-              <Label htmlFor="userId">
-                User ID
-              </Label>
-              <Input
-                id="userId"
-                type="text"
-                placeholder="Enter your user ID"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
-              />
-            </div>
-
-            {authMode === 'register' && (
+          {/* Form with onSubmit handler */}
+          <form onSubmit={handleFormSubmit}>
+            <div className="space-y-5">
               <div>
-                <Label htmlFor="email">
-                  Email
-                </Label>
+                <Label htmlFor="userId">User ID</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="userId"
+                  type="text"
+                  placeholder="Enter your user ID"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
                   required
                 />
               </div>
-            )}
 
-            <div>
-              <Label htmlFor="password">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+              {authMode === 'register' && (
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
 
-            {authMode === 'register' && (
               <div>
-                <Label htmlFor="confirmPassword">
-                  Confirm Password
-                </Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
-                  id="confirmPassword"
+                  id="password"
                   type="password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
-            )}
 
+              {authMode === 'register' && (
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
 
-            <Button
-              onClick={authMode === 'login' ? handleLogin : handleRegister}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {authMode === 'login' ? 'Sign In' : 'Create Account'}
-            </Button>
-          </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+              </Button>
+            </div>
+          </form>
 
           <div className="mt-6 text-center">
             <Button
@@ -893,7 +896,7 @@ const App = () => {
             Access Admin Panel
           </Button>
         </div>
-      </div >
+      </div>
 
       {/* FAQ section */}
       <TrainingFAQ />
