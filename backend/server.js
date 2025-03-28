@@ -701,31 +701,31 @@ app.use('/api/admin/export', (req, res, next) => {
 });
 
 // Helper function to handle authorization for export routes
-const handleExportRequest = async (req, res, exportFunction) => {
-  try {
-    // Check for authorization token
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'Access denied - No token provided' });
-    }
-
-    // Verify the token
-    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
-    const user = await User.findOne({ userId: verified.userId });
-
-    if (!user || !user.isAdmin) {
-      return res.status(403).json({ error: 'Access denied - Admin only' });
-    }
-
-    // If authorization passes, execute the export function
-    await exportFunction(req, res);
-  } catch (error) {
-    console.error('Export error:', error);
-    res.status(500).json({ error: 'Failed to export data' });
-  }
-};
+//const handleExportRequest = async (req, res, exportFunction) => {
+//  try {
+//    // Check for authorization token
+//    const authHeader = req.headers['authorization'];
+//    const token = authHeader && authHeader.split(' ')[1];
+//
+//    if (!token) {
+//      return res.status(401).json({ error: 'Access denied - No token provided' });
+//    }
+//
+//    // Verify the token
+//    const verified = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+//    const user = await User.findOne({ userId: verified.userId });
+//
+//    if (!user || !user.isAdmin) {
+//      return res.status(403).json({ error: 'Access denied - Admin only' });
+//    }
+//
+//    // If authorization passes, execute the export function
+//    await exportFunction(req, res);
+//  } catch (error) {
+//    console.error('Export error:', error);
+//    res.status(500).json({ error: 'Failed to export data' });
+//  }
+//};
 
 app.use('/api/admin', authenticateAdmin)
 
