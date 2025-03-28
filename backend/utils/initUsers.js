@@ -16,7 +16,8 @@ const initializeUsers = async () => {
         console.log('Removing existing test users...');
         const testUserIds = [
             'test_pretest', 'test_training', 'test_posttest',
-            'test_pretest1', 'test_pretest2', 'test_pretest3'
+            'test_pretest1', 'test_pretest2', 'test_pretest3',
+            'test_posttest1', 'test_posttest2', 'test_posttest3' // Added new test users
         ];
         await User.deleteMany({ userId: { $in: testUserIds } });
         await Demographics.deleteMany({ userId: { $in: testUserIds } });
@@ -81,7 +82,7 @@ const initializeUsers = async () => {
                 email: 'posttest@test.com',
                 currentPhase: 'posttest1',
                 trainingDay: 4,
-                pretestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
                 ...baseTestUser
             },
 
@@ -106,6 +107,35 @@ const initializeUsers = async () => {
                 currentPhase: 'pretest',
                 ...baseTestUser
                 // Will add demographics + intelligibility + effort responses
+            },
+
+            // Three posttest users with different testing states
+            {
+                userId: 'test_posttest1',
+                email: 'posttest1@test.com',
+                currentPhase: 'posttest1',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+                ...baseTestUser
+                // This user will only have demographics completed for posttest
+            },
+            {
+                userId: 'test_posttest2',
+                email: 'posttest2@test.com',
+                currentPhase: 'posttest1',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+                ...baseTestUser
+                // Will add demographics + intelligibility responses
+            },
+            {
+                userId: 'test_posttest3',
+                email: 'posttest3@test.com',
+                currentPhase: 'posttest1',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+                ...baseTestUser
+                // Will add demographics + intelligibility + effort responses
             }
         ];
 
@@ -126,7 +156,7 @@ const initializeUsers = async () => {
             console.log(`Test user ${userData.userId} created successfully`);
         }
 
-        // Create demographics for test_pretest1, test_pretest2 and test_pretest3
+        // Create demographics for all test users
         const demographicsData = {
             dateOfBirth: new Date('1980-01-01'),
             ethnicity: 'Not Hispanic or Latino',
@@ -148,7 +178,12 @@ const initializeUsers = async () => {
             }
         };
 
-        for (const userId of ['test_pretest1', 'test_pretest2', 'test_pretest3']) {
+        const allTestUsers = [
+            'test_pretest1', 'test_pretest2', 'test_pretest3',
+            'test_posttest1', 'test_posttest2', 'test_posttest3'
+        ];
+
+        for (const userId of allTestUsers) {
             const demographics = new Demographics({
                 ...demographicsData,
                 userId
@@ -157,57 +192,97 @@ const initializeUsers = async () => {
             console.log(`Demographics created for ${userId}`);
         }
 
-        // Create responses for test_pretest2 and test_pretest3
+        // Add pretest user completed tests
         const pretest1 = await User.findOne({ userId: 'test_pretest1' });
         const pretest2 = await User.findOne({ userId: 'test_pretest2' });
         const pretest3 = await User.findOne({ userId: 'test_pretest3' });
 
-        // Add intelligibility test responses for both pretest2 and pretest3
+        // Add posttest user references
+        const posttest1 = await User.findOne({ userId: 'test_posttest1' });
+        const posttest2 = await User.findOne({ userId: 'test_posttest2' });
+        const posttest3 = await User.findOne({ userId: 'test_posttest3' });
+
+        // Intelligibility responses template
         const intelligibilityResponses = [
-            { stimulusId: 'pretest_intelligibility_1', response: 'Sample response 1' },
-            { stimulusId: 'pretest_intelligibility_2', response: 'Sample response 2' },
-            { stimulusId: 'pretest_intelligibility_3', response: 'Sample response 3' }
+            { stimulusId: 'intelligibility_1', response: 'Sample response 1' },
+            { stimulusId: 'intelligibility_2', response: 'Sample response 2' },
+            { stimulusId: 'intelligibility_3', response: 'Sample response 3' }
         ];
 
+        // Effort responses template
+        const effortResponses = [
+            { stimulusId: 'effort_1', response: 'Sample effort 1', rating: 75 },
+            { stimulusId: 'effort_2', response: 'Sample effort 2', rating: 60 },
+            { stimulusId: 'effort_3', response: 'Sample effort 3', rating: 85 }
+        ];
+
+        // Create responses for pretest users
         for (const respData of intelligibilityResponses) {
-            // Create response for test_pretest2
+            // For pretest2
             const response2 = new Response({
                 userId: 'test_pretest2',
                 phase: 'pretest',
-                stimulusId: respData.stimulusId,
+                stimulusId: `pretest_${respData.stimulusId}`,
                 response: respData.response
             });
             await response2.save();
 
-            // Create response for test_pretest3
+            // For pretest3
             const response3 = new Response({
                 userId: 'test_pretest3',
                 phase: 'pretest',
-                stimulusId: respData.stimulusId,
+                stimulusId: `pretest_${respData.stimulusId}`,
                 response: respData.response
             });
             await response3.save();
         }
 
-        // Add effort test responses for pretest3 only
-        const effortResponses = [
-            { stimulusId: 'pretest_effort_1', response: 'Sample effort 1', rating: 75 },
-            { stimulusId: 'pretest_effort_2', response: 'Sample effort 2', rating: 60 },
-            { stimulusId: 'pretest_effort_3', response: 'Sample effort 3', rating: 85 }
-        ];
-
+        // Add effort responses for pretest3
         for (const respData of effortResponses) {
             const response = new Response({
                 userId: 'test_pretest3',
                 phase: 'pretest',
-                stimulusId: respData.stimulusId,
+                stimulusId: `pretest_${respData.stimulusId}`,
                 response: respData.response,
                 rating: respData.rating
             });
             await response.save();
         }
 
-        // Update completedTests property for the users
+        // CREATE RESPONSES FOR POSTTEST USERS
+        for (const respData of intelligibilityResponses) {
+            // For posttest2
+            const post_response2 = new Response({
+                userId: 'test_posttest2',
+                phase: 'posttest1',
+                stimulusId: `posttest1_${respData.stimulusId}`,
+                response: respData.response
+            });
+            await post_response2.save();
+
+            // For posttest3
+            const post_response3 = new Response({
+                userId: 'test_posttest3',
+                phase: 'posttest1',
+                stimulusId: `posttest1_${respData.stimulusId}`,
+                response: respData.response
+            });
+            await post_response3.save();
+        }
+
+        // Add effort responses for posttest3
+        for (const respData of effortResponses) {
+            const response = new Response({
+                userId: 'test_posttest3',
+                phase: 'posttest1',
+                stimulusId: `posttest1_${respData.stimulusId}`,
+                response: respData.response,
+                rating: respData.rating
+            });
+            await response.save();
+        }
+
+        // Update completedTests property for the pretest users
         if (pretest1) {
             pretest1.completedTests.set('pretest_demographics', true);
             await pretest1.save();
@@ -227,6 +302,28 @@ const initializeUsers = async () => {
             pretest3.completedTests.set('pretest_effort', true);
             await pretest3.save();
             console.log('Updated completedTests for test_pretest3');
+        }
+
+        // Update completedTests property for the posttest users
+        if (posttest1) {
+            posttest1.completedTests.set('posttest1_demographics', true);
+            await posttest1.save();
+            console.log('Updated completedTests for test_posttest1 (demographics only)');
+        }
+
+        if (posttest2) {
+            posttest2.completedTests.set('posttest1_demographics', true);
+            posttest2.completedTests.set('posttest1_intelligibility', true);
+            await posttest2.save();
+            console.log('Updated completedTests for test_posttest2');
+        }
+
+        if (posttest3) {
+            posttest3.completedTests.set('posttest1_demographics', true);
+            posttest3.completedTests.set('posttest1_intelligibility', true);
+            posttest3.completedTests.set('posttest1_effort', true);
+            await posttest3.save();
+            console.log('Updated completedTests for test_posttest3');
         }
 
         console.log('All users initialized successfully');

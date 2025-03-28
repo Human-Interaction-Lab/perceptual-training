@@ -515,9 +515,9 @@ app.post('/api/login', async (req, res) => {
       if (user.currentPhase === 'training') {
         canProceedToday = daysSincePretest === user.trainingDay;
       } else if (user.currentPhase.startsWith('posttest')) {
-        // For posttest1, we use day 5
+        // For posttest1, we use day 12
         // You can add additional logic for posttest2, posttest3, etc.
-        const expectedPosttestDay = user.currentPhase === 'posttest1' ? 5 : null;
+        const expectedPosttestDay = user.currentPhase === 'posttest1' ? 12 : null;
         canProceedToday = daysSincePretest === expectedPosttestDay;
       }
     }

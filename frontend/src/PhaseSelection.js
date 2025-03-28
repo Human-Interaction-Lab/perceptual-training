@@ -225,7 +225,7 @@ const PhaseSelection = ({
     // Check if this phase is already preloaded
     if ((currentPhase === 'pretest' && preloadedPhases.pretest) ||
       (currentPhase === 'training' && preloadedPhases.training[trainingDay]) ||
-      (currentPhase === 'posttest' && preloadedPhases.posttest)) {
+      ((currentPhase === 'posttest1' || currentPhase === 'posttest2') && preloadedPhases.posttest)) {
       console.log(`Phase ${currentPhase}${currentPhase === 'training' ? ` day ${trainingDay}` : ''} already preloaded`);
       return;
     }
@@ -385,7 +385,7 @@ const PhaseSelection = ({
         break;
 
       case 'posttest':
-        daysToAdd = 5; // Posttest starts after 4 days of training
+        daysToAdd = 11; // Posttest starts 1 week after 4 days of training
         break;
 
       default:
