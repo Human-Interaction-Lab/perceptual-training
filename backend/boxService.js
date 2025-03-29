@@ -3,7 +3,26 @@ const BoxSDK = require('box-node-sdk');
 require('dotenv').config();
 
 class BoxService {
+
   constructor() {
+
+    // Check if required environment variables exist before initializing
+    if (!process.env.BOX_CLIENT_ID || !process.env.BOX_CLIENT_SECRET ||
+      !process.env.BOX_KEY_ID || !process.env.BOX_PRIVATE_KEY ||
+      !process.env.BOX_PASSPHRASE || !process.env.BOX_ENTERPRISE_ID) {
+
+      console.error('Missing Box API credentials. Check your .env file.');
+
+      // Provide fallback for development/testing
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        console.log('Running in development/test mode with mock Box service');
+        this.setupMockService();
+        return;
+      }
+
+      throw new Error('Box API credentials are required in production mode');
+    }
+
     this.sdk = new BoxSDK({
       clientID: process.env.BOX_CLIENT_ID,
       clientSecret: process.env.BOX_CLIENT_SECRET,
