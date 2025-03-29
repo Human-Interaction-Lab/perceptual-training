@@ -903,6 +903,8 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   }
 });
 
+
+
 // 
 // ADMIN DOWNLOAD DATA
 //
@@ -911,8 +913,6 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
 // Responses export
 app.all('/api/admin/export/responses',
   express.urlencoded({ extended: true }), // To parse form data
-  extractAdminToken,
-  verifyAdmin,
   async (req, res) => {
     try {
       // Fetch all responses with user information
@@ -977,8 +977,6 @@ app.all('/api/admin/export/responses',
 // Users export
 app.all('/api/admin/export/users',
   express.urlencoded({ extended: true }),
-  extractAdminToken,
-  verifyAdmin,
   async (req, res) => {
     try {
       const users = await User.find({}, {
@@ -1014,8 +1012,6 @@ app.all('/api/admin/export/users',
 // All data export
 app.all('/api/admin/export/all',
   express.urlencoded({ extended: true }),
-  extractAdminToken,
-  verifyAdmin,
   async (req, res) => {
     try {
       // Fetch all users and responses
