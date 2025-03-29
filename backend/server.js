@@ -46,16 +46,16 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use(helmet());
 if (process.env.NODE_ENV === 'production') {
-  app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: true,
-      httpOnly: true,
-      sameSite: 'strict'
-    }
-  }));
+  //app.use(session({
+  //  secret: process.env.SESSION_SECRET,
+  //  resave: false,
+  //  saveUninitialized: true,
+  //  cookie: {
+  //    secure: true,
+  //    httpOnly: true,
+  //    sameSite: 'strict'
+  //  }
+  //}));
 }
 
 

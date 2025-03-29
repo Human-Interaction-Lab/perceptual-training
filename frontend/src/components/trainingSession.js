@@ -5,6 +5,7 @@ import { ArrowRight, Headphones, Volume2, Loader } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './trainingData';
 import audioService from '../services/audioService';
+import config from '../config';
 
 const TrainingSession = ({
     onComplete,
