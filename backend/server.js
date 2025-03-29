@@ -45,16 +45,19 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 app.use(helmet());
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: true,
-  cookie: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'strict'
-  }
-}));
+if (process.env.NODE_ENV === 'production') {
+  app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'strict'
+    }
+  }));
+}
+
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
