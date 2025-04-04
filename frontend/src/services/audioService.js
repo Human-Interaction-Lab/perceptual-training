@@ -162,12 +162,12 @@ const audioService = {
                 if (!activeTestTypes || activeTestTypes.includes('comprehension')) {
                     const assignedStories = getStoriesForPhase(phase, userId);
 
-                    // Create array of comprehension story files (each story has 10 files)
+                    // Create array of comprehension story files (each story has 2 files)
                     const comprehensionFiles = [];
 
                     assignedStories.forEach(storyId => {
                         const storyNum = storyId.replace('Comp_', '');
-                        for (let i = 1; i <= 10; i++) {
+                        for (let i = 1; i <= 2; i++) { // Changed from 10 to 2 clips per story
                             comprehensionFiles.push({
                                 phase,
                                 testType: 'comprehension',

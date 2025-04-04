@@ -687,7 +687,7 @@ const App = () => {
         const storyNum = input.replace('Comp_', '');
         console.log(`Playing full story ${storyNum}`);
 
-        const totalClips = 10;
+        const totalClips = 2; // Changed from 10 to 2 clips per story
         for (let i = 1; i <= totalClips; i++) {
           await audioService.playTestAudio(
             phase,
