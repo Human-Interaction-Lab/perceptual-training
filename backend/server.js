@@ -565,6 +565,11 @@ app.post('/api/login', async (req, res) => {
 
     // Get completed tests for the current phase
     const currentPhaseCompletedTests = user.getCompletedTestsForPhase(user.currentPhase);
+    
+    // Check specifically for demographics completion
+    const isDemographicsCompleted = 
+      user.completedTests.get('demographics') === true || 
+      user.completedTests.get('pretest_demographics') === true;
 
     res.json({
       token,
@@ -575,7 +580,8 @@ app.post('/api/login', async (req, res) => {
       completed: user.completed,
       canProceedToday,
       completedTests: Object.fromEntries(user.completedTests) || {},
-      currentPhaseCompletedTests
+      currentPhaseCompletedTests,
+      isDemographicsCompleted // Send explicit flag about demographics completion
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -911,145 +917,196 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
 
 // Support both GET and POST for all export routes
 // Responses export
-app.all('/api/admin/export/responses',
-  express.urlencoded({ extended: true }), // To parse form data
-  async (req, res) => {
-    try {
-      // Fetch all responses with user information
-      const responses = await Response.aggregate([
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: 'userId',
-            as: 'user'
-          }
-        },
-        {
-          $unwind: {
-            path: '$user',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $project: {
-            userId: 1,
-            email: '$user.email',
-            phase: 1,
-            trainingDay: 1,
-            stimulusId: 1,
-            response: 1,
-            rating: 1,
-            correct: 1,
-            timestamp: 1
-          }
+app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
+  try {
+    console.log('Processing responses export request');
+    
+    // Fetch all responses with user information
+    const responses = await Response.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: 'userId',
+          as: 'user'
         }
-      ]);
+      },
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          userId: 1,
+          email: '$user.email',
+          phase: 1,
+          trainingDay: 1,
+          stimulusId: 1,
+          response: 1,
+          rating: 1,
+          correct: 1,
+          timestamp: 1
+        }
+      }
+    ]);
 
-      // Define fields for CSV
-      const fields = [
-        'userId',
-        'email',
-        'phase',
-        'trainingDay',
-        'stimulusId',
-        'response',
-        'rating',
-        'correct',
-        'timestamp'
-      ];
+    console.log(`Found ${responses.length} responses to export`);
 
-      // Convert to CSV
-      const csv = json2csv(responses, { fields });
+    // Define fields for CSV
+    const fields = [
+      'userId',
+      'email',
+      'phase',
+      'trainingDay',
+      'stimulusId',
+      'response',
+      'rating',
+      'correct',
+      'timestamp'
+    ];
 
-      // Set headers for file download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=responses.csv');
+    // Convert to CSV
+    const csv = json2csv(responses, { fields });
 
-      // Send CSV
-      res.send(csv);
-    } catch (error) {
-      console.error('Export error:', error);
-      res.status(500).json({ error: 'Failed to export data' });
-    }
-  });
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=responses.csv');
+
+    // Send CSV
+    res.send(csv);
+    console.log('Response export completed successfully');
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
 
 // Users export
-app.all('/api/admin/export/users',
-  express.urlencoded({ extended: true }),
-  async (req, res) => {
-    try {
-      const users = await User.find({}, {
-        password: 0,
-        _id: 0
-      });
+app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
+  try {
+    console.log('Processing users export request');
+    
+    const users = await User.find({}, {
+      password: 0,
+      _id: 0
+    });
 
-      const fields = [
-        'userId',
-        'email',
-        'speaker',
-        'currentPhase',
-        'trainingDay',
-        'pretestDate',
-        'completed',
-        'isActive',
-        'createdAt'
-      ];
+    console.log(`Found ${users.length} users to export`);
 
-      const csv = json2csv(users, { fields });
+    const fields = [
+      'userId',
+      'email',
+      'speaker',
+      'currentPhase',
+      'trainingDay',
+      'pretestDate',
+      'completed',
+      'isActive',
+      'createdAt'
+    ];
 
-      // Set headers for file download
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
+    const csv = json2csv(users, { fields });
 
-      res.send(csv);
-    } catch (error) {
-      console.error('Export error:', error);
-      res.status(500).json({ error: 'Failed to export data' });
-    }
-  });
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=users.csv');
+
+    res.send(csv);
+    console.log('User export completed successfully');
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
 
 // All data export
-app.all('/api/admin/export/all',
-  express.urlencoded({ extended: true }),
-  async (req, res) => {
-    try {
-      // Fetch all users and responses
-      const [users, responses] = await Promise.all([
-        User.find({}, { password: 0, __v: 0 }),
-        Response.find({})
-      ]);
+app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
+  try {
+    console.log('Processing all data export request (ZIP)');
+    
+    // Fetch all users and responses
+    const [users, responses, demographics] = await Promise.all([
+      User.find({}, { password: 0, __v: 0 }),
+      Response.find({}),
+      Demographics.find({})
+    ]);
 
-      // Create separate CSV files
-      const usersCsv = json2csv(users, {
-        fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
-      });
-      const responsesCsv = json2csv(responses, {
-        fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
-      });
+    console.log(`Found ${users.length} users, ${responses.length} responses, and ${demographics.length} demographics to export`);
 
-      // Create a zip file containing both CSVs
-      const archiver = require('archiver');
-      const archive = archiver('zip');
+    // Create separate CSV files
+    const usersCsv = json2csv(users, {
+      fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
+    });
+    
+    const responsesCsv = json2csv(responses, {
+      fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
+    });
+    
+    // Flatten demographics for CSV
+    const flattenedDemographics = demographics.map(record => {
+      const flatRecord = {
+        userId: record.userId,
+        dateOfBirth: record.dateOfBirth,
+        ethnicity: record.ethnicity,
+        race: record.race,
+        sexAssignedAtBirth: record.sexAssignedAtBirth,
+        isEnglishPrimary: record.isEnglishPrimary,
+        cognitiveImpairment: record.cognitiveImpairment,
+        hearingLoss: record.hearingLoss,
+        hearingAids: record.hearingAids,
+        relationshipToPartner: record.relationshipToPartner,
+        relationshipOther: record.relationshipOther,
+        communicationFrequency: record.communicationFrequency,
+        communicationType: record.communicationType,
+        formCompletedBy: record.formCompletedBy,
+        submitted: record.submitted
+      };
+      
+      // Add research data if available
+      if (record.researchData) {
+        flatRecord.hearingScreeningCompleted = record.researchData.hearingScreeningCompleted;
+        flatRecord.researchNotes = record.researchData.notes;
+        
+        // Add hearing thresholds
+        if (record.researchData.hearingThresholds) {
+          record.researchData.hearingThresholds.forEach(threshold => {
+            flatRecord[`threshold_${threshold.frequency}Hz_left`] = threshold.leftEar;
+            flatRecord[`threshold_${threshold.frequency}Hz_right`] = threshold.rightEar;
+          });
+        }
+      }
+      
+      return flatRecord;
+    });
+    
+    const demographicsCsv = json2csv(flattenedDemographics);
 
-      // Set headers for zip file download
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename=all_data.zip');
+    // Create a zip file containing all CSVs
+    const archiver = require('archiver');
+    const archive = archiver('zip');
 
-      // Pipe archive data to response
-      archive.pipe(res);
+    // Set headers for zip file download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=all_data.zip');
 
-      // Add CSV files to the zip
-      archive.append(usersCsv, { name: 'users.csv' });
-      archive.append(responsesCsv, { name: 'responses.csv' });
+    // Pipe archive data to response
+    archive.pipe(res);
 
-      // Finalize archive
-      archive.finalize();
-    } catch (error) {
-      console.error('Export error:', error);
-      res.status(500).json({ error: 'Failed to export data' });
-    }
-  });
+    // Add CSV files to the zip
+    archive.append(usersCsv, { name: 'users.csv' });
+    archive.append(responsesCsv, { name: 'responses.csv' });
+    archive.append(demographicsCsv, { name: 'demographics.csv' });
+
+    // Finalize archive
+    archive.finalize();
+    console.log('ZIP archive finalized and sent');
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
 
 
 // Utility function to list files in a directory
@@ -1160,15 +1217,13 @@ app.get('/api/admin/demographics', authenticateToken, async (req, res) => {
   }
 });
 
-// Export demographics data to CSV with full CPIB responses
-app.get('/api/admin/export/demographics', authenticateToken, async (req, res) => {
+// Export demographics data to CSV
+app.get('/api/admin/export/demographics', authenticateAdmin, async (req, res) => {
   try {
-    const user = await User.findOne({ userId: req.user.userId });
-    if (!user.isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
+    console.log('Processing demographics export request');
+    
     const demographics = await Demographics.find({}).lean();
+    console.log(`Found ${demographics.length} demographics records to export`);
 
     // Transform the data to flatten CPIB responses
     const flattenedData = demographics.map(record => {
@@ -1186,27 +1241,28 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
         relationshipOther: record.relationshipOther,
         communicationFrequency: record.communicationFrequency,
         communicationType: record.communicationType,
-
         formCompletedBy: record.formCompletedBy,
         submitted: record.submitted,
-
-        // Research Data (if available)
-        hearingScreeningCompleted: record.researchData?.hearingScreeningCompleted,
-        researchNotes: record.researchData?.notes
       };
 
-      // Add hearing thresholds if they exist
-      if (record.researchData?.hearingThresholds) {
-        record.researchData.hearingThresholds.forEach(threshold => {
-          flatRecord[`threshold_${threshold.frequency}Hz_left`] = threshold.leftEar;
-          flatRecord[`threshold_${threshold.frequency}Hz_right`] = threshold.rightEar;
-        });
+      // Add research data if available
+      if (record.researchData) {
+        flatRecord.hearingScreeningCompleted = record.researchData.hearingScreeningCompleted;
+        flatRecord.researchNotes = record.researchData.notes;
+        
+        // Add hearing thresholds if they exist
+        if (record.researchData.hearingThresholds) {
+          record.researchData.hearingThresholds.forEach(threshold => {
+            flatRecord[`threshold_${threshold.frequency}Hz_left`] = threshold.leftEar;
+            flatRecord[`threshold_${threshold.frequency}Hz_right`] = threshold.rightEar;
+          });
+        }
       }
 
       return flatRecord;
     });
 
-    // Define fields for CSV based on first record's keys
+    // Define fields for CSV based on first record's keys or empty object if no records
     const fields = Object.keys(flattenedData[0] || {});
 
     // Convert to CSV with all fields
@@ -1214,10 +1270,11 @@ app.get('/api/admin/export/demographics', authenticateToken, async (req, res) =>
 
     // Set headers for file download
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=demographics_full.csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=demographics.csv');
 
     // Send CSV
     res.send(csv);
+    console.log('Demographics export completed successfully');
   } catch (error) {
     console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export demographics data' });

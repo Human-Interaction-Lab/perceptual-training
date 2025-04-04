@@ -339,12 +339,13 @@ const PhaseSelection = ({
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
+    // Check if demographics is completed from either state or completedTests map
+    const demoCompleted = isDemographicsCompleted ||
+      completedTests['demographics'] ||
+      completedTests['pretest_demographics'];
+
     // Special handling for demographics
     if (testType === 'demographics') {
-      const demoCompleted = isDemographicsCompleted ||
-        completedTests['demographics'] ||
-        completedTests['pretest_demographics'];
-
       return {
         isAvailable: !demoCompleted,
         isCompleted: demoCompleted
@@ -354,7 +355,7 @@ const PhaseSelection = ({
     // For training phase
     if (phase === 'training') {
       return {
-        isAvailable: currentPhase === 'training' && isDemographicsCompleted,
+        isAvailable: currentPhase === 'training' && demoCompleted,
         isCompleted: completedTests[`${phase}_${testType}`] || false
       };
     }
@@ -397,7 +398,7 @@ const PhaseSelection = ({
       };
     }
 
-    // For pretest phase and other phases (original logic)
+    // For pretest phase and other phases
     const test = testTypes.find(t => t.type === testType);
     if (!test) return { isAvailable: false, isCompleted: false };
 
@@ -411,7 +412,10 @@ const PhaseSelection = ({
     // First test in a phase
     if (test.order === 1) {
       return {
-        isAvailable: phase === currentPhase && isDemographicsCompleted && !isTestCompleted,
+        // Allow pretest tests to be available if demographics is completed
+        // even if current phase isn't exactly 'pretest'
+        isAvailable: ((phase === 'pretest' && (currentPhase === 'pretest' || currentPhase === 'training')) && demoCompleted && !isTestCompleted) ||
+                    (phase === currentPhase && demoCompleted && !isTestCompleted),
         isCompleted: isTestCompleted
       };
     }
@@ -423,8 +427,8 @@ const PhaseSelection = ({
       completedTests[previousTest.type];
 
     return {
-      isAvailable: phase === currentPhase &&
-        isDemographicsCompleted &&
+      isAvailable: ((phase === 'pretest' && (currentPhase === 'pretest' || currentPhase === 'training')) || phase === currentPhase) &&
+        demoCompleted &&
         previousTestCompleted &&
         !isTestCompleted,
       isCompleted: isTestCompleted
@@ -631,7 +635,7 @@ const PhaseSelection = ({
         )}
 
         {/* Pretest Section */}
-        {isDemographicsCompleted && (currentPhase === 'pretest' || (currentPhase === 'training' && isAllPretestCompleted)) && (
+        {(isDemographicsCompleted || Object.keys(completedTests).some(key => key === 'demographics' || key === 'pretest_demographics')) && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>

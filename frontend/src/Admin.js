@@ -192,59 +192,135 @@ const Admin = () => {
           return;
         }
 
-        console.log('Using admin token:', token.substring(0, 10) + '...');
-
-        // Create a hidden iframe for the download
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-
-        // Create a form within the iframe for the POST request
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = url;
-
-        // Add the token as a hidden field
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'adminToken';
-        tokenInput.value = token;
-        form.appendChild(tokenInput);
-
-        // Submit the form within the iframe
-        iframe.contentDocument.body.appendChild(form);
-        form.submit();
-
-        // Remove the iframe after a delay to allow download to start
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 5000);
-
+        console.log('Initiating download from:', url);
+        
+        // Create a direct XHR request with proper headers
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.responseType = 'blob';
+        
+        xhr.onload = function() {
+          if (this.status === 200) {
+            // Create a download link and trigger it
+            const blob = new Blob([this.response], { type: xhr.getResponseHeader('Content-Type') });
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = downloadUrl;
+            a.download = filename || 'download';
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            window.URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(a);
+          } else {
+            console.error('Download failed with status:', this.status);
+            alert(`Download failed: ${this.statusText || 'Server error'}`);
+          }
+        };
+        
+        xhr.onerror = function() {
+          console.error('XHR error occurred');
+          alert('Download failed. Network error or CORS issue.');
+        };
+        
+        // Start the download
+        xhr.send();
       } catch (error) {
         console.error('Download error:', error);
         alert(`Failed to download: ${error.message}`);
       }
     };
 
+    const [isExporting, setIsExporting] = useState({
+      responses: false,
+      users: false,
+      all: false,
+      demographics: false
+    });
+    
+    const handleExport = async (type, url, filename) => {
+      // Set loading state for the specific export
+      setIsExporting(prev => ({ ...prev, [type]: true }));
+      
+      try {
+        await downloadFile(url, filename);
+      } catch (error) {
+        console.error(`Error exporting ${type}:`, error);
+      } finally {
+        // Reset loading state after a delay
+        setTimeout(() => {
+          setIsExporting(prev => ({ ...prev, [type]: false }));
+        }, 1000);
+      }
+    };
+    
     return (
-      <div className="mt-8 space-x-4">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
-          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/responses`, 'responses.csv')}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          onClick={() => handleExport('responses', `${config.API_BASE_URL}/api/admin/export/responses`, 'responses.csv')}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center justify-center"
+          disabled={isExporting.responses}
         >
-          Export Responses
+          {isExporting.responses ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Exporting...
+            </>
+          ) : "Export Responses"}
         </button>
+        
         <button
-          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/users`, 'users.csv')}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={() => handleExport('users', `${config.API_BASE_URL}/api/admin/export/users`, 'users.csv')}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center justify-center"
+          disabled={isExporting.users}
         >
-          Export Users
+          {isExporting.users ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Exporting...
+            </>
+          ) : "Export Users"}
         </button>
+        
         <button
-          onClick={() => downloadFile(`${config.API_BASE_URL}/api/admin/export/all`, 'all_data.zip')}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
+          onClick={() => handleExport('demographics', `${config.API_BASE_URL}/api/admin/export/demographics`, 'demographics.csv')}
+          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded flex items-center justify-center"
+          disabled={isExporting.demographics}
         >
-          Export All Data (ZIP)
+          {isExporting.demographics ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Exporting...
+            </>
+          ) : "Export Demographics"}
+        </button>
+        
+        <button
+          onClick={() => handleExport('all', `${config.API_BASE_URL}/api/admin/export/all`, 'all_data.zip')}
+          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center justify-center"
+          disabled={isExporting.all}
+        >
+          {isExporting.all ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Exporting...
+            </>
+          ) : "Export All Data (ZIP)"}
         </button>
       </div>
     );

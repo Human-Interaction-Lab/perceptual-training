@@ -268,14 +268,21 @@ const App = () => {
         // Initialize story assignments
         initializeStoryAssignments(userId);
 
-        // Check if demographics is completed by looking at completedTests
-        const demographicsCompleted =
-          data.completedTests?.demographics ||
-          data.completedTests?.pretest_demographics ||
-          data.isDemographicsCompleted;
+        // Explicitly check for demographics completion from multiple sources
+        const completedTestsObj = data.completedTests || {};
+        const demoCompleted = 
+          completedTestsObj.demographics === true || 
+          completedTestsObj.pretest_demographics === true ||
+          data.isDemographicsCompleted === true;
 
-        setIsDemographicsCompleted(!!demographicsCompleted);
+        // Log the demographic completion status for debugging
+        console.log('Demographics completed status:', {
+          fromData: data.isDemographicsCompleted,
+          fromCompletedTests: completedTestsObj.demographics || completedTestsObj.pretest_demographics,
+          finalStatus: demoCompleted
+        });
 
+        setIsDemographicsCompleted(demoCompleted);
         setPhase('selection');
       } else {
         setError(data.error || 'Login failed');
