@@ -377,17 +377,48 @@ const audioService = {
     playAudioFromUrl(url) {
         return new Promise((resolve, reject) => {
             const audio = new Audio(url);
+            let playTimeout;
 
+            // Audio event handlers
             audio.onended = () => {
+                if (playTimeout) clearTimeout(playTimeout);
                 resolve();
             };
 
+            audio.oncanplaythrough = () => {
+                // Clear any existing timeout since we can play now
+                if (playTimeout) clearTimeout(playTimeout);
+                
+                // Set a new timeout for the actual playback duration
+                if (audio.duration && !isNaN(audio.duration)) {
+                    const duration = Math.ceil(audio.duration * 1000) + 2000; // Audio duration + 2 seconds buffer
+                    playTimeout = setTimeout(() => {
+                        console.warn('Audio playback timeout - forcing completion');
+                        resolve();
+                    }, duration);
+                }
+            };
+
             audio.onerror = (error) => {
+                if (playTimeout) clearTimeout(playTimeout);
                 console.error('Audio playback error:', error);
                 reject(new Error('Failed to play audio'));
             };
 
-            audio.play().catch(reject);
+            // Set a timeout for initial loading
+            playTimeout = setTimeout(() => {
+                console.warn('Audio loading timeout - could not load audio file');
+                reject(new Error('Audio loading timeout'));
+            }, 15000); // 15 seconds timeout for loading
+
+            // Start playing
+            audio.play().catch(error => {
+                if (playTimeout) clearTimeout(playTimeout);
+                reject(error);
+            });
+            
+            // Track this audio element for cleanup
+            this.currentAudio = audio;
         });
     },
 
@@ -494,8 +525,24 @@ const audioService = {
      * Clean up any resources
      */
     dispose() {
-        // This method can be used to cancel any ongoing audio playback
-        // For future implementation if needed
+        // Cancel any ongoing audio playback
+        if (this.currentAudio) {
+            try {
+                // Pause the audio
+                this.currentAudio.pause();
+                
+                // Reset the audio element
+                this.currentAudio.src = '';
+                this.currentAudio.load();
+                
+                // Remove reference
+                this.currentAudio = null;
+                
+                console.log('Audio playback disposed');
+            } catch (error) {
+                console.error('Error disposing audio:', error);
+            }
+        }
     }
 };
 

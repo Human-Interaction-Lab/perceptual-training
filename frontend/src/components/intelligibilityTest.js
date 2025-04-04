@@ -12,7 +12,8 @@ const IntelligibilityTest = ({
     onSubmit,
     currentStimulus,
     totalStimuli,
-    onPlayAudio
+    onPlayAudio,
+    isSubmitting
 }) => {
     const [audioError, setAudioError] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -29,24 +30,44 @@ const IntelligibilityTest = ({
     const handlePlayAudio = async () => {
         setIsPlaying(true);
         setAudioError(false);
+        
+        // Reset in case of retry
+        setAudioPlayed(false);
 
         try {
-            // Use randomized audio playback instead of sequential
-            if (audioService.onPlayRandomizedAudio) {
-                await audioService.onPlayRandomizedAudio();
-            } else {
-                await onPlayAudio();
-            }
+            // Add a timeout for the entire operation
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Operation timeout')), 20000);
+            });
+            
+            // Race the audio playback against our timeout
+            await Promise.race([
+                // Use randomized audio playback instead of sequential
+                audioService.onPlayRandomizedAudio 
+                    ? audioService.onPlayRandomizedAudio()
+                    : onPlayAudio(),
+                timeoutPromise
+            ]);
+            
             setAudioPlayed(true);
         } catch (error) {
+            console.error('Error playing audio:', error);
+            
             if (error.message === 'AUDIO_NOT_FOUND') {
                 setAudioError(true);
                 onResponseChange("NA");
-            } else {
-                console.error('Error playing audio:', error);
+            } else if (error.message === 'Audio loading timeout' || error.message === 'Operation timeout') {
+                // Handle timeout specifically
+                setAudioError(true);
+                alert('Audio playback timed out. Please try again or proceed with "NA" as your response.');
+                onResponseChange("NA");
             }
         } finally {
+            // Always reset the playing state
             setIsPlaying(false);
+            
+            // Ensure we clean up any hanging audio
+            audioService.dispose();
         }
     };
 
@@ -127,11 +148,11 @@ const IntelligibilityTest = ({
 
                     <Button
                         onClick={onSubmit}
-                        disabled={!userResponse.trim()}
+                        disabled={!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting}
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2 
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <span>Submit Response</span>
+                        <span>{isSubmitting ? "Submitting..." : "Submit Response"}</span>
                         <Send className="h-4 w-4" />
                     </Button>
                 </div>
@@ -144,6 +165,9 @@ const IntelligibilityTest = ({
                         <li>2. Listen carefully to the entire phrase</li>
                         <li>3. Type exactly what you heard in the text box</li>
                         <li>4. Click "Submit Response" when you're ready</li>
+                        <li className="text-blue-600 font-medium">
+                            Note: You must wait for the audio to finish playing completely before submitting
+                        </li>
                         {audioError && (
                             <li className="text-red-500">
                                 If audio is not available, enter "NA" as your response

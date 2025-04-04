@@ -154,15 +154,15 @@ const TrainingSession = ({
         }
     };
 
-    const handleStartTraining = async () => {
-        // Try to preload audio files before starting training
-        try {
-            await audioService.preloadAudioFiles('training', trainingDay);
-        } catch (error) {
-            console.error('Failed to preload training audio:', error);
-            // Continue even if preloading fails
-        }
+    const handleStartTraining = () => {
+        // Start preloading audio files in the background without waiting
+        audioService.preloadAudioFiles('training', trainingDay)
+            .catch(error => {
+                console.error('Failed to preload training audio:', error);
+                // Continue even if preloading fails
+            });
 
+        // Immediately transition to training phase
         setCurrentPhase('training');
         setAudioPlayed(false); // Reset audio state when starting training
     };
@@ -231,12 +231,20 @@ const TrainingSession = ({
         try {
             const stimulusIndex = currentStimulusIndex + 1;
 
-            // Use randomized training audio
-            await audioService.playRandomizedTrainingAudio(
-                trainingDay,
-                stimulusIndex,
-                userId
-            );
+            // Add a timeout for the entire operation
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Operation timeout')), 20000);
+            });
+            
+            // Race the audio playback against our timeout
+            await Promise.race([
+                audioService.playRandomizedTrainingAudio(
+                    trainingDay,
+                    stimulusIndex,
+                    userId
+                ),
+                timeoutPromise
+            ]);
 
             setAudioPlayed(true);
             return true;
@@ -247,9 +255,17 @@ const TrainingSession = ({
                 alert('Audio file not available. Please submit "NA" as your response.');
                 setUserResponse('NA');
                 setAudioPlayed(true);
+            } else if (error.message === 'Audio loading timeout' || error.message === 'Operation timeout') {
+                // Handle timeout specifically
+                alert('Audio playback timed out. Please submit "NA" as your response.');
+                setUserResponse('NA');
+                setAudioPlayed(true);
             } else {
-                alert('Error playing audio. Please try again.');
+                alert('Error playing audio. Please try again or submit "NA" if the issue persists.');
             }
+            
+            // Ensure we clean up any hanging audio
+            audioService.dispose();
 
             return false;
         }
@@ -349,7 +365,7 @@ const TrainingSession = ({
                             ) : (
                                 <>
                                     <Loader className="h-6 w-6 text-gray-500 animate-spin" />
-                                    <span className="text-gray-700">Loading Audio...</span>
+                                    <span className="text-gray-700">Loading Audio... (Training will start automatically)</span>
                                 </>
                             )}
                         </div>

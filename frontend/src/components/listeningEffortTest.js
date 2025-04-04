@@ -13,7 +13,8 @@ const ListeningEffortTest = ({
     onSubmit,
     currentStimulus,
     totalStimuli,
-    onPlayAudio
+    onPlayAudio,
+    isSubmitting = false
 }) => {
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
     const [audioPlayed, setAudioPlayed] = useState(false);
@@ -38,11 +39,23 @@ const ListeningEffortTest = ({
     const handlePlayAudio = async () => {
         setIsPlaying(true);
         setAudioError(false);
+        
+        // Reset in case of retry
+        setAudioPlayed(false);
 
         try {
-            await onPlayAudio();
+            // Add a timeout for the entire operation
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Operation timeout')), 20000);
+            });
+            
+            // Race the audio playback against our timeout
+            await Promise.race([onPlayAudio(), timeoutPromise]);
+            
             setAudioPlayed(true);
         } catch (error) {
+            console.error('Error playing audio:', error);
+            
             if (error.message === 'AUDIO_NOT_FOUND') {
                 setAudioError(true);
                 setAudioPlayed(true); // Mark as played even if not found
@@ -53,11 +66,31 @@ const ListeningEffortTest = ({
                 if (!rating) {
                     onRatingChange(1); // Set minimum rating
                 }
+            } else if (error.message === 'Audio loading timeout' || error.message === 'Operation timeout') {
+                // Handle timeout specifically
+                setAudioError(true);
+                setAudioPlayed(true); // Mark as played so user can proceed
+                alert('Audio playback timed out. Please proceed with "NA" as your response.');
+                onResponseChange("NA");
+                
+                // Set a default rating value
+                if (!rating) {
+                    onRatingChange(1); // Set minimum rating
+                }
             } else {
-                console.error('Error playing audio:', error);
+                // For other errors, still let the user proceed
+                alert('Error playing audio. Please try again or proceed with "NA" as your response.');
             }
         } finally {
+            // Always reset the playing state
             setIsPlaying(false);
+            
+            // Ensure we clean up any hanging audio
+            if (window.audioService) {
+                window.audioService.dispose();
+            } else if (typeof audioService !== 'undefined') {
+                audioService.dispose();
+            }
         }
     };
 
@@ -186,11 +219,11 @@ const ListeningEffortTest = ({
 
                     <Button
                         onClick={onSubmit}
-                        disabled={!userResponse.trim() || !rating || !audioPlayed}
+                        disabled={!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting}
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <span>Submit Response</span>
+                        <span>{isSubmitting ? "Submitting..." : "Submit Response"}</span>
                         <Send className="h-4 w-4" />
                     </Button>
                 </div>
@@ -203,6 +236,9 @@ const ListeningEffortTest = ({
                         <li>2. Type the final word you heard</li>
                         <li>3. Rate how much effort it took to understand the audio</li>
                         <li>4. Click "Submit Response" when you're ready</li>
+                        <li className="text-blue-600 font-medium">
+                            Note: You must wait for the audio to finish playing completely before submitting
+                        </li>
                         {audioError && (
                             <li className="text-red-500">
                                 If audio is not available, enter "NA" as your response
