@@ -58,8 +58,20 @@ const App = () => {
   useEffect(() => {
     // If we've transitioned to demographics phase, ensure we're in the right state
     if (phase === 'demographics') {
-      console.log('Demographics phase entered - resetting state for clean form');
+      console.log('Demographics phase entered - ensuring clean state');
+      // When entering demographics, make sure we:
+      // 1. Reset the demographics completion flags to allow form to work
       setIsDemographicsCompleted(false);
+      
+      // 2. Update completedTests to match (important for consistency)
+      setCompletedTests(prev => ({
+        ...prev,
+        demographics: false,
+        pretest_demographics: false
+      }));
+      
+      // 3. DON'T change currentPhase to prevent confusion
+      // This means demographics phase is NOT the same as pretest phase
     }
   }, [phase]);
 
@@ -692,53 +704,48 @@ const App = () => {
     setUserResponse('');
     setRating(null);
 
-    // Start preloading in the background AFTER navigation is triggered
-    try {
-      // Start preloading in the background without awaiting completion
-      if (selectedPhase === 'pretest' || selectedPhase.startsWith('posttest')) {
-        // Use the limited first-few-files preloading approach
-        // This ensures quick access to the first files the user will need
-        const maxFiles = 5; // Only preload first 5 files initially
-        
-        console.log(`Quick preloading first ${maxFiles} ${startingTestType} files for immediate use`);
-        
-        // Pass the specific phase name (posttest1, posttest2, etc.)
-        audioService.preloadAudioFiles(selectedPhase, null, [startingTestType], maxFiles)
-          .catch(error => console.error(`Error preloading ${selectedPhase} files:`, error));
-          
-        // After a delay, try to load the rest of the files in the background
-        setTimeout(() => {
-          console.log(`Now preloading remaining ${startingTestType} files in the background`);
-          audioService.preloadAudioFiles(selectedPhase, null, [startingTestType])
-            .catch(error => console.error(`Error preloading remaining ${selectedPhase} files:`, error));
-        }, 10000); // 10 second delay to let the user start interacting first
-      }
-    } catch (error) {
-      console.error(`Failed to start preloading ${selectedPhase} files:`, error);
-      // Non-critical error, don't block navigation
-    }
+    // CRITICAL CHANGE: NO PRELOADING AT ALL - not even in the background
+    // This ensures we don't trigger any file loading until the exact moment we need each file
+    console.log(`DISABLED: No preloading for ${selectedPhase} - will load files only when needed`);
+    
+    // The strategy is now to load each file exactly when it's needed, not in advance
+    // This should prevent race conditions and waiting for preloading
   };
 
 
-  // Revised handlePlayAudio function to handle randomization with improved error handling
+  // Completely rewritten handlePlayAudio function with simplified direct access
   const handlePlayAudio = async (input) => {
     try {
-      console.log(`handlePlayAudio called - phase: ${phase}, testType: ${currentTestType}, stimulus: ${currentStimulus + 1}`);
+      console.log(`SIMPLIFIED handlePlayAudio - phase: ${phase}, testType: ${currentTestType}, stimulus: ${currentStimulus + 1}`);
       
       // Check if we're playing a full story (input will be storyId like "Comp_01")
       if (typeof input === 'string' && input.startsWith('Comp_')) {
-        // Story playback remains the same
+        // Story playback uses the most basic direct method
         const storyNum = input.replace('Comp_', '');
-        console.log(`Playing full story ${storyNum}`);
+        console.log(`Playing story ${storyNum} directly - no randomization or preloading`);
 
         const totalClips = 2; // Changed from 10 to 2 clips per story
         for (let i = 1; i <= totalClips; i++) {
-          await audioService.playTestAudio(
-            phase,
-            'comprehension',
-            storyNum,
-            i
-          );
+          // Use the simplest, most direct path
+          const url = `${config.API_BASE_URL}/audio/${phase}/comprehension/${storyNum}/${i}`;
+          console.log(`Directly accessing audio file URL: ${url}`);
+          
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+          } catch (clipError) {
+            console.error(`Error playing clip ${i}:`, clipError);
+            // Continue with the next clip regardless
+          }
 
           if (i < totalClips) {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -747,109 +754,125 @@ const App = () => {
 
         return true;
       }
-      // Use randomized playback for intelligibility tests 
+      // Simplest possible path for intelligibility tests
       else if (currentTestType === 'intelligibility') {
-        console.log('Playing intelligibility test audio with userId:', userId);
+        console.log('Direct intelligibility file access - no randomization');
         
-        // Try using the randomized version first
+        // Add a short timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Audio access timeout')), 8000);
+        });
+        
         try {
-          // Add a timeout to prevent hanging indefinitely
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+          // Direct file access by stimulus number - no randomization
+          const url = `${config.API_BASE_URL}/audio/${phase}/intelligibility/null/${currentStimulus + 1}`;
+          console.log(`Directly accessing audio file URL: ${url}`);
+          
+          const token = localStorage.getItem('token');
+          const fetchPromise = fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           
-          // Race the audio operation against the timeout
-          await Promise.race([
-            audioService.playRandomizedTestAudio(
-              phase,
-              'intelligibility',
-              null,
-              currentStimulus + 1,
-              userId
-            ),
-            timeoutPromise
-          ]);
+          const response = await Promise.race([fetchPromise, timeoutPromise]);
           
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
           return true;
-        } 
-        catch (error) {
-          console.warn('Randomized audio playback failed:', error.message);
-          console.log('Attempting fallback direct play without randomization...');
+        } catch (error) {
+          console.error('Direct access failed, trying fallback:', error);
           
-          // FALLBACK: If the randomized version fails, try direct file access
-          // by using a hardcoded pattern (1, 2, 3...) as a fallback
+          // FALLBACK: Try direct access to a static file as a last resort
           try {
-            // Direct play without randomization
-            await audioService.playTestAudio(
-              phase,
-              'intelligibility',
-              null,
-              currentStimulus + 1
-            );
-            
-            console.log('Fallback direct play succeeded!');
+            const fallbackUrl = `${config.API_BASE_URL}/audio/public/Grace Norman_Int${String(currentStimulus + 1).padStart(2, '0')}.wav`;
+            console.log(`Trying last-resort fallback URL: ${fallbackUrl}`);
+            await audioService.playAudioFromUrl(fallbackUrl);
             return true;
           } catch (fallbackError) {
-            console.error('Fallback direct play also failed:', fallbackError.message);
-            throw fallbackError; // Re-throw for caller to handle
+            console.error('All fallback attempts failed');
+            throw new Error('AUDIO_NOT_FOUND');
           }
         }
       }
-      // Use randomized playback for effort
+      // Simplest possible path for effort tests
       else if (currentTestType === 'effort') {
-        // Add a timeout to prevent hanging indefinitely
+        console.log('Direct effort file access - no randomization');
+        
+        // Add a short timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+          setTimeout(() => reject(new Error('Audio access timeout')), 8000);
         });
         
-        // Race the audio operation against the timeout
-        await Promise.race([
-          audioService.playRandomizedEffortAudio(
-            phase,
-            currentStimulus + 1,
-            userId
-          ),
-          timeoutPromise
-        ]);
-        
-        return true;
+        try {
+          // Direct file access by stimulus number - no randomization
+          const url = `${config.API_BASE_URL}/audio/${phase}/effort/null/${currentStimulus + 1}`;
+          console.log(`Directly accessing audio file URL: ${url}`);
+          
+          const token = localStorage.getItem('token');
+          const fetchPromise = fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          const response = await Promise.race([fetchPromise, timeoutPromise]);
+          
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+          return true;
+        } catch (error) {
+          console.error('All effort file access attempts failed');
+          throw new Error('AUDIO_NOT_FOUND');
+        }
       }
-      // if randomization not working do sequential
+      // Simplest fallback method
       else {
-        // Add a timeout to prevent hanging indefinitely
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
-        });
+        console.log('Using generic fallback method for unknown test type');
         
-        // Race the audio operation against the timeout
-        await Promise.race([
-          audioService.playTestAudio(
-            phase,
-            'intelligibility',
-            null,
-            currentStimulus + 1
-          ),
-          timeoutPromise
-        ]);
-        
-        return true;
+        // Very simple direct access attempt
+        try {
+          // Direct file access by stimulus number - no randomization or complexity
+          const url = `${config.API_BASE_URL}/audio/${phase}/${currentTestType || 'intelligibility'}/null/${currentStimulus + 1}`;
+          console.log(`Last-resort direct URL: ${url}`);
+          
+          const token = localStorage.getItem('token');
+          const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+          return true;
+        } catch (error) {
+          console.error('Generic fallback method failed');
+          throw new Error('AUDIO_NOT_FOUND');
+        }
       }
     } catch (error) {
       console.error('Error playing audio:', error);
       
-      // Handle different error types
-      if (error.message === 'AUDIO_NOT_FOUND') {
-        // Already specific handling for this in the test components
+      // Handle different error types 
+      if (error.message === 'AUDIO_NOT_FOUND' || 
+          error.message.includes('not found') ||
+          error.message.includes('timeout') ||
+          error.message.includes('404')) {
+        // Pass this specific error to the components to handle
         return false;
-      } else if (error.message === 'Audio operation timeout' || 
-                error.message === 'Audio loading timeout') {
-        alert('Audio playback timed out. Please try again or refresh the page if the problem persists.');
-        // Clean up any hanging audio
-        audioService.dispose();
       } else {
-        alert('Error playing audio. Please try again.');
+        // For general errors
+        console.error('General audio error:', error);
+        audioService.dispose();
+        return false;
       }
-      return false;
     } finally {
       // Always ensure we clean up any audio resources
       console.log('Finished audio playback attempt');
@@ -1171,14 +1194,19 @@ const App = () => {
             <DemographicsForm
               onSubmit={() => {
                 // Update both state variables to reflect demographics completion
+                console.log('Demographics completed - setting states and returning to selection');
                 setIsDemographicsCompleted(true);
                 setCompletedTests(prev => ({
                   ...prev,
                   demographics: true,
                   pretest_demographics: true
                 }));
+                
+                // Very important - keep current phase and phase separate
+                // Demographics is not part of pretest
                 setPhase('selection');
-                setCurrentPhase('pretest');
+                // Don't set current phase to pretest here, as that causes confusion
+                // setCurrentPhase('pretest');
               }}
               onBack={() => setPhase('selection')}
             />

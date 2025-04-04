@@ -44,12 +44,13 @@ const IntelligibilityTest = ({
                     setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
                 });
                 
-                // Race the audio playback against our timeout
+                // Important: Don't wait for preloading
+                console.log("Attempting to play audio directly - no preloading");
+                
+                // Just use the direct play function without randomization or preloading
                 await Promise.race([
-                    // Use randomized audio playback instead of sequential
-                    audioService.onPlayRandomizedAudio 
-                        ? audioService.onPlayRandomizedAudio()
-                        : onPlayAudio(),
+                    // Use the provided onPlayAudio directly - simplest path
+                    onPlayAudio(),
                     timeoutPromise
                 ]);
                 

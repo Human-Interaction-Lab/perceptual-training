@@ -278,9 +278,8 @@ const PhaseSelection = ({
     console.log("Completed tests:", completedTests);
     
     // Check for fresh demographics completion
-    if (completedTests.demographics === true && 
-        !isPostDemographics && 
-        currentPhase === 'pretest') {
+    // Remove the currentPhase === 'pretest' condition since demographics is totally separate
+    if (completedTests.demographics === true && !isPostDemographics) {
       console.log("Fresh demographics completion detected - preparing special handling");
       setIsPostDemographics(true);
       
@@ -307,74 +306,21 @@ const PhaseSelection = ({
       .map(test => test.type);
   };
 
-  // Immediately start preloading files when the component mounts
+  // CRITICAL CHANGE: Completely DISABLE all automatic preloading
+  // This is to prevent any preloading from happening automatically when arriving at the selection page
   useEffect(() => {
-    // Skip if demographics isn't completed yet
-    //if (!isDemographicsCompleted) {
-    //  console.log('Demographics not completed, skipping preload');
-    //  return;
-    //}
-
-    // Function to start preloading for a specific phase
-    const startPreloading = async (phase, day = null) => {
-      // Set loading indicator for 6 seconds
-      const updatedIndicators = { ...showLoadingIndicator };
-      updatedIndicators[phase] = true;
-      setShowLoadingIndicator(updatedIndicators);
-
-      console.log(`Starting preload for ${phase}${day ? ` day ${day}` : ''}`);
-
-      // Start background preloading without waiting for it to finish
-      let activeTestTypes = [];
-
-      if (phase !== 'training') {
-        // Get test types that aren't completed yet
-        activeTestTypes = getActiveTestTypes(phase);
-
-        if (activeTestTypes.length > 0) {
-          // Start preloading in the background - don't await
-          audioService.preloadRandomizedAudioFiles(phase, null, activeTestTypes)
-            .then(() => console.log(`${phase} files preloaded successfully`))
-            .catch(error => console.error(`Error preloading ${phase} files:`, error));
-        }
-      } else if (phase === 'training' && day) {
-        // For training, preload the specific day
-        audioService.preloadRandomizedAudioFiles('training', day)
-          .then(() => console.log(`Training day ${day} files preloaded successfully`))
-          .catch(error => console.error(`Error preloading training day ${day} files:`, error));
-      }
-
-      // Hide loading indicator after 6 seconds regardless of preload status
-      setTimeout(() => {
-        const updatedIndicators = { ...showLoadingIndicator };
-        updatedIndicators[phase] = false;
-        setShowLoadingIndicator(updatedIndicators);
-        console.log(`Hiding loading indicator for ${phase}`);
-      }, 6000); // 6 seconds
-    };
-
-    // Check current phase and start preloading accordingly
-    if (currentPhase === 'pretest') {
-      startPreloading('pretest');
-    } else if (currentPhase === 'training') {
-      startPreloading('training', trainingDay);
-    } else if (currentPhase === 'posttest1') {
-      startPreloading('posttest1');
-    } else if (currentPhase === 'posttest2') {
-      startPreloading('posttest2');
+    // Disable preloading entirely - files will be loaded only when needed
+    console.log("Preloading completely disabled in phase selection");
+    
+    // Instead, just track analytics for debugging purposes
+    if (currentPhase) {
+      console.log(`Current phase is ${currentPhase} - NO automatic preloading`);
     }
+    
+    // The app will now load audio files one at a time when they are needed
+    // This prevents the app from trying to preload everything at once
 
-    // When posttest1 is available but not current phase, preload in background
-    if (posttestAvailability.posttest1 && currentPhase !== 'posttest1') {
-      startPreloading('posttest1');
-    }
-
-    // When posttest2 is available but not current phase, preload in background
-    if (posttestAvailability.posttest2 && currentPhase !== 'posttest2') {
-      startPreloading('posttest2');
-    }
-
-  }, [currentPhase, trainingDay, isDemographicsCompleted, posttestAvailability]);
+  }, [currentPhase]);
 
 
   // Helper function to determine if a test type is available
@@ -384,8 +330,10 @@ const PhaseSelection = ({
       completedTests['demographics'] ||
       completedTests['pretest_demographics'];
 
-    // Special handling for demographics
+    // Special handling for demographics - completely separate phase
     if (testType === 'demographics') {
+      // Demographics card is ALWAYS available if not completed
+      // This prevents it from being blocked by other conditions
       return {
         isAvailable: !demoCompleted,
         isCompleted: demoCompleted
@@ -623,27 +571,35 @@ const PhaseSelection = ({
           )}
         </div>
 
-        {/* Pretest Section with Demographics Card always visible */}
-        {currentPhase === 'pretest' && (
+        {/* Standalone Demographics card - separate from pretest section */}
+        {!isDemographicsCompleted && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
-            <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              {/* Demographics Card as first item */}
+            <h2 className="text-xl font-semibold mb-4">Background Questionnaire</h2>
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
               <TestTypeCard
                 title="Demographics Questionnaire"
-                description="Please complete this first"
+                description="Required before starting any tests"
                 phase="demographics"
                 testType="demographics"
                 status={{
-                  isAvailable: !isDemographicsCompleted,
-                  isCompleted: isDemographicsCompleted || Object.keys(completedTests).some(key => key === 'demographics' || key === 'pretest_demographics')
+                  isAvailable: true,
+                  isCompleted: false
                 }}
                 onSelect={handleSelectPhase}
                 date="Required first"
                 isPreloading={false}
               />
+            </div>
+          </div>
+        )}
+        
+        {/* Pretest Section WITHOUT Demographics Card */}
+        {currentPhase === 'pretest' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
+            <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               
               {/* All test type cards */}
               {testTypes
