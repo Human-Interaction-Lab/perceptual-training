@@ -118,6 +118,15 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Keep the original completed check - day is less than current day
   const isCompleted = day < currentDay;
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Check for in-progress data
+  const hasProgress = (() => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return false;
+    
+    const progressKey = `progress_${userId}_training_day${day}`;
+    return localStorage.getItem(progressKey) !== null;
+  })();
 
   // Helper functions inside the component
   const isDateToday = (date) => {
@@ -204,11 +213,13 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
           {isLoading ? (
             <span className="flex items-center">
               <Loader className="animate-spin h-4 w-4 mr-2" />
-              Preparing Audio... ({Math.ceil(6 - (Date.now() % 6000) / 1000)}s)
+              Preparing Audio... ({Math.ceil(2 - (Date.now() % 2000) / 1000)}s)
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : isAvailable ? 'Begin Training' : 'Locked'}
+              {isCompleted ? 'Completed' : 
+               hasProgress ? 'Continue Training' : 
+               isAvailable ? 'Begin Training' : 'Locked'}
             </span>
           )}
           {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
@@ -525,6 +536,30 @@ const PhaseSelection = ({
     expectedDate.setDate(expectedDate.getDate() + daysToAdd);
     return formatDate(expectedDate);
   };
+  
+  // Helper function to check if posttest1 is complete
+  const isPosttest1Completed = () => {
+    return testTypes.every(test => 
+      completedTests[`posttest1_${test.type}`] === true
+    );
+  };
+  
+  // Helper function to calculate days until posttest2
+  const getDaysUntilPosttest2 = () => {
+    if (!pretestDate) return null;
+    
+    const baseDate = new Date(pretestDate);
+    const posttest2Date = new Date(baseDate);
+    posttest2Date.setDate(posttest2Date.getDate() + 35); // Posttest2 is 35 days after pretest
+    
+    const today = new Date();
+    
+    // Calculate days difference
+    const diffTime = posttest2Date - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays > 0 ? diffDays : 0;
+  };
 
   // Calculate posttest availability when current time is after expected date
   const calculatePosttestAvailability = (pretestDate, trainingDay) => {
@@ -747,6 +782,39 @@ const PhaseSelection = ({
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Message for countdown to posttest2 - Show only when posttest1 is complete and posttest2 isn't available yet */}
+        {isPosttest1Completed() && !posttestAvailability.posttest2 && getDaysUntilPosttest2() > 0 && (
+          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-center justify-center mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className="text-xl font-semibold">1-Month Follow-up Coming Soon</h2>
+            </div>
+            <p className="text-lg text-blue-700">
+              You've completed the 1-week follow-up! Your 1-month follow-up will be available in <span className="font-bold">{getDaysUntilPosttest2()} days</span>.
+            </p>
+            <p className="text-sm text-blue-600 mt-2">
+              Please return on {getExpectedDate('posttest2')} to complete the final assessment.
+            </p>
+          </div>
+        )}
+
+        {/* Message when posttest2 is available but not yet started */}
+        {posttestAvailability.posttest2 && currentPhase !== 'completed' && !testTypes.some(test => completedTests[`posttest2_${test.type}`]) && (
+          <div className="mb-4 text-center p-4 bg-green-50 rounded-lg border border-green-100">
+            <div className="flex items-center justify-center mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <h3 className="text-lg font-medium text-green-800">Your 1-month follow-up is now available!</h3>
+            </div>
+            <p className="text-green-700">
+              Please complete the final assessment to finish the study.
+            </p>
           </div>
         )}
 
