@@ -34,41 +34,77 @@ const IntelligibilityTest = ({
         // Reset in case of retry
         setAudioPlayed(false);
 
-        try {
-            // Add a timeout for the entire operation
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Operation timeout')), 20000);
-            });
-            
-            // Race the audio playback against our timeout
-            await Promise.race([
-                // Use randomized audio playback instead of sequential
-                audioService.onPlayRandomizedAudio 
-                    ? audioService.onPlayRandomizedAudio()
-                    : onPlayAudio(),
-                timeoutPromise
-            ]);
-            
-            setAudioPlayed(true);
-        } catch (error) {
-            console.error('Error playing audio:', error);
-            
-            if (error.message === 'AUDIO_NOT_FOUND') {
-                setAudioError(true);
-                onResponseChange("NA");
-            } else if (error.message === 'Audio loading timeout' || error.message === 'Operation timeout') {
-                // Handle timeout specifically
-                setAudioError(true);
-                alert('Audio playback timed out. Please try again or proceed with "NA" as your response.');
-                onResponseChange("NA");
+        // Try up to 3 times to play the audio - increased retry attempts
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                console.log(`Attempt ${attempt} to play audio...`);
+                
+                // Add a timeout for the entire operation - reduced to fail faster
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
+                });
+                
+                // Race the audio playback against our timeout
+                await Promise.race([
+                    // Use randomized audio playback instead of sequential
+                    audioService.onPlayRandomizedAudio 
+                        ? audioService.onPlayRandomizedAudio()
+                        : onPlayAudio(),
+                    timeoutPromise
+                ]);
+                
+                console.log('Audio playback completed successfully!');
+                setAudioPlayed(true);
+                break; // Success! Exit the retry loop
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+                
+                // If we have a timeout or not found error, handle immediately
+                if (error.message === 'AUDIO_NOT_FOUND' || 
+                    error.message.includes('not found') ||
+                    error.message.includes('404') ||
+                    error.message.includes('timed out')) {
+                    
+                    console.log('Critical audio error - providing fallback experience');
+                    setAudioError(true);
+                    setAudioPlayed(true); // Allow form submission with NA
+                    onResponseChange("NA");
+                    
+                    // Add helpful user message
+                    if (!audioError) { // Only show once
+                        alert('Audio file could not be played. You can proceed by clicking Submit with "NA" as your response.');
+                    }
+                    
+                    break; // No need to retry for file not found or timeout
+                } else if (attempt >= 3) {
+                    // On the last attempt, handle any other error
+                    console.log('All attempts failed, showing error');
+                    setAudioError(true);
+                    setAudioPlayed(true); // Allow form submission
+                    onResponseChange("NA");
+                    
+                    // Add helpful user message on final failure
+                    if (!audioError) { // Only show once
+                        alert('After multiple attempts, the audio could not be played. You can proceed by submitting "NA" as your response.');
+                    }
+                }
+                
+                // Clean up before potential retry
+                audioService.dispose();
+                
+                // If this wasn't the last attempt, wait a bit before retrying
+                if (attempt < 3) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    console.log(`Waiting before retry attempt ${attempt + 1}...`);
+                }
             }
-        } finally {
-            // Always reset the playing state
-            setIsPlaying(false);
-            
-            // Ensure we clean up any hanging audio
-            audioService.dispose();
         }
+        
+        // Always reset the playing state when done with all attempts
+        setIsPlaying(false);
+        
+        // Ensure we clean up any hanging audio
+        audioService.dispose();
     };
 
     return (

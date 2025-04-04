@@ -13,10 +13,22 @@ const AudioPlayer = ({ phase, testType, version, sentence, isTraining, day, onPl
       setError(null);
       setIsPlaying(true);
 
+      // Add a timeout to prevent hanging indefinitely
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Audio loading timeout')), 15000);
+      });
+
+      // Use Promise.race to implement a timeout
       if (isTraining) {
-        await audioService.playTrainingAudio(day, sentence);
+        await Promise.race([
+          audioService.playTrainingAudio(day, sentence),
+          timeoutPromise
+        ]);
       } else {
-        await audioService.playTestAudio(phase, testType, version, sentence);
+        await Promise.race([
+          audioService.playTestAudio(phase, testType, version, sentence),
+          timeoutPromise
+        ]);
       }
 
       setIsPlaying(false);
@@ -26,9 +38,38 @@ const AudioPlayer = ({ phase, testType, version, sentence, isTraining, day, onPl
       }
     } catch (error) {
       console.error('Error playing audio:', error);
-      setError('Failed to play audio. Please try again.');
+      
+      // Special handling for file not found errors
+      if (error.message === 'AUDIO_NOT_FOUND' || 
+          error.message.includes('not found') || 
+          error.message.includes('404')) {
+        setError('Audio file not found. Please enter "NA" as your response.');
+        
+        // Still call onPlayComplete so the user can proceed
+        if (onPlayComplete) {
+          onPlayComplete();
+        }
+      } 
+      // Special handling for timeout errors
+      else if (error.message === 'Audio loading timeout' || 
+               error.message.includes('timeout')) {
+        setError('Audio loading timed out. Please try again or enter "NA" as your response.');
+        
+        // Still call onPlayComplete so the user can proceed
+        if (onPlayComplete) {
+          onPlayComplete();
+        }
+      }
+      // Default error handling
+      else {
+        setError('Failed to play audio. Please try again or enter "NA" as your response.');
+      }
     } finally {
       setIsLoading(false);
+      setIsPlaying(false);
+      
+      // Make sure audio is properly cleaned up
+      audioService.dispose();
     }
   };
 

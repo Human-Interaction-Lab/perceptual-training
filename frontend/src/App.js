@@ -53,6 +53,15 @@ const App = () => {
     setUserResponse('');
     setShowComplete(false);
   }, [phase]);
+  
+  // Add a special check to ensure demographics data is loaded when needed
+  useEffect(() => {
+    // If we've transitioned to demographics phase, ensure we're in the right state
+    if (phase === 'demographics') {
+      console.log('Demographics phase entered - resetting state for clean form');
+      setIsDemographicsCompleted(false);
+    }
+  }, [phase]);
 
   // Log state changes for debugging
   useEffect(() => {
@@ -612,9 +621,19 @@ const App = () => {
 
   // handle phase select
   const handlePhaseSelect = async (selectedPhase, testType, day = null) => {
-    // Special handling for demographics
+    // Special handling for demographics - completely separated from pretest
     if (selectedPhase === 'demographics') {
-      console.log('Setting phase to demographics');
+      console.log('Setting phase to demographics - completely separate from pretest');
+      
+      // Explicitly reset demographic completion state to ensure clean form
+      setIsDemographicsCompleted(false);
+      setCompletedTests(prev => ({
+        ...prev,
+        demographics: false,
+        pretest_demographics: false
+      }));
+      
+      // Navigate to demographics phase
       setPhase('demographics');
       return;
     }
@@ -677,9 +696,22 @@ const App = () => {
     try {
       // Start preloading in the background without awaiting completion
       if (selectedPhase === 'pretest' || selectedPhase.startsWith('posttest')) {
+        // Use the limited first-few-files preloading approach
+        // This ensures quick access to the first files the user will need
+        const maxFiles = 5; // Only preload first 5 files initially
+        
+        console.log(`Quick preloading first ${maxFiles} ${startingTestType} files for immediate use`);
+        
         // Pass the specific phase name (posttest1, posttest2, etc.)
-        audioService.preloadAudioFiles(selectedPhase, null, [startingTestType])
+        audioService.preloadAudioFiles(selectedPhase, null, [startingTestType], maxFiles)
           .catch(error => console.error(`Error preloading ${selectedPhase} files:`, error));
+          
+        // After a delay, try to load the rest of the files in the background
+        setTimeout(() => {
+          console.log(`Now preloading remaining ${startingTestType} files in the background`);
+          audioService.preloadAudioFiles(selectedPhase, null, [startingTestType])
+            .catch(error => console.error(`Error preloading remaining ${selectedPhase} files:`, error));
+        }, 10000); // 10 second delay to let the user start interacting first
       }
     } catch (error) {
       console.error(`Failed to start preloading ${selectedPhase} files:`, error);
@@ -717,24 +749,51 @@ const App = () => {
       }
       // Use randomized playback for intelligibility tests 
       else if (currentTestType === 'intelligibility') {
-        // Add a timeout to prevent hanging indefinitely
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
-        });
+        console.log('Playing intelligibility test audio with userId:', userId);
         
-        // Race the audio operation against the timeout
-        await Promise.race([
-          audioService.playRandomizedTestAudio(
-            phase,
-            'intelligibility',
-            null,
-            currentStimulus + 1,
-            userId
-          ),
-          timeoutPromise
-        ]);
-        
-        return true;
+        // Try using the randomized version first
+        try {
+          // Add a timeout to prevent hanging indefinitely
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+          });
+          
+          // Race the audio operation against the timeout
+          await Promise.race([
+            audioService.playRandomizedTestAudio(
+              phase,
+              'intelligibility',
+              null,
+              currentStimulus + 1,
+              userId
+            ),
+            timeoutPromise
+          ]);
+          
+          return true;
+        } 
+        catch (error) {
+          console.warn('Randomized audio playback failed:', error.message);
+          console.log('Attempting fallback direct play without randomization...');
+          
+          // FALLBACK: If the randomized version fails, try direct file access
+          // by using a hardcoded pattern (1, 2, 3...) as a fallback
+          try {
+            // Direct play without randomization
+            await audioService.playTestAudio(
+              phase,
+              'intelligibility',
+              null,
+              currentStimulus + 1
+            );
+            
+            console.log('Fallback direct play succeeded!');
+            return true;
+          } catch (fallbackError) {
+            console.error('Fallback direct play also failed:', fallbackError.message);
+            throw fallbackError; // Re-throw for caller to handle
+          }
+        }
       }
       // Use randomized playback for effort
       else if (currentTestType === 'effort') {

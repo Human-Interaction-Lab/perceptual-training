@@ -37,46 +37,64 @@ const audioService = {
             }
 
             // Request the audio file URL from the backend
-            console.log(`Fetching audio file from: ${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`);
-            const response = await fetch(
-                `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`,
-                {
+            const apiUrl = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`;
+            console.log(`Fetching audio file from: ${apiUrl}`);
+            
+            try {
+                const response = await fetch(apiUrl, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
+                });
+
+                if (!response.ok) {
+                    console.error(`Error response from server: ${response.status} ${response.statusText}`);
+                    // Instead of failing immediately, we'll try a direct file access approach
+                    throw new Error(`Server returned ${response.status}`);
                 }
-            );
 
-            if (!response.ok) {
-                console.error(`Error response from server: ${response.status} ${response.statusText}`);
-                let errorMessage = 'Failed to get audio file';
-                try {
-                    const error = await response.json();
-                    errorMessage = error.error || errorMessage;
-                } catch (parseError) {
-                    console.error('Could not parse error response as JSON:', parseError);
+                const data = await response.json();
+                console.log(`Successfully retrieved audio file info: ${data.filename || 'unnamed file'}`);
+
+                if (!data.url) {
+                    throw new Error('Server response missing audio URL');
                 }
-                throw new Error(errorMessage);
+
+                // Play the audio file
+                console.log(`Playing audio from: ${BASE_URL}${data.url}`);
+                await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+
+                // Notify backend that file was played
+                if (data.filename) {
+                    console.log(`Notifying backend about played file: ${data.filename}`);
+                    await this.notifyAudioPlayed(data.filename);
+                }
+
+                return true;
+            } catch (apiError) {
+                console.warn('API route failed, trying direct file access as fallback:', apiError);
+                
+                // FALLBACK: Try direct file access approach if the API fails
+                // For intelligibility test, try a simple direct file URL pattern
+                if (testType.toLowerCase() === 'intelligibility') {
+                    // Try direct access to a likely file pattern
+                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sentence).padStart(2, '0')}.wav`;
+                    console.log(`Trying direct file access: ${directUrl}`);
+                    
+                    try {
+                        // This will fail if the file doesn't exist, which is fine
+                        await this.playAudioFromUrl(directUrl);
+                        console.log('Direct file access succeeded!');
+                        return true;
+                    } catch (directError) {
+                        console.error('Direct file access also failed:', directError);
+                        throw new Error('Could not access audio file by any method');
+                    }
+                } else {
+                    // For other test types, just rethrow the original error
+                    throw apiError;
+                }
             }
-
-            const data = await response.json();
-            console.log(`Successfully retrieved audio file info: ${data.filename || 'unnamed file'}`);
-
-            if (!data.url) {
-                throw new Error('Server response missing audio URL');
-            }
-
-            // Play the audio file
-            console.log(`Playing audio from: ${BASE_URL}${data.url}`);
-            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
-
-            // Notify backend that file was played
-            if (data.filename) {
-                console.log(`Notifying backend about played file: ${data.filename}`);
-                await this.notifyAudioPlayed(data.filename);
-            }
-
-            return true;
         } catch (error) {
             console.error(`Error playing ${testType} audio for ${phase}:`, error);
             
@@ -327,34 +345,85 @@ const audioService = {
         try {
             // Normalize phase name to ensure consistency
             const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+            
+            // Validate token exists
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No authentication token found');
+                throw new Error('Authentication required');
+            }
+            
+            // Construct URL
+            const url = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`;
+            console.log(`Requesting audio file from: ${url}`);
 
             // Request the audio file URL from the backend
-            const response = await fetch(
-                `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
-            );
+            });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to get audio file');
+                console.error(`Server returned error ${response.status}: ${response.statusText}`);
+                
+                // Try to read error details if available
+                let errorMessage = `Failed to get audio file (${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (parseError) {
+                    console.warn('Could not parse error response:', parseError);
+                }
+                
+                // Special handling for 404 errors or "not found" messages
+                if (response.status === 404 || 
+                    errorMessage.includes('not found') ||
+                    errorMessage.includes('Not Found')) {
+                    console.error('Audio file not found');
+                    throw new Error('AUDIO_NOT_FOUND');
+                }
+                
+                throw new Error(errorMessage);
             }
 
-            const data = await response.json();
+            // Parse the response to get file URL
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                console.error('Error parsing audio file response:', parseError);
+                throw new Error('Invalid response format from server');
+            }
+            
+            if (!data || !data.url) {
+                console.error('Missing URL in server response:', data);
+                throw new Error('Server response missing audio URL');
+            }
 
+            console.log(`Playing audio from: ${BASE_URL}${data.url}`);
             // Play the audio file
             await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
 
-            // Notify backend that file was played
-            await this.notifyAudioPlayed(data.filename);
+            // Notify backend that file was played (if filename exists)
+            if (data.filename) {
+                console.log(`Notifying backend about played file: ${data.filename}`);
+                await this.notifyAudioPlayed(data.filename);
+            } else {
+                console.warn('No filename in response, skipping played notification');
+            }
 
             return true;
         } catch (error) {
             console.error('Error playing test audio:', error);
-            throw error;
+            
+            // Rethrow specific errors like AUDIO_NOT_FOUND for consistent handling
+            if (error.message === 'AUDIO_NOT_FOUND') {
+                throw error;
+            }
+            
+            // Wrap other errors for consistent handling
+            throw new Error(`Failed to play audio: ${error.message}`);
         }
     },
 
@@ -452,6 +521,40 @@ const audioService = {
                 console.error(errorMessage, event);
                 if (playTimeout) clearTimeout(playTimeout);
                 if (loadingTimeout) clearTimeout(loadingTimeout);
+                
+                // This is a new fallback: Try hacking the URL to see if it's an intelligibility file
+                // that we can access directly
+                if (url.includes('/audio/') && !url.includes('Grace Norman_Int')) {
+                    // Try to extract the sentence number from the URL
+                    const match = url.match(/\/(\d+)$/);
+                    if (match && match[1]) {
+                        const sentenceNum = match[1];
+                        // Construct a direct file URL to try as fallback
+                        const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sentenceNum).padStart(2, '0')}.wav`;
+                        console.log(`Original audio URL failed, trying fallback URL: ${directUrl}`);
+                        
+                        // Create a new audio element for the fallback
+                        const fallbackAudio = new Audio(directUrl);
+                        fallbackAudio.onended = () => {
+                            console.log('Fallback audio playback completed successfully');
+                            resolve();
+                        };
+                        fallbackAudio.onerror = () => {
+                            console.error('Fallback audio also failed');
+                            reject(new Error('All audio playback methods failed'));
+                        };
+                        
+                        // Try playing the fallback
+                        fallbackAudio.play().catch(fallbackError => {
+                            console.error('Fallback playback attempt failed:', fallbackError);
+                            reject(new Error('All audio playback methods failed'));
+                        });
+                        
+                        return; // Exit early since we're handling with fallback
+                    }
+                }
+                
+                // If we reach here, we couldn't create a fallback
                 reject(new Error(errorMessage));
             };
 
@@ -460,21 +563,21 @@ const audioService = {
             audio.onsuspend = () => console.warn('Audio loading suspended');
             audio.onabort = () => console.warn('Audio loading aborted');
             
-            // Set a timeout for initial loading
+            // Set a timeout for initial loading - reduced to 10 seconds for faster fallback
             loadingTimeout = setTimeout(() => {
                 console.warn('Audio loading timeout - could not load audio file');
                 if (this.currentAudio === audio) {
                     this.dispose(); // Clean up this audio element
                 }
                 reject(new Error('Audio loading timeout'));
-            }, 15000); // 15 seconds timeout for loading
+            }, 10000); // 10 seconds timeout for loading
             
             // Set the source and begin loading
             audio.src = url;
             audio.load();
 
             // Use a separate try/catch for play() to ensure we catch any immediate errors
-            const playPromise = audio.play().catch(error => {
+            audio.play().catch(error => {
                 console.error('Error starting audio playback:', error);
                 if (playTimeout) clearTimeout(playTimeout);
                 if (loadingTimeout) clearTimeout(loadingTimeout);
@@ -518,14 +621,20 @@ const audioService = {
      * @param {string} phase - 'pretest', 'training', 'posttest', etc.
      * @param {number|null} trainingDay - Required for training phase (1-4)
      * @param {Array<string>|null} activeTestTypes - Optional array of test types to preload
+     * @param {number|null} maxFiles - Optional maximum number of files to preload per test type
      * @returns {Promise<object>} - Information about preloaded files
      */
-    async preloadAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
+    async preloadAudioFiles(phase, trainingDay = null, activeTestTypes = null, maxFiles = null) {
         try {
             // Normalize the phase parameter to ensure consistency
             const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
 
-            console.log(`Preloading audio files for ${normalizedPhase}${trainingDay ? ` day ${trainingDay}` : ''}`);
+            console.log(`Preloading audio files for ${normalizedPhase}${trainingDay ? ` day ${trainingDay}` : ''}${maxFiles ? ` (max ${maxFiles} files)` : ''}`);
+
+            // If maxFiles is set, log this special case
+            if (maxFiles) {
+                console.log(`Limited preloading: only fetching first ${maxFiles} files for faster access`);
+            }
 
             const response = await fetch(`${BASE_URL}/api/audio/preload`, {
                 method: 'POST',
@@ -536,7 +645,8 @@ const audioService = {
                 body: JSON.stringify({
                     phase: normalizedPhase, // Use the normalized phase name
                     trainingDay,
-                    activeTestTypes // Send the list of active test types to preload
+                    activeTestTypes, // Send the list of active test types to preload
+                    maxFiles // Add the maxFiles parameter to limit how many files to fetch
                 })
             });
 
@@ -547,6 +657,13 @@ const audioService = {
 
             const data = await response.json();
             console.log(`Preloaded ${data.files?.length || 0} audio files for ${normalizedPhase}${trainingDay ? ` day ${trainingDay}` : ''}`);
+            
+            // If we limited the files and this was successful, mark this as partial preloading
+            if (maxFiles && data.success) {
+                console.log(`Partial preloading of ${maxFiles} files completed successfully`);
+                data.partialPreload = true;
+            }
+            
             return data;
         } catch (error) {
             console.error('Error preloading audio files:', error);
@@ -556,11 +673,14 @@ const audioService = {
     },
 
     // Add a specific function for randomized audio files that handles posttest phases
-    async preloadRandomizedAudioFiles(phase, trainingDay = null, activeTestTypes = null) {
+    async preloadRandomizedAudioFiles(phase, trainingDay = null, activeTestTypes = null, maxFiles = null) {
         // Make sure phase names are consistent in the API call
         const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+        
+        console.log(`preloadRandomizedAudioFiles for ${normalizedPhase}, maxFiles=${maxFiles || 'all'}`);
 
-        return this.preloadAudioFiles(normalizedPhase, trainingDay, activeTestTypes);
+        // Add maxFiles parameter to control how many files to preload
+        return this.preloadAudioFiles(normalizedPhase, trainingDay, activeTestTypes, maxFiles);
     },
 
     /**

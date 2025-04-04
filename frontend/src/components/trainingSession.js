@@ -228,47 +228,69 @@ const TrainingSession = ({
     };
 
     const handlePlayTestAudio = async () => {
-        try {
-            const stimulusIndex = currentStimulusIndex + 1;
+        // Try up to 3 times to play the training test audio
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                console.log(`Attempt ${attempt} to play training test audio...`);
+                const stimulusIndex = currentStimulusIndex + 1;
 
-            // Add a timeout for the entire operation
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Operation timeout')), 20000);
-            });
-            
-            // Race the audio playback against our timeout
-            await Promise.race([
-                audioService.playRandomizedTrainingAudio(
-                    trainingDay,
-                    stimulusIndex,
-                    userId
-                ),
-                timeoutPromise
-            ]);
+                // Add a timeout for the entire operation - reduced to 10 seconds for faster failure
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
+                });
+                
+                // Race the audio playback against our timeout
+                await Promise.race([
+                    audioService.playRandomizedTrainingAudio(
+                        trainingDay,
+                        stimulusIndex,
+                        userId
+                    ),
+                    timeoutPromise
+                ]);
 
-            setAudioPlayed(true);
-            return true;
-        } catch (error) {
-            console.error('Error playing audio:', error);
-
-            if (error.message === 'AUDIO_NOT_FOUND') {
-                alert('Audio file not available. Please submit "NA" as your response.');
-                setUserResponse('NA');
+                console.log('Training test audio played successfully!');
                 setAudioPlayed(true);
-            } else if (error.message === 'Audio loading timeout' || error.message === 'Operation timeout') {
-                // Handle timeout specifically
-                alert('Audio playback timed out. Please submit "NA" as your response.');
-                setUserResponse('NA');
-                setAudioPlayed(true);
-            } else {
-                alert('Error playing audio. Please try again or submit "NA" if the issue persists.');
+                return true; // Success
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+
+                // Handle critical errors immediately
+                if (error.message === 'AUDIO_NOT_FOUND' || 
+                    error.message.includes('not found') ||
+                    error.message.includes('404') ||
+                    error.message.includes('timed out')) {
+                    
+                    console.log('Critical error in training test audio - providing fallback');
+                    alert('Audio file could not be played. You can proceed by submitting "NA" as your response.');
+                    setUserResponse('NA');
+                    setAudioPlayed(true);
+                    
+                    // Ensure we clean up any hanging audio
+                    audioService.dispose();
+                    return false; // Failed but handled
+                }
+                
+                // Clean up before potential retry
+                audioService.dispose();
+                
+                // If this is the last attempt, handle the error
+                if (attempt >= 3) {
+                    console.log('All training audio retry attempts failed');
+                    alert('After multiple attempts, the audio could not be played. You can proceed with "NA" as your response.');
+                    setUserResponse('NA');
+                    setAudioPlayed(true);
+                    return false; // Failed but handled
+                }
+                
+                // Wait before retrying
+                await new Promise(r => setTimeout(r, 1000));
+                console.log(`Waiting before retry attempt ${attempt + 1}...`);
             }
-            
-            // Ensure we clean up any hanging audio
-            audioService.dispose();
-
-            return false;
         }
+        
+        // Should never reach here due to return statements above
+        return false;
     };
 
     // Clean up resources when component unmounts or when user navigates away

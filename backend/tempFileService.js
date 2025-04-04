@@ -177,9 +177,9 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
 };
 
 // Preload all files for a specific phase
-const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, activeTestTypes = null) => {
+const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, activeTestTypes = null, maxFiles = null) => {
   try {
-    console.log(`Preloading files for user ${userId}, phase ${phase}${trainingDay ? `, day ${trainingDay}` : ''}${activeTestTypes ? `, test types: ${activeTestTypes.join(', ')}` : ''}`);
+    console.log(`Preloading files for user ${userId}, phase ${phase}${trainingDay ? `, day ${trainingDay}` : ''}${activeTestTypes ? `, test types: ${activeTestTypes.join(', ')}` : ''}${maxFiles ? `, max ${maxFiles} files` : ''}`);
 
     let preloadedFiles = [];
     let skippedFiles = 0;
@@ -352,7 +352,11 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
         }
         else if (testType === 'intelligibility') {
           // Preload intelligibility test files
-          for (let sentence = 1; sentence <= 20; sentence++) {
+          // If maxFiles is provided, only preload that many (for faster initial load)
+          const maxIntelligibilityFiles = maxFiles ? Math.min(maxFiles, 20) : 20;
+          console.log(`Will preload up to ${maxIntelligibilityFiles} intelligibility files`);
+          
+          for (let sentence = 1; sentence <= maxIntelligibilityFiles; sentence++) {
             try {
               // Generate expected filename for this intelligibility file
               const filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
@@ -388,7 +392,9 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
                   sentence
                 );
                 preloadedFiles.push(fileInfo);
+                console.log(`Preloaded intelligibility file ${sentence} of ${maxIntelligibilityFiles}`);
               } else {
+                console.log(`File ${pattern} not found, stopping intelligibility preload`);
                 break;
               }
             } catch (error) {

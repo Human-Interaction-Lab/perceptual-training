@@ -82,28 +82,46 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         const token = localStorage.getItem('token');
         // Get userId from somewhere - could be stored in localStorage during login
         const userId = localStorage.getItem('userId');
+        
+        // Only try to fetch demographics if we have both token and userId
+        if (!token || !userId) {
+          console.warn('Missing token or userId, skipping demographics fetch');
+          return;
+        }
 
-        const response = await fetch(`${config.API_BASE_URL}/api/demographics/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          // Pre-fill form with existing data
-          if (data) {
-            // Format date for input field
-            if (data.dateOfBirth) {
-              const date = new Date(data.dateOfBirth);
-              data.dateOfBirth = date.toISOString().split('T')[0];
+        console.log(`Checking for existing demographics for user: ${userId}`);
+        
+        try {
+          const response = await fetch(`${config.API_BASE_URL}/api/demographics/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
-            setFormData(data);
-            setIsResearchPersonnel(data.formCompletedBy === 'Research Personnel');
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Pre-fill form with existing data
+            if (data) {
+              console.log('Found existing demographics data, pre-filling form');
+              // Format date for input field
+              if (data.dateOfBirth) {
+                const date = new Date(data.dateOfBirth);
+                data.dateOfBirth = date.toISOString().split('T')[0];
+              }
+              setFormData(data);
+              setIsResearchPersonnel(data.formCompletedBy === 'Research Personnel');
+            }
+          } else if (response.status === 404) {
+            console.log('No existing demographics found, using default form');
+          } else {
+            console.warn(`Unexpected response from demographics API: ${response.status}`);
           }
+        } catch (fetchError) {
+          // Handle fetch errors gracefully
+          console.warn('Error fetching demographics, continuing with empty form:', fetchError);
         }
       } catch (error) {
-        console.error('Error checking demographics:', error);
+        console.error('Error in demographics check:', error);
       }
     };
 
@@ -227,14 +245,22 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         // Handle case where demographics already exist
         if (response.status === 400 && data.error && data.error.includes("Demographics already exist")) {
           console.log("Demographics already exist, proceeding as if submission was successful");
-          // Treat as success since demographics already exist
+          
+          // No preloading during demographics anymore - completely separate
+          console.log("Completely separating demographics from pretest - no preloading here");
+          
+          // Immediately proceed to the next step
           onSubmit();
           return;
         }
         
         throw new Error(data.error || 'Failed to submit form');
       }
-
+      
+      // No longer preload files at all during demographics submission
+      console.log("Demographics submitted successfully - no longer preloading files here");
+      
+      // Just proceed immediately
       onSubmit();
     } catch (error) {
       console.error('Error submitting demographics:', error);

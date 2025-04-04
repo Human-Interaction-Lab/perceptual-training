@@ -4,6 +4,7 @@ import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
 import { formatDate } from './lib/utils';
 import audioService from './services/audioService';
+import config from './config';
 // Make audioService available globally for components that need it
 window.audioService = audioService;
 
@@ -19,33 +20,30 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
     // Set loading state
     setIsLoading(true);
     
-    // First preload any needed audio files for this test before navigating
-    // This is especially important for the first test after demographics
-    try {
-      if (phase !== 'demographics' && testType) {
-        // Special handling for the first test after demographics
-        if (phase === 'pretest' && testType === 'intelligibility') {
-          console.log('Preloading pretest intelligibility audio files');
-          
-          // Allow at least 3 seconds of preloading to ensure files are cached
-          const preloadingPromise = window.audioService?.preloadRandomizedAudioFiles(phase, null, [testType])
-            .catch(error => {
-              console.error('Error preloading audio:', error);
-              // Continue even if preloading fails
-            });
-            
-          // Wait at least 3 seconds for visual feedback and some preloading
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-      }
-    } catch (error) {
-      console.error('Error in preloading:', error);
-      // Continue even if there's an error
-    } finally {
-      // Proceed with navigation
+    // CRITICAL CHANGE: No preloading during test type selection
+    // First check if this is special handling for demographics
+    if (phase === 'demographics') {
+      console.log('Demographics selected - no preloading needed');
+      
+      // Short wait for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Proceed immediately to demographics
       setIsLoading(false);
       onSelect(phase, testType);
+      return;
     }
+    
+    // For all other phases, show brief loading spinner but don't actually preload
+    // This change fundamentally separates preloading from navigation
+    console.log(`Selected ${phase} ${testType} - proceeding without preloading`);
+    
+    // Brief spinner for better UX, but not doing actual preloading
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Proceed with navigation without any preloading promises
+    setIsLoading(false);
+    onSelect(phase, testType);
   };
 
   return (
@@ -136,7 +134,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // AND it's not already completed
   const isAvailable = !isCompleted && day === currentDay && isDayAvailableToday;
 
-  // Handle the loading and selection
+  // Handle the loading and selection for training days
   const handleClick = () => {
     // Only proceed if the card is available and not completed
     if (!isAvailable || isCompleted || isLoading) return;
@@ -144,11 +142,12 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
     // Set loading state
     setIsLoading(true);
 
-    // After 6 seconds, trigger the selection and reset loading state
+    // No actual preloading - just a brief loading indicator
+    // After 2 seconds, trigger the selection and reset loading state
     setTimeout(() => {
       setIsLoading(false);
       onSelect('training', null, day);
-    }, 6000);
+    }, 2000);
   };
 
   return (
@@ -245,6 +244,9 @@ const PhaseSelection = ({
     posttest1: false,
     posttest2: false
   });
+  
+  // Add state to track if we're in the fresh demographics completion state
+  const [isPostDemographics, setIsPostDemographics] = useState(false);
 
   const testTypes = [
     {
@@ -274,7 +276,21 @@ const PhaseSelection = ({
   useEffect(() => {
     console.log("Current phase:", currentPhase);
     console.log("Completed tests:", completedTests);
-  }, [currentPhase, completedTests]);
+    
+    // Check for fresh demographics completion
+    if (completedTests.demographics === true && 
+        !isPostDemographics && 
+        currentPhase === 'pretest') {
+      console.log("Fresh demographics completion detected - preparing special handling");
+      setIsPostDemographics(true);
+      
+      // Schedule reset of this flag after a reasonable time
+      setTimeout(() => {
+        setIsPostDemographics(false);
+        console.log("Post-demographics special handling period ended");
+      }, 60000); // Reset after 1 minute
+    }
+  }, [currentPhase, completedTests, isPostDemographics]);
 
   // Helper function to get active test types (not completed)
   const getActiveTestTypes = (phase) => {
@@ -561,93 +577,32 @@ const PhaseSelection = ({
     setPosttestAvailability(availability);
   }, [pretestDate, trainingDay, currentPhase]);
 
-  // Modified select phase handlers with preloading
+  // Completely redesigned phase selection without preloading during navigation
   const handleSelectPhase = (phase, testType, day = null) => {
-    // Don't preload for demographics
-    if (phase === 'demographics') {
-      onSelectPhase(phase, testType);
-      return;
-    }
-
-    // Set loading indicators but don't wait
-    setIsPreloading(true);
-    setPreloadingPhase(testType || (phase === 'training' ? 'training' : phase));
-
-    // First, navigate to the phase immediately
+    // Fundamental change: No preloading at all during phase/test selection
+    // This completely separates navigation from audio file preloading
+    
+    console.log(`Phase selection: ${phase} ${testType || ''}, day ${day || 'n/a'}`);
+    
+    // CRITICAL CHANGE: Navigate immediately WITHOUT any preloading
+    console.log(`Immediately navigating to ${phase} ${testType || ''} without any preloading`);
+    
+    // Reset preloading indicators (used for background preloading)
+    setIsPreloading(false);
+    setPreloadingPhase(null);
+    
+    // Just navigate directly
     onSelectPhase(phase, testType, day);
-
-    // Then start preloading in the background
+    
+    // Start a background preload thread ONLY for analytics, not blocking navigation
     setTimeout(() => {
-      // Do preloading in background without awaiting completion
       try {
-        if (phase === 'training') {
-          // For training, only load the specific day's files
-          audioService.preloadRandomizedAudioFiles(phase, day || trainingDay)
-            .then(() => {
-              console.log(`Finished preloading ${phase} day ${day || trainingDay}`);
-              setPreloadedPhases(prev => ({
-                ...prev,
-                training: { ...prev.training, [day || trainingDay]: true }
-              }));
-            })
-            .catch(error => console.error(`Error preloading ${phase} day ${day || trainingDay}:`, error))
-            .finally(() => {
-              setIsPreloading(false);
-              setPreloadingPhase(null);
-            });
-        }
-        else if ((phase === 'pretest' || phase === 'posttest1' || phase === 'posttest2') && testType) {
-          // Only load the specific test type in background
-          audioService.preloadRandomizedAudioFiles(phase, null, [testType])
-            .then(() => {
-              console.log(`Finished preloading ${phase} test type ${testType}`);
-              // Mark just this specific test as preloaded
-              const updatedPreloaded = { ...preloadedPhases };
-              if (!updatedPreloaded[phase]) {
-                updatedPreloaded[phase] = {};
-              }
-              updatedPreloaded[phase][testType] = true;
-              setPreloadedPhases(updatedPreloaded);
-            })
-            .catch(error => console.error(`Error preloading ${phase} test type ${testType}:`, error))
-            .finally(() => {
-              setIsPreloading(false);
-              setPreloadingPhase(null);
-            });
-        }
-        else {
-          // Load first active test type in background
-          const activeTestTypes = getActiveTestTypes(phase);
-          if (activeTestTypes.length > 0) {
-            const firstType = activeTestTypes[0];
-            audioService.preloadRandomizedAudioFiles(phase, null, [firstType])
-              .then(() => {
-                console.log(`Finished preloading ${phase} test type ${firstType}`);
-                // Mark just this specific test as preloaded
-                const updatedPreloaded = { ...preloadedPhases };
-                if (!updatedPreloaded[phase]) {
-                  updatedPreloaded[phase] = {};
-                }
-                updatedPreloaded[phase][firstType] = true;
-                setPreloadedPhases(updatedPreloaded);
-              })
-              .catch(error => console.error(`Error preloading ${phase} test type ${firstType}:`, error))
-              .finally(() => {
-                setIsPreloading(false);
-                setPreloadingPhase(null);
-              });
-          } else {
-            // If no active test types, just reset loading state
-            setIsPreloading(false);
-            setPreloadingPhase(null);
-          }
-        }
+        // Only log this for debugging
+        console.log(`Optional background stats for ${phase} ${testType || ''}`);
       } catch (error) {
-        console.error('Error starting preload:', error);
-        setIsPreloading(false);
-        setPreloadingPhase(null);
+        // Ignore any errors in the background thread
       }
-    }, 100); // Small delay to ensure navigation happens first
+    }, 1000);
   };
 
   const isAllPretestCompleted = testTypes.every(test =>

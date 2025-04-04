@@ -310,8 +310,15 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
 // Preload audio files for a specific phase
 app.post('/api/audio/preload', authenticateToken, async (req, res) => {
   try {
-    const { phase, trainingDay, activeTestTypes } = req.body;
+    const { phase, trainingDay, activeTestTypes, maxFiles } = req.body;
     const userId = req.user.userId;
+
+    console.log(`Preload request for ${phase} with params:`, { 
+      trainingDay, 
+      activeTestTypes, 
+      maxFiles: maxFiles || 'all',
+      userId
+    });
 
     // Get user to retrieve speaker information
     const user = await User.findOne({ userId });
@@ -343,13 +350,18 @@ app.post('/api/audio/preload', authenticateToken, async (req, res) => {
       user.speaker,
       phase,
       phase === 'training' ? trainingDay : null,
-      activeTestTypes // Pass through the active test types
+      activeTestTypes, // Pass through the active test types
+      maxFiles // Add maxFiles parameter
     );
 
+    // Format a user-friendly message about what was preloaded
+    const filesDescription = maxFiles ? `first ${maxFiles} files` : 'all files';
+    
     res.json({
       success: true,
       message: `Successfully processed ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''} (${preloadResult.newlyDownloaded} new, ${preloadResult.skipped} already loaded)`,
-      files: preloadResult.files
+      files: preloadResult.files,
+      partialPreload: maxFiles ? true : false // Indicate if this was a partial preload
     });
   } catch (error) {
     console.error('Error preloading audio files:', error);
