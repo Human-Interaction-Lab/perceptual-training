@@ -4,24 +4,48 @@ import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
 import { formatDate } from './lib/utils';
 import audioService from './services/audioService';
+// Make audioService available globally for components that need it
+window.audioService = audioService;
 
 const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
   const { isAvailable, isCompleted } = status;
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle the loading and selection
-  const handleClick = () => {
+  // Handle the loading and selection with improved preloading
+  const handleClick = async () => {
     // Only proceed if the card is available and not completed
     if (!isAvailable || isCompleted || isLoading) return;
 
     // Set loading state
     setIsLoading(true);
-
-    // After 6 seconds, trigger the selection and reset loading state
-    setTimeout(() => {
+    
+    // First preload any needed audio files for this test before navigating
+    // This is especially important for the first test after demographics
+    try {
+      if (phase !== 'demographics' && testType) {
+        // Special handling for the first test after demographics
+        if (phase === 'pretest' && testType === 'intelligibility') {
+          console.log('Preloading pretest intelligibility audio files');
+          
+          // Allow at least 3 seconds of preloading to ensure files are cached
+          const preloadingPromise = window.audioService?.preloadRandomizedAudioFiles(phase, null, [testType])
+            .catch(error => {
+              console.error('Error preloading audio:', error);
+              // Continue even if preloading fails
+            });
+            
+          // Wait at least 3 seconds for visual feedback and some preloading
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      }
+    } catch (error) {
+      console.error('Error in preloading:', error);
+      // Continue even if there's an error
+    } finally {
+      // Proceed with navigation
       setIsLoading(false);
       onSelect(phase, testType);
-    }, 6000);
+    }
   };
 
   return (

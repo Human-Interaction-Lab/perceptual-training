@@ -688,9 +688,11 @@ const App = () => {
   };
 
 
-  // Revised handlePlayAudio function to handle randomization
+  // Revised handlePlayAudio function to handle randomization with improved error handling
   const handlePlayAudio = async (input) => {
     try {
+      console.log(`handlePlayAudio called - phase: ${phase}, testType: ${currentTestType}, stimulus: ${currentStimulus + 1}`);
+      
       // Check if we're playing a full story (input will be storyId like "Comp_01")
       if (typeof input === 'string' && input.startsWith('Comp_')) {
         // Story playback remains the same
@@ -715,40 +717,83 @@ const App = () => {
       }
       // Use randomized playback for intelligibility tests 
       else if (currentTestType === 'intelligibility') {
-        await audioService.playRandomizedTestAudio(
-          phase,
-          'intelligibility',
-          null,
-          currentStimulus + 1,
-          userId
-        );
+        // Add a timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+        });
+        
+        // Race the audio operation against the timeout
+        await Promise.race([
+          audioService.playRandomizedTestAudio(
+            phase,
+            'intelligibility',
+            null,
+            currentStimulus + 1,
+            userId
+          ),
+          timeoutPromise
+        ]);
+        
         return true;
       }
       // Use randomized playback for effort
       else if (currentTestType === 'effort') {
-        await audioService.playRandomizedEffortAudio(
-          phase,
-          currentStimulus + 1,
-          userId
-        );
+        // Add a timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+        });
+        
+        // Race the audio operation against the timeout
+        await Promise.race([
+          audioService.playRandomizedEffortAudio(
+            phase,
+            currentStimulus + 1,
+            userId
+          ),
+          timeoutPromise
+        ]);
+        
         return true;
       }
       // if randomization not working do sequential
       else {
-        await audioService.playTestAudio(
-          phase,
-          'intelligibility',
-          null,
-          currentStimulus + 1
-        );
+        // Add a timeout to prevent hanging indefinitely
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Audio operation timeout')), 20000);
+        });
+        
+        // Race the audio operation against the timeout
+        await Promise.race([
+          audioService.playTestAudio(
+            phase,
+            'intelligibility',
+            null,
+            currentStimulus + 1
+          ),
+          timeoutPromise
+        ]);
+        
         return true;
       }
     } catch (error) {
       console.error('Error playing audio:', error);
-      if (error.message !== 'AUDIO_NOT_FOUND') {
+      
+      // Handle different error types
+      if (error.message === 'AUDIO_NOT_FOUND') {
+        // Already specific handling for this in the test components
+        return false;
+      } else if (error.message === 'Audio operation timeout' || 
+                error.message === 'Audio loading timeout') {
+        alert('Audio playback timed out. Please try again or refresh the page if the problem persists.');
+        // Clean up any hanging audio
+        audioService.dispose();
+      } else {
         alert('Error playing audio. Please try again.');
       }
       return false;
+    } finally {
+      // Always ensure we clean up any audio resources
+      console.log('Finished audio playback attempt');
     }
   };
 

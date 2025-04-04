@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
 import { Volume2, Send, AlertCircle } from 'lucide-react';
+import audioService from '../services/audioService';
 
 const ListeningEffortTest = ({
     userResponse,
@@ -86,11 +87,7 @@ const ListeningEffortTest = ({
             setIsPlaying(false);
             
             // Ensure we clean up any hanging audio
-            if (window.audioService) {
-                window.audioService.dispose();
-            } else if (typeof audioService !== 'undefined') {
-                audioService.dispose();
-            }
+            audioService.dispose();
         }
     };
 

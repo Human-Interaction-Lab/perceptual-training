@@ -24,35 +24,74 @@ const audioService = {
     */
     async playRandomizedTestAudio(phase, testType, version, sentence, userId) {
         try {
+            console.log(`playRandomizedTestAudio: phase=${phase}, testType=${testType}, version=${version}, sentence=${sentence}`);
+            
             // Normalize phase name to ensure consistency
             const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
+            
+            // Validate token is available
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No authentication token found - cannot play audio');
+                throw new Error('Authentication required');
+            }
 
             // Request the audio file URL from the backend
+            console.log(`Fetching audio file from: ${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`);
             const response = await fetch(
                 `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`,
                 {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     }
                 }
             );
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to get audio file');
+                console.error(`Error response from server: ${response.status} ${response.statusText}`);
+                let errorMessage = 'Failed to get audio file';
+                try {
+                    const error = await response.json();
+                    errorMessage = error.error || errorMessage;
+                } catch (parseError) {
+                    console.error('Could not parse error response as JSON:', parseError);
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
+            console.log(`Successfully retrieved audio file info: ${data.filename || 'unnamed file'}`);
+
+            if (!data.url) {
+                throw new Error('Server response missing audio URL');
+            }
 
             // Play the audio file
+            console.log(`Playing audio from: ${BASE_URL}${data.url}`);
             await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
 
             // Notify backend that file was played
-            await this.notifyAudioPlayed(data.filename);
+            if (data.filename) {
+                console.log(`Notifying backend about played file: ${data.filename}`);
+                await this.notifyAudioPlayed(data.filename);
+            }
 
             return true;
         } catch (error) {
             console.error(`Error playing ${testType} audio for ${phase}:`, error);
+            
+            // Filter out any connection errors
+            if (error.message.includes('NetworkError') || 
+                error.message.includes('Failed to fetch') || 
+                error.message.includes('Network request failed')) {
+                throw new Error('Network error - please check your internet connection');
+            }
+            
+            // Check for common audio-related errors
+            if (error.message.includes('NotAllowedError')) {
+                throw new Error('Browser blocked audio playback - user interaction required');
+            }
+            
             throw error;
         }
     },
@@ -376,22 +415,31 @@ const audioService = {
      */
     playAudioFromUrl(url) {
         return new Promise((resolve, reject) => {
-            const audio = new Audio(url);
+            console.log(`Playing audio from URL: ${url}`);
+            const audio = new Audio();
             let playTimeout;
+            let loadingTimeout;
 
+            // Set up event listeners before setting the source
+            // This is important for catching load errors properly
+            
             // Audio event handlers
             audio.onended = () => {
+                console.log('Audio playback completed normally');
                 if (playTimeout) clearTimeout(playTimeout);
+                if (loadingTimeout) clearTimeout(loadingTimeout);
                 resolve();
             };
 
             audio.oncanplaythrough = () => {
-                // Clear any existing timeout since we can play now
-                if (playTimeout) clearTimeout(playTimeout);
+                console.log('Audio can play through without buffering');
+                // Clear loading timeout since we can play now
+                if (loadingTimeout) clearTimeout(loadingTimeout);
                 
                 // Set a new timeout for the actual playback duration
                 if (audio.duration && !isNaN(audio.duration)) {
                     const duration = Math.ceil(audio.duration * 1000) + 2000; // Audio duration + 2 seconds buffer
+                    console.log(`Setting playback timeout for ${duration}ms`);
                     playTimeout = setTimeout(() => {
                         console.warn('Audio playback timeout - forcing completion');
                         resolve();
@@ -399,21 +447,43 @@ const audioService = {
                 }
             };
 
-            audio.onerror = (error) => {
+            audio.onerror = (event) => {
+                const errorMessage = `Audio error: ${audio.error ? audio.error.code : 'unknown error'}`;
+                console.error(errorMessage, event);
                 if (playTimeout) clearTimeout(playTimeout);
-                console.error('Audio playback error:', error);
-                reject(new Error('Failed to play audio'));
+                if (loadingTimeout) clearTimeout(loadingTimeout);
+                reject(new Error(errorMessage));
             };
 
+            // Just in case these events aren't fired
+            audio.onstalled = () => console.warn('Audio playback stalled');
+            audio.onsuspend = () => console.warn('Audio loading suspended');
+            audio.onabort = () => console.warn('Audio loading aborted');
+            
             // Set a timeout for initial loading
-            playTimeout = setTimeout(() => {
+            loadingTimeout = setTimeout(() => {
                 console.warn('Audio loading timeout - could not load audio file');
+                if (this.currentAudio === audio) {
+                    this.dispose(); // Clean up this audio element
+                }
                 reject(new Error('Audio loading timeout'));
             }, 15000); // 15 seconds timeout for loading
+            
+            // Set the source and begin loading
+            audio.src = url;
+            audio.load();
 
-            // Start playing
-            audio.play().catch(error => {
+            // Use a separate try/catch for play() to ensure we catch any immediate errors
+            const playPromise = audio.play().catch(error => {
+                console.error('Error starting audio playback:', error);
                 if (playTimeout) clearTimeout(playTimeout);
+                if (loadingTimeout) clearTimeout(loadingTimeout);
+                
+                // Check for specific autoplay policy error
+                if (error.name === 'NotAllowedError') {
+                    return reject(new Error('Playback not allowed - may need user interaction'));
+                }
+                
                 reject(error);
             });
             
