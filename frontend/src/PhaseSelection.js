@@ -9,7 +9,7 @@ import config from './config';
 window.audioService = audioService;
 
 const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
-  const { isAvailable, isCompleted } = status;
+  const { isAvailable, isCompleted, hasProgress } = status;
   const [isLoading, setIsLoading] = useState(false);
 
   // Handle the loading and selection with improved preloading
@@ -59,6 +59,11 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
               <CheckCircle className="h-6 w-6 text-green-500" />
             ) : isLoading ? (
               <Loader className="h-6 w-6 text-blue-500 animate-spin" />
+            ) : hasProgress ? (
+              <div className="relative">
+                <Clock className="h-6 w-6 text-yellow-500" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
+              </div>
             ) : isAvailable ? (
               <Clock className="h-6 w-6 text-blue-500" />
             ) : (
@@ -75,7 +80,9 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+            {isCompleted ? 'Completed' : 
+             hasProgress ? 'In Progress - Continue' : 
+             isAvailable ? 'Available Now' : 'Locked'}
             {date && ` • ${date}`}
           </p>
         )}
@@ -94,7 +101,9 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : isAvailable ? 'Begin Test' : 'Locked'}
+              {isCompleted ? 'Completed' : 
+               hasProgress ? 'Continue Test' : 
+               isAvailable ? 'Begin Test' : 'Locked'}
             </span>
           )}
           {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
@@ -178,7 +187,9 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : isAvailable ? 'Available Now' : 'Locked'}
+            {isCompleted ? 'Completed' : 
+             hasProgress ? 'In Progress - Continue' : 
+             isAvailable ? 'Available Now' : 'Locked'}
             {date && ` • ${date}`}
           </p>
         )}
@@ -323,6 +334,17 @@ const PhaseSelection = ({
   }, [currentPhase]);
 
 
+  // Helper function to check if a test has saved progress
+  const hasInProgressData = (phase, testType) => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return false;
+    
+    const progressKey = `progress_${userId}_${phase}_${testType}`;
+    const savedProgress = localStorage.getItem(progressKey);
+    
+    return savedProgress !== null;
+  };
+
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
     // Check if demographics is completed from either state or completedTests map
@@ -336,15 +358,18 @@ const PhaseSelection = ({
       // This prevents it from being blocked by other conditions
       return {
         isAvailable: !demoCompleted,
-        isCompleted: demoCompleted
+        isCompleted: demoCompleted,
+        hasProgress: false // Demographics doesn't support resuming
       };
     }
 
     // For training phase
     if (phase === 'training') {
+      const inProgress = hasInProgressData(phase, testType);
       return {
         isAvailable: currentPhase === 'training' && demoCompleted,
-        isCompleted: completedTests[`${phase}_${testType}`] || false
+        isCompleted: completedTests[`${phase}_${testType}`] || false,
+        hasProgress: inProgress
       };
     }
 
@@ -362,23 +387,27 @@ const PhaseSelection = ({
 
       // First test in a phase
       if (test.order === 1) {
+        const inProgress = hasInProgressData(phase, test.type);
         return {
           // Available if it's the current phase, OR if this is posttest1 and it's available by date
           isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
             !isTestCompleted,
-          isCompleted: isTestCompleted
+          isCompleted: isTestCompleted,
+          hasProgress: inProgress
         };
       }
 
       // Subsequent tests in a posttest phase
       const previousTest = testTypes.find(t => t.order === test.order - 1);
       const previousTestCompleted = completedTests[`${phase}_${previousTest.type}`] || false;
+      const inProgress = hasInProgressData(phase, test.type);
 
       return {
         isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
           previousTestCompleted &&
           !isTestCompleted,
-        isCompleted: isTestCompleted
+        isCompleted: isTestCompleted,
+        hasProgress: inProgress
       };
     }
 
@@ -394,12 +423,14 @@ const PhaseSelection = ({
 
       // First test in pretest phase (after demographics)
       if (test.order === 1) {
+        const inProgress = hasInProgressData(phase, test.type);
         return {
           // Only available if demographics is completed and we're in pretest phase
           isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') && 
                       demoCompleted && 
                       !isTestCompleted,
-          isCompleted: isTestCompleted
+          isCompleted: isTestCompleted,
+          hasProgress: inProgress
         };
       }
 
@@ -408,24 +439,29 @@ const PhaseSelection = ({
       const previousTestCompleted =
         completedTests[`${phase}_${previousTest.type}`] ||
         completedTests[previousTest.type];
+      const inProgress = hasInProgressData(phase, test.type);
 
       return {
         isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
           demoCompleted &&
           previousTestCompleted &&
           !isTestCompleted,
-        isCompleted: isTestCompleted
+        isCompleted: isTestCompleted,
+        hasProgress: inProgress
       };
     }
 
     // For other phases
     const test = testTypes.find(t => t.type === testType);
-    if (!test) return { isAvailable: false, isCompleted: false };
+    if (!test) return { isAvailable: false, isCompleted: false, hasProgress: false };
 
     // Check for completed test
     const isTestCompleted =
       completedTests[`${phase}_${testType}`] ||
       completedTests[testType];
+    
+    // Check if there's saved progress
+    const inProgress = hasInProgressData(phase, test.type);
 
     // First test in other phases
     if (test.order === 1) {
@@ -433,7 +469,8 @@ const PhaseSelection = ({
         isAvailable: phase === currentPhase && 
                      demoCompleted && 
                      !isTestCompleted,
-        isCompleted: isTestCompleted
+        isCompleted: isTestCompleted,
+        hasProgress: inProgress
       };
     }
 
@@ -448,7 +485,8 @@ const PhaseSelection = ({
         demoCompleted &&
         previousTestCompleted &&
         !isTestCompleted,
-      isCompleted: isTestCompleted
+      isCompleted: isTestCompleted,
+      hasProgress: inProgress
     };
   };
 

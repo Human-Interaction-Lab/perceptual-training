@@ -47,12 +47,44 @@ const App = () => {
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   // const [comprehensionResponses, setComprehensionResponses] = useState([]);
 
-  // Reset states when phase changes
+  // Reset states when phase changes - with session persistence
   useEffect(() => {
+    // Skip reset if in demographics phase
+    if (phase === 'demographics') {
+      return;
+    }
+    
+    // Try to load saved progress for current user and phase
+    const userId = localStorage.getItem('userId');
+    if (userId && phase !== 'selection' && phase !== 'auth') {
+      const savedProgressKey = `progress_${userId}_${phase}_${currentTestType || ''}`;
+      const savedProgress = localStorage.getItem(savedProgressKey);
+      
+      if (savedProgress) {
+        try {
+          const progress = JSON.parse(savedProgress);
+          console.log(`Resuming saved progress for ${phase} (${currentTestType}):`, progress);
+          
+          // Restore state from saved progress
+          setCurrentStimulus(progress.stimulus || 0);
+          setUserResponse(progress.response || '');
+          if (progress.rating) setRating(progress.rating);
+          if (progress.questionIndex !== undefined) setQuestionIndex(progress.questionIndex);
+          if (progress.currentStoryIndex !== undefined) setCurrentStoryIndex(progress.currentStoryIndex);
+          
+          // Don't reset other states when resuming
+          return;
+        } catch (error) {
+          console.error('Error parsing saved progress:', error);
+        }
+      }
+    }
+    
+    // If no saved progress or error parsing, use default initial values
     setCurrentStimulus(0);
     setUserResponse('');
     setShowComplete(false);
-  }, [phase]);
+  }, [phase, currentTestType]);
   
   // Add a special check to ensure demographics data is loaded when needed
   useEffect(() => {
@@ -75,7 +107,7 @@ const App = () => {
     }
   }, [phase]);
 
-  // Log state changes for debugging
+  // Log state changes for debugging and save progress
   useEffect(() => {
     console.log('State Update:', {
       phase,
@@ -85,7 +117,40 @@ const App = () => {
       showComplete,
       stimuliLength: getCurrentStimuli()?.length
     });
-  }, [phase, currentPhase, trainingDay, currentStimulus, showComplete]);
+    
+    // Save progress for resuming later - applies to all test phases
+    const userId = localStorage.getItem('userId');
+    if (userId && phase !== 'selection' && phase !== 'auth' && phase !== 'demographics' 
+        && !showComplete && currentTestType) {
+      
+      // Create a unique key for this user, phase and test type
+      const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
+      
+      // Save all relevant state for this test type
+      const progressData = {
+        stimulus: currentStimulus,
+        response: userResponse,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Add test-specific data
+      if (currentTestType === 'effort' && rating !== null) {
+        progressData.rating = rating;
+      }
+      
+      if (currentTestType === 'comprehension') {
+        progressData.questionIndex = questionIndex;
+        progressData.currentStoryIndex = currentStoryIndex;
+      }
+      
+      // Only save if we're actively in a test (stimulus > 0 or explicit save)
+      if (currentStimulus > 0 || phase === 'training') {
+        console.log(`Saving progress for ${progressKey}`, progressData);
+        localStorage.setItem(progressKey, JSON.stringify(progressData));
+      }
+    }
+  }, [phase, currentPhase, trainingDay, currentStimulus, currentTestType, 
+      userResponse, rating, questionIndex, currentStoryIndex, showComplete]);
 
   // stimuli data structure
   const stimuli = {
@@ -501,6 +566,18 @@ const App = () => {
         // Move to the next assigned story
         setCurrentStoryIndex(prevIndex => prevIndex + 1);
         setQuestionIndex(0);
+        
+        // Save the progress for the new story
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          const progressKey = `progress_${userId}_${phase}_comprehension`;
+          const progressData = {
+            questionIndex: 0,
+            currentStoryIndex: currentStoryIndex + 1,
+            timestamp: new Date().toISOString()
+          };
+          localStorage.setItem(progressKey, JSON.stringify(progressData));
+        }
       } else {
         // Complete the comprehension test
         setCompletedTests(prev => ({
@@ -508,6 +585,14 @@ const App = () => {
           [`${phase}_comprehension`]: true
         }));
         setShowComplete(true);
+
+        // Clear saved progress for completed comprehension test
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          const progressKey = `progress_${userId}_${phase}_comprehension`;
+          localStorage.removeItem(progressKey);
+          console.log(`Cleared saved progress for completed comprehension test: ${progressKey}`);
+        }
 
         // Update phase if needed
         if (phase === 'pretest') {
@@ -589,6 +674,14 @@ const App = () => {
 
       // Show completion message
       setShowComplete(true);
+      
+      // Clear saved progress for completed test
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
+        localStorage.removeItem(progressKey);
+        console.log(`Cleared saved progress for completed test: ${progressKey}`);
+      }
 
       // Handle phase transitions and user progress
       setTimeout(() => {
