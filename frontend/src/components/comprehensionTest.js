@@ -15,6 +15,7 @@ const ComprehensionTest = ({
     totalStimuli,
     onPlayAudio,
     storyId,
+    currentStoryIndex, // Add this prop to track the story number in sequence
     isSubmitting = false
 }) => {
     const [storyAudioPlayed, setStoryAudioPlayed] = useState(false);
@@ -32,7 +33,9 @@ const ComprehensionTest = ({
         setShowQuestions(false);
     }, [storyId]);
 
-    const storyNumber = parseInt(storyId.replace('Comp_', ''));
+    // Extract story number and adjust to display 1 and 2 for story indices
+    // If we're dealing with assigned stories in sequence, use the currentStoryIndex + 1
+    const storyNumber = currentStoryIndex !== undefined ? currentStoryIndex + 1 : parseInt(storyId.replace('Comp_', ''));
 
     const handlePlayStoryAudio = async () => {
         if (isPlayingStory) return;

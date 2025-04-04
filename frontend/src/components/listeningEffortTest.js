@@ -124,9 +124,25 @@ const ListeningEffortTest = ({
         audioService.dispose();
     };
 
+    // Helper function to detect browser type
+    const getBrowserType = () => {
+        if (typeof window === 'undefined') return 'unknown';
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        if (userAgent.indexOf('chrome') > -1) return 'chrome';
+        return 'other';
+    };
+
     return (
         <Card className="shadow-lg border-gray-200">
             <CardContent className="p-6 space-y-6">
+                {/* Browser compatibility notice */}
+                {getBrowserType() !== 'chrome' && (
+                    <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
+                        <p className="font-medium text-yellow-800">Browser Warning</p>
+                        <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
+                    </div>
+                )}
+                
                 {/* Progress Section */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
