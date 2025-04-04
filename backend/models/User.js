@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema({
     isAdmin: {
         type: Boolean,
         default: false
+    },
+    // Field to track when test users were last initialized
+    // Only set on the admin user
+    testUsersInitializedAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

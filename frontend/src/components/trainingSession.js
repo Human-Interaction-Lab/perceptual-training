@@ -27,7 +27,23 @@ const TrainingSession = ({
     // Load saved progress when component mounts
     useEffect(() => {
         const loadSavedProgress = () => {
-            const savedProgress = localStorage.getItem(`training_progress_day_${trainingDay}`);
+            // Get the proper user-specific progress key
+            const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
+            // Also check the old format for backward compatibility
+            const legacyKey = `training_progress_day_${trainingDay}`;
+            
+            // First try the new format
+            let savedProgress = localStorage.getItem(userSpecificKey);
+            
+            // If not found, try the legacy format
+            if (!savedProgress) {
+                savedProgress = localStorage.getItem(legacyKey);
+                
+                // If we found data in the legacy format, log it and will save in new format later
+                if (savedProgress) {
+                    console.log('Found legacy format progress data, will migrate to new format');
+                }
+            }
 
             if (savedProgress) {
                 try {
@@ -81,14 +97,17 @@ const TrainingSession = ({
                 audioPlayed
             };
 
-            localStorage.setItem(
-                `training_progress_day_${trainingDay}`,
-                JSON.stringify(progressData)
-            );
+            // Use the new user-specific format
+            const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
+            
+            localStorage.setItem(userSpecificKey, JSON.stringify(progressData));
+            
+            // Also remove any legacy format data to avoid confusion
+            localStorage.removeItem(`training_progress_day_${trainingDay}`);
 
-            console.log('Saved progress:', progressData);
+            console.log('Saved progress using new format:', progressData);
         }
-    }, [trainingDay, currentPhase, currentStimulusIndex, audioPlayed]);
+    }, [trainingDay, currentPhase, currentStimulusIndex, audioPlayed, userId]);
 
     // Auto-play audio when in training phase and stimulus changes
     useEffect(() => {
@@ -209,6 +228,8 @@ const TrainingSession = ({
                         console.log('Played files have been cleaned up');
 
                         // Clear saved progress when completing a training day
+                        localStorage.removeItem(`progress_${userId}_training_day${trainingDay}`);
+                        // Also clear legacy format if it exists
                         localStorage.removeItem(`training_progress_day_${trainingDay}`);
                     } catch (error) {
                         console.error('Error cleaning up files:', error);

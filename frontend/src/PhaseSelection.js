@@ -663,6 +663,23 @@ const PhaseSelection = ({
           </div>
         )}
         
+        {/* Developer tools - only show in development mode */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 bg-gray-100 p-2 rounded-md border border-gray-300">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Developer Tools</span>
+              <a 
+                href="/clear-test-users.html" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Clear Test User Progress
+              </a>
+            </div>
+          </div>
+        )}
+        
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Communication Training Progress

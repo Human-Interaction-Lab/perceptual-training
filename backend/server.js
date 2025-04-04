@@ -582,6 +582,30 @@ app.post('/api/login', async (req, res) => {
     const isDemographicsCompleted = 
       user.completedTests.get('demographics') === true || 
       user.completedTests.get('pretest_demographics') === true;
+      
+    // Check if test users were recently initialized
+    let testUsersInitialized = false;
+    let testUsersInitializedAt = null;
+    
+    if (userId.startsWith('test_')) {
+      // This is a test user, so check for the initialization flag
+      try {
+        const adminUser = await User.findOne({ isAdmin: true });
+        if (adminUser && adminUser.testUsersInitializedAt) {
+          testUsersInitializedAt = adminUser.testUsersInitializedAt;
+          
+          // Calculate if initialization happened recently (within the last 10 minutes)
+          const initTime = new Date(adminUser.testUsersInitializedAt);
+          const currentTime = new Date();
+          const timeDiffMinutes = (currentTime - initTime) / (1000 * 60);
+          
+          testUsersInitialized = timeDiffMinutes < 10; // Flag as true if init was less than 10 minutes ago
+          console.log(`Test user initialization status: ${testUsersInitialized ? 'RECENT' : 'OLD'} (${Math.round(timeDiffMinutes)} minutes ago)`);
+        }
+      } catch (error) {
+        console.error('Error checking test user initialization status:', error);
+      }
+    }
 
     res.json({
       token,
@@ -593,7 +617,9 @@ app.post('/api/login', async (req, res) => {
       canProceedToday,
       completedTests: Object.fromEntries(user.completedTests) || {},
       currentPhaseCompletedTests,
-      isDemographicsCompleted // Send explicit flag about demographics completion
+      isDemographicsCompleted, // Send explicit flag about demographics completion
+      testUsersInitialized,    // Add flag for test users initialization
+      testUsersInitializedAt   // Add timestamp of when test users were last initialized
     });
   } catch (error) {
     console.error('Login error:', error);

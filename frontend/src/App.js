@@ -343,6 +343,50 @@ const App = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // Check if this is a test user that was recently initialized
+        if (userId.startsWith('test_') && data.testUsersInitialized) {
+          console.log('Recently initialized test user detected! Clearing all localStorage progress...');
+          
+          // Clear any existing localStorage progress for test users
+          const progressKeys = [
+            // Training progress - both new format
+            `progress_${userId}_training_day1`,
+            `progress_${userId}_training_day2`,
+            `progress_${userId}_training_day3`,
+            `progress_${userId}_training_day4`,
+            
+            // Training progress - legacy format
+            `training_progress_day_1`,
+            `training_progress_day_2`,
+            `training_progress_day_3`, 
+            `training_progress_day_4`,
+            
+            // Test progress
+            `progress_${userId}_pretest_intelligibility`,
+            `progress_${userId}_pretest_effort`,
+            `progress_${userId}_pretest_comprehension`,
+            `progress_${userId}_posttest1_intelligibility`,
+            `progress_${userId}_posttest1_effort`,
+            `progress_${userId}_posttest1_comprehension`,
+            `progress_${userId}_posttest2_intelligibility`,
+            `progress_${userId}_posttest2_effort`,
+            `progress_${userId}_posttest2_comprehension`,
+            `progress_${userId}_demographics_demographics`
+          ];
+          
+          // Remove all progress keys
+          progressKeys.forEach(key => {
+            if (localStorage.getItem(key) !== null) {
+              console.log(`Clearing localStorage key: ${key}`);
+              localStorage.removeItem(key);
+            }
+          });
+          
+          console.log('Test user localStorage progress cleared');
+          // Show a toast or notification to the user
+          alert('Test users have been reinitialized. All progress has been reset.');
+        }
+        
         localStorage.setItem('token', data.token);
         localStorage.setItem('userId', userId);
         setUserId(userId); // Ensure this is also set in component state

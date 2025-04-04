@@ -20,6 +20,10 @@ const initializeUsers = async () => {
             'test_pretest1', 'test_pretest2', 'test_pretest3',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
+        
+        // Note: localStorage can only be cleared in the browser context
+        // We've created a separate utility page at /clear-test-users.html to clear localStorage
+        
         await User.deleteMany({ userId: { $in: testUserIds } });
         await Demographics.deleteMany({ userId: { $in: testUserIds } });
         await Response.deleteMany({ userId: { $in: testUserIds } });
@@ -303,13 +307,16 @@ const initializeUsers = async () => {
 
         // Update completedTests property for the pretest users
         if (pretest1) {
+            // Set both the specific phase key and the general demographics key
             pretest1.completedTests.set('pretest_demographics', true);
+            pretest1.completedTests.set('demographics', true); // General flag for demographics completion
             await pretest1.save();
             console.log('Updated completedTests for test_pretest1 (demographics only)');
         }
 
         if (pretest2) {
             pretest2.completedTests.set('pretest_demographics', true);
+            pretest2.completedTests.set('demographics', true); // General flag for demographics completion
             pretest2.completedTests.set('pretest_intelligibility', true);
             await pretest2.save();
             console.log('Updated completedTests for test_pretest2');
@@ -317,20 +324,54 @@ const initializeUsers = async () => {
 
         if (pretest3) {
             pretest3.completedTests.set('pretest_demographics', true);
+            pretest3.completedTests.set('demographics', true); // General flag for demographics completion
             pretest3.completedTests.set('pretest_intelligibility', true);
             pretest3.completedTests.set('pretest_effort', true);
             await pretest3.save();
             console.log('Updated completedTests for test_pretest3');
         }
 
+        // Update standard test users as well
+        const trainingUser = await User.findOne({ userId: 'test_training' });
+        if (trainingUser) {
+            trainingUser.completedTests.set('pretest_demographics', true);
+            trainingUser.completedTests.set('demographics', true); // General flag for demographics completion
+            trainingUser.completedTests.set('pretest_intelligibility', true);
+            trainingUser.completedTests.set('pretest_effort', true);
+            trainingUser.completedTests.set('pretest_comprehension', true);
+            await trainingUser.save();
+            console.log('Updated completedTests for test_training user');
+        }
+
+        const training2User = await User.findOne({ userId: 'test_training2' });
+        if (training2User) {
+            training2User.completedTests.set('pretest_demographics', true);
+            training2User.completedTests.set('demographics', true); // General flag for demographics completion
+            training2User.completedTests.set('pretest_intelligibility', true);
+            training2User.completedTests.set('pretest_effort', true);
+            training2User.completedTests.set('pretest_comprehension', true);
+            await training2User.save();
+            console.log('Updated completedTests for test_training2 user');
+        }
+
         // Update completedTests property for the posttest users
         if (posttest1) {
+            posttest1.completedTests.set('pretest_demographics', true);
+            posttest1.completedTests.set('demographics', true); // General flag for demographics completion
+            posttest1.completedTests.set('pretest_intelligibility', true);
+            posttest1.completedTests.set('pretest_effort', true);
+            posttest1.completedTests.set('pretest_comprehension', true);
             posttest1.completedTests.set('posttest1_demographics', true);
             await posttest1.save();
-            console.log('Updated completedTests for test_posttest1 (demographics only)');
+            console.log('Updated completedTests for test_posttest1 (demographics only for posttest1)');
         }
 
         if (posttest2) {
+            posttest2.completedTests.set('pretest_demographics', true);
+            posttest2.completedTests.set('demographics', true); // General flag for demographics completion
+            posttest2.completedTests.set('pretest_intelligibility', true);
+            posttest2.completedTests.set('pretest_effort', true);
+            posttest2.completedTests.set('pretest_comprehension', true);
             posttest2.completedTests.set('posttest1_demographics', true);
             posttest2.completedTests.set('posttest1_intelligibility', true);
             await posttest2.save();
@@ -338,11 +379,42 @@ const initializeUsers = async () => {
         }
 
         if (posttest3) {
+            posttest3.completedTests.set('pretest_demographics', true);
+            posttest3.completedTests.set('demographics', true); // General flag for demographics completion
+            posttest3.completedTests.set('pretest_intelligibility', true);
+            posttest3.completedTests.set('pretest_effort', true);
+            posttest3.completedTests.set('pretest_comprehension', true);
             posttest3.completedTests.set('posttest1_demographics', true);
             posttest3.completedTests.set('posttest1_intelligibility', true);
             posttest3.completedTests.set('posttest1_effort', true);
             await posttest3.save();
             console.log('Updated completedTests for test_posttest3');
+        }
+
+        // The test_pretest user should NOT have any completed tests - they are just starting
+        const pretestUser = await User.findOne({ userId: 'test_pretest' });
+        if (pretestUser) {
+            // Clear any completion flags that might have been set previously
+            pretestUser.completedTests = new Map();
+            await pretestUser.save();
+            console.log('Cleared all completedTests for test_pretest user - ready for fresh start');
+        }
+
+        // Add completed flags for the standard posttest user (all pretest and all training should be complete)
+        const posttestUser = await User.findOne({ userId: 'test_posttest' });
+        if (posttestUser) {
+            posttestUser.completedTests.set('pretest_demographics', true);
+            posttestUser.completedTests.set('demographics', true); // General flag for demographics completion
+            posttestUser.completedTests.set('pretest_intelligibility', true);
+            posttestUser.completedTests.set('pretest_effort', true);
+            posttestUser.completedTests.set('pretest_comprehension', true);
+            // Mark training day 1-4 as complete
+            posttestUser.completedTests.set('training_day1', true);
+            posttestUser.completedTests.set('training_day2', true);
+            posttestUser.completedTests.set('training_day3', true);
+            posttestUser.completedTests.set('training_day4', true);
+            await posttestUser.save();
+            console.log('Updated completedTests for test_posttest user');
         }
 
         console.log('All users initialized successfully');
@@ -366,6 +438,22 @@ const runInitialization = async () => {
         }
 
         await initializeUsers();
+
+        // Store initialization timestamp in database
+        // Create a flag that can be checked by the frontend to know if test users were just initialized
+        try {
+            // We'll use the admin user to store this flag
+            const adminUser = await User.findOne({ isAdmin: true });
+            if (adminUser) {
+                // Store the timestamp of when test users were last initialized
+                adminUser.testUsersInitializedAt = new Date();
+                await adminUser.save();
+                console.log('Test users initialization timestamp updated');
+            }
+        } catch (flagError) {
+            console.error('Error setting initialization flag:', flagError);
+            // Continue even if setting the flag fails
+        }
 
         // Only disconnect if we connected in this function
         if (mongoose.connection.readyState === 1) {

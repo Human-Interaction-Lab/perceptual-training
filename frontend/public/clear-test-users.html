@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Test User Progress</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      color: #2563eb;
+      margin-bottom: 20px;
+    }
+    .container {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      background-color: #f9fafb;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #f0f9ff;
+      border-left: 4px solid #3b82f6;
+      display: none;
+    }
+    ul {
+      margin-top: 20px;
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Clear Test User Progress</h1>
+    <p>This utility clears all localStorage progress data for test users. Use this after initializing test users in the backend to ensure a clean state.</p>
+    
+    <p>This will clear progress data for the following test users:</p>
+    <ul>
+      <li>test_pretest</li>
+      <li>test_training</li>
+      <li>test_training2</li>
+      <li>test_posttest</li>
+      <li>test_pretest1, test_pretest2, test_pretest3</li>
+      <li>test_posttest1, test_posttest2, test_posttest3</li>
+    </ul>
+    
+    <button id="clearBtn">Clear Test User Progress</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      // Clear the progress data
+      const clearedCount = clearTestUserProgress();
+      
+      // Show result
+      const resultElement = document.getElementById('result');
+      resultElement.textContent = `Successfully cleared ${clearedCount} localStorage items for test users.`;
+      resultElement.style.display = 'block';
+    });
+    
+    // Function to clear test user progress
+    function clearTestUserProgress() {
+      const testUserIds = [
+        'test_pretest', 'test_training', 'test_posttest',
+        'test_training2',
+        'test_pretest1', 'test_pretest2', 'test_pretest3',
+        'test_posttest1', 'test_posttest2', 'test_posttest3'
+      ];
+
+      console.log('Clearing localStorage progress data for test users...');
+      let clearedCount = 0;
+
+      testUserIds.forEach(userId => {
+        // Clear any progress keys for this user
+        const progressKeys = [
+          // Demographics progress
+          `progress_${userId}_demographics_demographics`,
+          
+          // Pretest progress
+          `progress_${userId}_pretest_intelligibility`,
+          `progress_${userId}_pretest_effort`,
+          `progress_${userId}_pretest_comprehension`,
+          
+          // Training progress - both new format
+          `progress_${userId}_training_day1`,
+          `progress_${userId}_training_day2`,
+          `progress_${userId}_training_day3`,
+          `progress_${userId}_training_day4`,
+          
+          // Training progress - legacy format
+          `training_progress_day_1`,
+          `training_progress_day_2`,
+          `training_progress_day_3`,
+          `training_progress_day_4`,
+          
+          // Posttest1 progress
+          `progress_${userId}_posttest1_intelligibility`,
+          `progress_${userId}_posttest1_effort`,
+          `progress_${userId}_posttest1_comprehension`,
+          
+          // Posttest2 progress
+          `progress_${userId}_posttest2_intelligibility`,
+          `progress_${userId}_posttest2_effort`,
+          `progress_${userId}_posttest2_comprehension`
+        ];
+        
+        progressKeys.forEach(key => {
+          if (localStorage.getItem(key) !== null) {
+            localStorage.removeItem(key);
+            clearedCount++;
+          }
+        });
+      });
+
+      // Also clear login data to force re-login
+      if (localStorage.getItem('userId') !== null) {
+        localStorage.removeItem('userId');
+        clearedCount++;
+      }
+      
+      if (localStorage.getItem('token') !== null) {
+        localStorage.removeItem('token');
+        clearedCount++;
+      }
+      
+      if (localStorage.getItem('username') !== null) {
+        localStorage.removeItem('username');
+        clearedCount++;
+      }
+
+      console.log(`Cleared ${clearedCount} localStorage items for test users`);
+      return clearedCount;
+    }
+  </script>
+</body>
+</html>
