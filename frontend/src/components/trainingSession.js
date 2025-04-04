@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { ArrowRight, Headphones, Volume2, Loader } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
-import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './trainingData';
+import { TRAINING_DATA, TRAINING_TEST_STIMULI, TRAINING_DAY_TO_STORY } from './trainingData';
 import audioService from '../services/audioService';
 import config from '../config';
 

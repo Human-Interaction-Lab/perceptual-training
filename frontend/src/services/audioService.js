@@ -4,6 +4,7 @@ import {
     getStoriesForPhase,
     getEffortFilesForPhase
 } from '../utils/randomization';
+import { TRAINING_DAY_TO_STORY } from '../components/trainingData';
 import config from '../config';
 
 // Use the constant instead of hardcoded URL
@@ -204,7 +205,11 @@ const audioService = {
                     let url;
 
                     if (fileInfo.phase === 'training') {
-                        url = `${BASE_URL}/audio/training/day/${fileInfo.day}/${fileInfo.actualFile}`;
+                        // Map training day to story number (02, 03, 04, or 07)
+                        const storyNumber = TRAINING_DAY_TO_STORY[fileInfo.day];
+                        const mappedDay = storyNumber || fileInfo.day; // Fallback for backward compatibility
+                        
+                        url = `${BASE_URL}/audio/training/day/${mappedDay}/${fileInfo.actualFile}`;
                     } else if (fileInfo.testType === 'comprehension') {
                         url = `${BASE_URL}/audio/${fileInfo.phase}/${fileInfo.testType}/${fileInfo.version}/${fileInfo.sentence}`;
                     } else {
@@ -322,9 +327,17 @@ const audioService = {
      */
     async playTrainingAudio(day, sentence) {
         try {
+            // Map the training day to the actual story number (02, 03, 04, or 07)
+            const storyNumber = TRAINING_DAY_TO_STORY[day];
+            
+            // If we can't find a mapping, use the day directly (for backward compatibility)
+            const mappedDay = storyNumber || day;
+            
+            console.log(`Playing training audio for day ${day} (story ${mappedDay}), sentence ${sentence}`);
+            
             // Request the audio file URL from the backend
             const response = await fetch(
-                `${BASE_URL}/audio/training/day/${day}/${sentence}`,
+                `${BASE_URL}/audio/training/day/${mappedDay}/${sentence}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`

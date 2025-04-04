@@ -49,8 +49,14 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     if (phase === 'pretest') {
         groupIndex = 0;
     } else if (phase === 'training') {
-        // Training days 1-4 use groups 1-4
-        groupIndex = trainingDay;
+        // Training days 1-4 use groups 1-4, but make sure the index is valid
+        if (trainingDay >= 1 && trainingDay <= 4) {
+            groupIndex = trainingDay;
+        } else {
+            // Default to day 1 if invalid training day
+            console.warn(`Invalid training day: ${trainingDay}. Using day 1 instead.`);
+            groupIndex = 1;
+        }
     } else if (phase === 'posttest1') {
         groupIndex = 5;
     } else if (phase === 'posttest2') {

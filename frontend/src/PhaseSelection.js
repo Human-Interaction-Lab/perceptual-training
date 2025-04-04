@@ -366,10 +366,6 @@ const PhaseSelection = ({
         ? posttestAvailability.posttest1
         : posttestAvailability.posttest2;
 
-      // Debug log
-      console.log(`${phase} availability:`, isPosttestAvailable);
-      console.log(`Current phase:`, currentPhase);
-
       const test = testTypes.find(t => t.type === testType);
       if (!test) return { isAvailable: false, isCompleted: false };
 
@@ -398,36 +394,69 @@ const PhaseSelection = ({
       };
     }
 
-    // For pretest phase and other phases
-    const test = testTypes.find(t => t.type === testType);
-    if (!test) return { isAvailable: false, isCompleted: false };
+    // For pretest phase specifically
+    if (phase === 'pretest') {
+      const test = testTypes.find(t => t.type === testType);
+      if (!test) return { isAvailable: false, isCompleted: false };
 
-    // Check for completed test using both formats:
-    // 1. "phase_testType" (e.g., "pretest_intelligibility")
-    // 2. Just "testType" (e.g., "intelligibility")
-    const isTestCompleted =
-      completedTests[`${phase}_${testType}`] ||
-      completedTests[testType];
+      // Check for completed test using both formats
+      const isTestCompleted =
+        completedTests[`${phase}_${testType}`] ||
+        completedTests[testType];
 
-    // First test in a phase
-    if (test.order === 1) {
+      // First test in pretest phase (after demographics)
+      if (test.order === 1) {
+        return {
+          // Only available if demographics is completed and we're in pretest phase
+          isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') && 
+                      demoCompleted && 
+                      !isTestCompleted,
+          isCompleted: isTestCompleted
+        };
+      }
+
+      // Subsequent tests in pretest phase
+      const previousTest = testTypes.find(t => t.order === test.order - 1);
+      const previousTestCompleted =
+        completedTests[`${phase}_${previousTest.type}`] ||
+        completedTests[previousTest.type];
+
       return {
-        // Allow pretest tests to be available if demographics is completed
-        // even if current phase isn't exactly 'pretest'
-        isAvailable: ((phase === 'pretest' && (currentPhase === 'pretest' || currentPhase === 'training')) && demoCompleted && !isTestCompleted) ||
-                    (phase === currentPhase && demoCompleted && !isTestCompleted),
+        isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
+          demoCompleted &&
+          previousTestCompleted &&
+          !isTestCompleted,
         isCompleted: isTestCompleted
       };
     }
 
-    // Subsequent tests
+    // For other phases
+    const test = testTypes.find(t => t.type === testType);
+    if (!test) return { isAvailable: false, isCompleted: false };
+
+    // Check for completed test
+    const isTestCompleted =
+      completedTests[`${phase}_${testType}`] ||
+      completedTests[testType];
+
+    // First test in other phases
+    if (test.order === 1) {
+      return {
+        isAvailable: phase === currentPhase && 
+                     demoCompleted && 
+                     !isTestCompleted,
+        isCompleted: isTestCompleted
+      };
+    }
+
+    // Subsequent tests in other phases
     const previousTest = testTypes.find(t => t.order === test.order - 1);
     const previousTestCompleted =
       completedTests[`${phase}_${previousTest.type}`] ||
       completedTests[previousTest.type];
 
     return {
-      isAvailable: ((phase === 'pretest' && (currentPhase === 'pretest' || currentPhase === 'training')) || phase === currentPhase) &&
+      isAvailable: phase === currentPhase &&
         demoCompleted &&
         previousTestCompleted &&
         !isTestCompleted,
@@ -615,33 +644,29 @@ const PhaseSelection = ({
           )}
         </div>
 
-        {/* Demographics Card */}
-        {currentPhase === 'pretest' && !isDemographicsCompleted && (
-          <div className="mb-8">
-            <TestTypeCard
-              title="Demographics Questionnaire"
-              description="Please complete this questionnaire before starting the pre-test"
-              phase="demographics"
-              testType="demographics"
-              status={{
-                isAvailable: true,
-                isCompleted: isDemographicsCompleted
-              }}
-              onSelect={handleSelectPhase}
-              date="Required now"
-              isPreloading={false}
-            />
-          </div>
-        )}
-
-        {/* Pretest Section */}
-        {(isDemographicsCompleted || Object.keys(completedTests).some(key => key === 'demographics' || key === 'pretest_demographics')) && (
+        {/* Pretest Section with Demographics Card always visible */}
+        {currentPhase === 'pretest' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
-            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
 
-            <br></br>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Demographics Card as first item */}
+              <TestTypeCard
+                title="Demographics Questionnaire"
+                description="Please complete this first"
+                phase="demographics"
+                testType="demographics"
+                status={{
+                  isAvailable: !isDemographicsCompleted,
+                  isCompleted: isDemographicsCompleted || Object.keys(completedTests).some(key => key === 'demographics' || key === 'pretest_demographics')
+                }}
+                onSelect={handleSelectPhase}
+                date="Required first"
+                isPreloading={false}
+              />
+              
+              {/* All test type cards */}
               {testTypes
                 .sort((a, b) => a.order - b.order)
                 .map(test => (

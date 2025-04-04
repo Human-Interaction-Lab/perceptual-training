@@ -282,7 +282,17 @@ const App = () => {
           finalStatus: demoCompleted
         });
 
+        // Ensure demographics completion is properly set
         setIsDemographicsCompleted(demoCompleted);
+        
+        // Update completedTests to include demographics status if needed
+        if (demoCompleted && !completedTestsObj.demographics && !completedTestsObj.pretest_demographics) {
+          setCompletedTests(prev => ({
+            ...prev,
+            demographics: true,
+            pretest_demographics: true
+          }));
+        }
         setPhase('selection');
       } else {
         setError(data.error || 'Login failed');
@@ -1056,7 +1066,13 @@ const App = () => {
           ) : phase === 'demographics' ? (
             <DemographicsForm
               onSubmit={() => {
+                // Update both state variables to reflect demographics completion
                 setIsDemographicsCompleted(true);
+                setCompletedTests(prev => ({
+                  ...prev,
+                  demographics: true,
+                  pretest_demographics: true
+                }));
                 setPhase('selection');
                 setCurrentPhase('pretest');
               }}

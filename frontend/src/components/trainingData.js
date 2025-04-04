@@ -1,6 +1,6 @@
 // This file contains the text data for the training sessions
 export const TRAINING_DATA = {
-    // Day 1 (Amusement Park)
+    // Day 1 - Story 02 (Amusement Park) - 30 stimuli
     day1: [
         { id: "Trn_02_01", text: "Do you like amusement parks?" },
         { id: "Trn_02_02", text: "Well, I sure do." },
@@ -34,7 +34,7 @@ export const TRAINING_DATA = {
         { id: "Trn_02_30", text: "Was my most memorable moment ever!" }
     ],
 
-    // Day 2 (Snowball the Cat)
+    // Day 2 - Story 03 (Snowball the Cat) - 24 stimuli
     day2: [
         { id: "Trn_03_01", text: "Megan's cat, Snowball, loved to play in the garden." },
         { id: "Trn_03_02", text: "Every morning, Megan opened the back door," },
@@ -62,7 +62,7 @@ export const TRAINING_DATA = {
         { id: "Trn_03_24", text: "Snowball purred contentedly, resting her head on Megan's arm." }
     ],
 
-    // Day 3 (Jake at the Lake)
+    // Day 3 - Story 04 (Jake at the Lake) - 22 stimuli
     day3: [
         { id: "Trn_04_01", text: "Every summer, Jake and his friends" },
         { id: "Trn_04_02", text: "visited the lake near his grandfather's cabin." },
@@ -85,11 +85,10 @@ export const TRAINING_DATA = {
         { id: "Trn_04_19", text: "and told his grandfather about the fish." },
         { id: "Trn_04_20", text: "His grandfather smiled and said," },
         { id: "Trn_04_21", text: "\"You've got the makings of a great fisherman!\"" },
-        { id: "Trn_04_22", text: "Jake beamed proudly," },
-        { id: "Trn_04_23", text: "excited to fish again tomorrow." }
+        { id: "Trn_04_22", text: "Jake beamed proudly," }
     ],
 
-    // Day 4 (Lucas with the Kite)
+    // Day 4 - Story 07 (Lucas with the Kite) - 23 stimuli
     day4: [
         { id: "Trn_07_01", text: "On a bright Saturday afternoon," },
         { id: "Trn_07_02", text: "Lucas went to the park with his family." },
@@ -115,6 +114,14 @@ export const TRAINING_DATA = {
         { id: "Trn_07_22", text: "\"Come back tomorrow, and we can fly it again." },
         { id: "Trn_07_23", text: "We might even try a bigger kite and maybe chase a few more birds!\"" }
     ]
+};
+
+// Map training days to their actual story numbers
+export const TRAINING_DAY_TO_STORY = {
+    1: "02", // Day 1 uses Story 02 - Amusement Park (30 stimuli)
+    2: "03", // Day 2 uses Story 03 - Snowball the Cat (24 stimuli)
+    3: "04", // Day 3 uses Story 04 - Jake at the Lake (22 stimuli)
+    4: "07"  // Day 4 uses Story 07 - Lucas with the Kite (23 stimuli)
 };
 
 // Create test stimuli for each training day

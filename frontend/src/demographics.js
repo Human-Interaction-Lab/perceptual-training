@@ -224,6 +224,14 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle case where demographics already exist
+        if (response.status === 400 && data.error && data.error.includes("Demographics already exist")) {
+          console.log("Demographics already exist, proceeding as if submission was successful");
+          // Treat as success since demographics already exist
+          onSubmit();
+          return;
+        }
+        
         throw new Error(data.error || 'Failed to submit form');
       }
 
