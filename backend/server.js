@@ -713,9 +713,30 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       const posttestCompleted = checkAllPosttestCompleted(user, 'posttest1');
 
       if (posttestCompleted) {
-        // Logic for future posttest phases can be added here
-        // user.currentPhase = 'posttest2';
+        console.log(`User ${user.userId} has completed posttest1`);
+        
+        // Mark posttest1 as completed 
+        user.markTestCompleted('posttest1', 'COMPLETED', true);
+        
+        // Set phase to posttest2 but don't auto-advance
+        // The frontend will still check date requirements before allowing access
+        user.currentPhase = 'posttest2';
+        
+        // Don't mark the study as fully completed yet - this happens after posttest2
+      }
+    } else if (phase === 'posttest2') {
+      // Check if all posttest2 items are completed
+      const posttest2Completed = checkAllPosttestCompleted(user, 'posttest2');
+
+      if (posttest2Completed) {
+        console.log(`User ${user.userId} has completed posttest2 and the entire study`);
+        
+        // Mark posttest2 as completed
+        user.markTestCompleted('posttest2', 'COMPLETED', true);
+        
+        // Mark the entire study as completed
         user.completed = true;
+        user.currentPhase = 'completed';
       }
     }
     // Additional posttest phases can be added here

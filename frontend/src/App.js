@@ -743,9 +743,18 @@ const App = () => {
             if (phase === 'pretest') {
               setCurrentPhase('training');
             } else if (phase === 'posttest1') {
-              // Don't automatically advance to posttest2
-              // This will let the UI decide when to show posttest2 based on dates
+              // Mark posttest1 as fully completed
+              setCompletedTests(prev => ({
+                ...prev,
+                [`${phase}_COMPLETED`]: true,
+                posttest1_COMPLETED: true
+              }));
+              
+              // Set phase to posttest2 but it will still be date-restricted
+              setCurrentPhase('posttest2');
+              console.log('Posttest1 completed. Setting phase to posttest2 (will be date-restricted)');
             } else if (phase === 'posttest2') {
+              // Mark everything as completed
               setCurrentPhase('completed');
             }
             break;
@@ -1296,6 +1305,8 @@ const App = () => {
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test Complete' :
                   phase === 'training' ? `Training Day ${trainingDay} Complete` :
+                  phase === 'posttest1' ? '1-Week Post-test Complete' :
+                  phase === 'posttest2' ? '1-Month Post-test Complete' :
                     'Post-test Complete'}
               </h3>
               <p className="text-gray-600 mb-6">
@@ -1305,7 +1316,11 @@ const App = () => {
                     ? trainingDay < 4
                       ? `Great job! You've completed training day ${trainingDay}. Return tomorrow for day ${trainingDay + 1}.`
                       : "Congratulations! You've completed all training sessions. Return tomorrow for your final assessment."
-                    : "Congratulations! You've successfully completed the study."}
+                    : phase === 'posttest1'
+                      ? "Thank you for completing the 1-week post-test! Please return in 3 weeks to complete the 1-month post-test."
+                      : phase === 'posttest2'
+                        ? "Congratulations! You've successfully completed all parts of the study. Thank you for your participation!"
+                        : "Congratulations! You've successfully completed the study."}
               </p>
               {phase === 'training' && (
                 <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
