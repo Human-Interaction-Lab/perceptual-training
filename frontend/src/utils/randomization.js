@@ -50,7 +50,15 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     console.log(`Getting group for phase ${phase}, day ${trainingDay}, totalFiles=${totalFiles}`);
 
     // Use userId as seed if available for consistent randomization per user
-    const seed = userId ? hashString(userId) : null;
+    // For test users, use a different seed for each one to ensure different audio assignments
+    let seed;
+    if (userId && userId.startsWith('test_')) {
+        // Add phase to seed to ensure different assignments for pretest vs posttest test users
+        seed = userId + '_' + phase;
+    } else {
+        seed = userId;
+    }
+    
     const groups = stratifyAndRandomizeFiles(totalFiles, groupSize, seed);
 
     // Map phases to group indices (0-7)
@@ -117,7 +125,7 @@ const hashString = (str) => {
 };
 
 // Function to randomize comprehension stories
-const randomizeComprehensionStories = (userId = null) => {
+const randomizeComprehensionStories = (userId = null, phase = null) => {
     // Define all available comprehension story IDs (assuming there are 6 total stories)
     const allStoryIds = ["Comp_01", "Comp_02", "Comp_03", "Comp_04", "Comp_05", "Comp_06"];
 
@@ -125,7 +133,14 @@ const randomizeComprehensionStories = (userId = null) => {
     // without repetition
 
     // Generate a seed based on userId
-    let seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    let seedValue;
+    
+    // For test users, use a different seed for each phase
+    if (userId && userId.startsWith('test_') && phase) {
+        seedValue = hashString(userId + '_' + phase);
+    } else {
+        seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    }
 
     // Use a seeded random function that doesn't modify the seed directly
     const seededRandom = () => {
@@ -150,18 +165,25 @@ const randomizeComprehensionStories = (userId = null) => {
 
 // Get stories for a specific phase
 const getStoriesForPhase = (phase, userId = null) => {
-    const allPhaseStories = randomizeComprehensionStories(userId);
+    const allPhaseStories = randomizeComprehensionStories(userId, phase);
     return allPhaseStories[phase] || [];
 };
 
 // Function to randomize effort files in groups of 30
-const randomizeEffortFiles = (userId = null) => {
+const randomizeEffortFiles = (userId = null, phase = null) => {
     // Total of 90 files in 3 groups of 30 (each containing 15 high + 15 low predictability)
     const totalFiles = 90;
     const groupSize = 30;
 
     // Get random seed from userId
-    let seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    let seedValue;
+    
+    // For test users, use a different seed for each phase
+    if (userId && userId.startsWith('test_') && phase) {
+        seedValue = hashString(userId + '_' + phase);
+    } else {
+        seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    }
 
     // Generate array of all file indices [1...90]
     const allIndices = Array.from({ length: totalFiles }, (_, i) => i + 1);
@@ -192,7 +214,7 @@ const randomizeEffortFiles = (userId = null) => {
 
 // Get effort files for a specific phase
 const getEffortFilesForPhase = (phase, userId = null) => {
-    const allPhaseEffortFiles = randomizeEffortFiles(userId);
+    const allPhaseEffortFiles = randomizeEffortFiles(userId, phase);
     return allPhaseEffortFiles[phase] || [];
 };
 

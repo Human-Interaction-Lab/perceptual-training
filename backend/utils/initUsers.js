@@ -16,7 +16,7 @@ const initializeUsers = async () => {
         console.log('Removing existing test users...');
         const testUserIds = [
             'test_pretest', 'test_training', 'test_posttest',
-            'test_training2',
+            'test_training2', 'test_training4',
             'test_pretest1', 'test_pretest2', 'test_pretest3',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
@@ -90,6 +90,15 @@ const initializeUsers = async () => {
                 speaker: 'Taylian',
                 trainingDay: 2,
                 pretestDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training4',
+                email: 'training4@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
                 ...baseTestUser
             },
             {
@@ -202,7 +211,7 @@ const initializeUsers = async () => {
 
         const allTestUsers = [
             'test_pretest1', 'test_pretest2', 'test_pretest3',
-            'test_training', 'test_training2',
+            'test_training', 'test_training2', 'test_training4',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
 
@@ -352,6 +361,21 @@ const initializeUsers = async () => {
             training2User.completedTests.set('pretest_comprehension', true);
             await training2User.save();
             console.log('Updated completedTests for test_training2 user');
+        }
+        
+        const training4User = await User.findOne({ userId: 'test_training4' });
+        if (training4User) {
+            training4User.completedTests.set('pretest_demographics', true);
+            training4User.completedTests.set('demographics', true); // General flag for demographics completion
+            training4User.completedTests.set('pretest_intelligibility', true);
+            training4User.completedTests.set('pretest_effort', true);
+            training4User.completedTests.set('pretest_comprehension', true);
+            // Mark training day 1-3 as complete
+            training4User.completedTests.set('training_day1', true);
+            training4User.completedTests.set('training_day2', true);
+            training4User.completedTests.set('training_day3', true);
+            await training4User.save();
+            console.log('Updated completedTests for test_training4 user (day 4 pending)');
         }
 
         // Update completedTests property for the posttest users

@@ -400,9 +400,8 @@ const PhaseSelection = ({
       if (test.order === 1) {
         const inProgress = hasInProgressData(phase, test.type);
         return {
-          // Available if it's the current phase, OR if this is posttest1 and it's available by date
-          isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
-            !isTestCompleted,
+          // Available only if the phase matches current phase AND the posttest is available by date
+          isAvailable: (currentPhase === phase && isPosttestAvailable) && !isTestCompleted,
           isCompleted: isTestCompleted,
           hasProgress: inProgress
         };
@@ -414,7 +413,7 @@ const PhaseSelection = ({
       const inProgress = hasInProgressData(phase, test.type);
 
       return {
-        isAvailable: (currentPhase === phase || (phase === currentPhase && isPosttestAvailable)) &&
+        isAvailable: (currentPhase === phase && isPosttestAvailable) &&
           previousTestCompleted &&
           !isTestCompleted,
         isCompleted: isTestCompleted,
@@ -537,28 +536,51 @@ const PhaseSelection = ({
     return formatDate(expectedDate);
   };
   
-  // Helper function to check if posttest1 is complete
-  const isPosttest1Completed = () => {
+  // Helper function to check if a phase is complete
+  const isPhaseCompleted = (phase) => {
     return testTypes.every(test => 
-      completedTests[`posttest1_${test.type}`] === true
+      completedTests[`${phase}_${test.type}`] === true
     );
   };
   
-  // Helper function to calculate days until posttest2
-  const getDaysUntilPosttest2 = () => {
+  // Helper for posttest1 specifically
+  const isPosttest1Completed = () => {
+    return isPhaseCompleted('posttest1');
+  };
+  
+  // Helper function to check if training is complete (all 4 days)
+  const isTrainingCompleted = () => {
+    return completedTests['training_day1'] && 
+           completedTests['training_day2'] && 
+           completedTests['training_day3'] && 
+           completedTests['training_day4'];
+  };
+  
+  // Helper function to calculate days until a specific date
+  const getDaysUntilDate = (daysToAdd) => {
     if (!pretestDate) return null;
     
     const baseDate = new Date(pretestDate);
-    const posttest2Date = new Date(baseDate);
-    posttest2Date.setDate(posttest2Date.getDate() + 35); // Posttest2 is 35 days after pretest
+    const targetDate = new Date(baseDate);
+    targetDate.setDate(targetDate.getDate() + daysToAdd);
     
     const today = new Date();
     
     // Calculate days difference
-    const diffTime = posttest2Date - today;
+    const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     return diffDays > 0 ? diffDays : 0;
+  };
+  
+  // Helper function to calculate days until posttest1
+  const getDaysUntilPosttest1 = () => {
+    return getDaysUntilDate(12); // Posttest1 is 12 days after pretest
+  };
+  
+  // Helper function to calculate days until posttest2
+  const getDaysUntilPosttest2 = () => {
+    return getDaysUntilDate(35); // Posttest2 is 35 days after pretest
   };
 
   // Calculate posttest availability when current time is after expected date
@@ -587,7 +609,9 @@ const PhaseSelection = ({
     return {
       // Also consider actual phase from currentPhase as a condition
       posttest1: today >= posttest1Date || currentPhase === 'posttest1',
-      posttest2: today >= posttest2Date || currentPhase === 'posttest2'
+      // For posttest2, check both date AND that the current phase is posttest2
+      // This ensures even if we've completed posttest1, we can't access posttest2 until the date
+      posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
     };
   };
 
@@ -799,6 +823,24 @@ const PhaseSelection = ({
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Message for countdown to posttest1 - Show when training day 4 is completed and posttest1 isn't available yet */}
+        {currentPhase === 'training' && isTrainingCompleted() && !posttestAvailability.posttest1 && getDaysUntilPosttest1() > 0 && (
+          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-center justify-center mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className="text-xl font-semibold">1-Week Follow-up Coming Soon</h2>
+            </div>
+            <p className="text-lg text-blue-700">
+              You've completed all training days! Your 1-week follow-up will be available in <span className="font-bold">{getDaysUntilPosttest1()} days</span>.
+            </p>
+            <p className="text-sm text-blue-600 mt-2">
+              Please return on {getExpectedDate('posttest1')} to complete the follow-up assessment.
+            </p>
           </div>
         )}
 
