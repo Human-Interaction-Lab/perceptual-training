@@ -271,10 +271,10 @@ const audioService = {
             
             console.log(`Playing training test audio: Day ${day}, Index ${index} -> File #${actualFileNumber}`);
             
-            // Request intelligibility audio file from the server
-            // We're using the same endpoint as for pretest, but with our randomized file number
+            // Use the same endpoint pattern as regular intelligibility tests
+            // This is the format that works for pretest and posttest phases
             const response = await fetch(
-                `${BASE_URL}/audio/intelligibility/${actualFileNumber}`,
+                `${BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -282,8 +282,38 @@ const audioService = {
                 }
             );
             
+            // Log the URL for debugging
+            console.log(`Using URL: ${BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`);
+            
             if (!response.ok) {
-                // Handle specific errors
+                console.warn(`First attempt failed with status ${response.status}. Trying fallback...`);
+                
+                // Try a fallback approach - use direct intelligibility API
+                try {
+                    // Try a different endpoint format as fallback
+                    const fallbackResponse = await fetch(
+                        `${BASE_URL}/audio/intelligibility/${actualFileNumber % 20 + 1}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        }
+                    );
+                    
+                    console.log(`Fallback URL: ${BASE_URL}/audio/intelligibility/${actualFileNumber % 20 + 1}`);
+                    
+                    if (fallbackResponse.ok) {
+                        console.log('Fallback request succeeded!');
+                        return await fallbackResponse.json();
+                    }
+                    
+                    // If fallback also fails, throw the original error
+                    console.error('Fallback request also failed');
+                } catch (fallbackError) {
+                    console.error('Error in fallback request:', fallbackError);
+                }
+                
+                // Handle specific errors from original request
                 if (response.status === 404) {
                     throw new Error('AUDIO_NOT_FOUND');
                 }

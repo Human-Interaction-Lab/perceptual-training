@@ -1,7 +1,14 @@
 // for randomization of intelligibility files
 const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
+    console.log(`Stratifying ${total} files into groups of size ${groupSize}`);
+    
     // Create array of all file indices [1...total]
     const allIndices = Array.from({ length: total }, (_, i) => i + 1);
+    
+    // Safety check - log a warning if there aren't enough files
+    if (total < groupSize * 8) {
+        console.warn(`Warning: Not enough files (${total}) to create 8 unique groups of ${groupSize} files.`);
+    }
 
     // Split into groups of groupSize
     const groups = [];
@@ -35,9 +42,12 @@ const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
 
 // Function to get a specific group for a phase/day
 const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
-    // Total of 160 intelligibility files
+    // Total of 160 intelligibility files available
+    // Use 140 of them: 20 for pretest, 80 for training tests (20×4), 20 for posttest1, 20 for posttest2
     const totalFiles = 160;
     const groupSize = 20;
+    
+    console.log(`Getting group for phase ${phase}, day ${trainingDay}, totalFiles=${totalFiles}`);
 
     // Use userId as seed if available for consistent randomization per user
     const seed = userId ? hashString(userId) : null;
@@ -46,30 +56,41 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     // Map phases to group indices (0-7)
     let groupIndex;
 
+    // Map phases to specific group indices to avoid overlap
+    // Group assignments (8 groups total):
+    // 0: pretest
+    // 1-4: training tests (days 1-4)
+    // 5: posttest1
+    // 6: posttest2
+    // 7: intentionally left unused as backup
+    
     if (phase === 'pretest') {
+        // Pretest uses group 0
         groupIndex = 0;
+        console.log(`Pretest using group index ${groupIndex}`);
     } else if (phase === 'training') {
-        // Training days 1-4 use groups 1-4, but make sure the index is valid
-        if (trainingDay >= 1 && trainingDay <= 4) {
-            groupIndex = trainingDay;
-        } else {
-            // Default to day 1 if invalid training day
-            console.warn(`Invalid training day: ${trainingDay}. Using day 1 instead.`);
-            groupIndex = 1;
-        }
+        // Regular training doesn't use intelligibility files
+        // So we'll just return group 7 (unused) which won't matter
+        groupIndex = 7;
+        console.log(`Training phase using group index ${groupIndex} (unused)`);
     } else if (phase === 'training_test') {
-        // For training test phase, we allocate indices 7-8 for test files
-        // We use modulo in case we have more than 8 training days
+        // Each training_test day gets its own group to avoid overlap
         if (trainingDay && trainingDay >= 1 && trainingDay <= 4) {
-            groupIndex = 7 + ((trainingDay - 1) % 2);
+            // Training test uses groups 1-4
+            groupIndex = trainingDay;
+            console.log(`Training test for day ${trainingDay} using group index ${groupIndex}`);
         } else {
-            console.warn(`Invalid training test day: ${trainingDay}. Using default.`);
-            groupIndex = 7;
+            console.warn(`Invalid training test day: ${trainingDay}. Using default group 1.`);
+            groupIndex = 1; // Default to first training group
         }
     } else if (phase === 'posttest1') {
+        // Posttest1 uses group 5
         groupIndex = 5;
+        console.log(`Posttest1 using group index ${groupIndex}`);
     } else if (phase === 'posttest2') {
+        // Posttest2 uses group 6
         groupIndex = 6;
+        console.log(`Posttest2 using group index ${groupIndex}`);
     } else {
         // Default to last group (7) for any other phase
         groupIndex = 7;

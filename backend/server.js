@@ -644,30 +644,51 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     }
 
     // Check if user is attempting on the correct day
-    if (!isCorrectDay(user, phase)) {
+    // Skip the day check for training phase - this allows the training tests to work
+    // regardless of the day of the week
+    if (phase !== 'training' && !isCorrectDay(user, phase)) {
       return res.status(403).json({
         error: 'Please return on the correct day to continue your training'
       });
     }
 
     // For test responses, create a unique test identifier combining test type and stimulus id
-    const testId = phase !== 'training' ? `${testType}_${stimulusId}` : null;
+    // For training tests, we also want to create a unique identifier
+    let testId = null;
+    if (phase !== 'training') {
+      testId = `${testType}_${stimulusId}`;
+    } else if (testType === 'intelligibility') {
+      // Also create a test ID for training tests with intelligibility
+      testId = `training_intel_${stimulusId}`;
+    }
 
     // Create response record
     const newResponse = new Response({
       userId: req.user.userId,
       phase,
       stimulusId,
-      response: phase === 'training' ? 'training_completed' : response,
+      // Save the actual response when testType is 'intelligibility' (training test)
+      // Otherwise use the default 'training_completed' for training phase
+      response: (phase === 'training' && testType !== 'intelligibility') ? 'training_completed' : response,
       trainingDay: phase === 'training' ? trainingDay : undefined,
       rating: testType === 'effort' ? rating : undefined
+    });
+    
+    console.log('Creating new response:', {
+      phase,
+      testType,
+      stimulusId,
+      responsePreview: response ? response.substring(0, 20) + '...' : 'null',
+      savedAs: newResponse.response.substring(0, 20) + '...',
+      trainingDay
     });
 
     await newResponse.save();
 
     // Mark test as completed with appropriate phase prefix
     if (testId) {
-      // If this is a test (not training), mark it as completed
+      console.log(`Marking test as completed: phase=${phase}, testId=${testId}`);
+      // Mark the test as completed - for both regular tests and training tests
       user.markTestCompleted(phase, testId, true);
     }
 

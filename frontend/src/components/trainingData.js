@@ -132,30 +132,30 @@ export const STORY_METADATA = {
     "07": { length: 23, title: "Lucas with the Kite" }
 };
 
-// Create test stimuli for each training day
+// Create test stimuli for each training day - 20 items per day
 export const TRAINING_TEST_STIMULI = {
-    day1: Array.from({ length: 10 }, (_, i) => ({
+    day1: Array.from({ length: 20 }, (_, i) => ({
         id: `TrnTest_02_${String(i + 1).padStart(2, '0')}`,
         audioUrl: `/audio/training/test/day1/${String(i + 1).padStart(2, '0')}`,
         type: 'TrnTest',
         responseType: 'full-phrase',
         day: 1
     })),
-    day2: Array.from({ length: 10 }, (_, i) => ({
+    day2: Array.from({ length: 20 }, (_, i) => ({
         id: `TrnTest_03_${String(i + 1).padStart(2, '0')}`,
         audioUrl: `/audio/training/test/day2/${String(i + 1).padStart(2, '0')}`,
         type: 'TrnTest',
         responseType: 'full-phrase',
         day: 2
     })),
-    day3: Array.from({ length: 10 }, (_, i) => ({
+    day3: Array.from({ length: 20 }, (_, i) => ({
         id: `TrnTest_04_${String(i + 1).padStart(2, '0')}`,
         audioUrl: `/audio/training/test/day3/${String(i + 1).padStart(2, '0')}`,
         type: 'TrnTest',
         responseType: 'full-phrase',
         day: 3
     })),
-    day4: Array.from({ length: 10 }, (_, i) => ({
+    day4: Array.from({ length: 20 }, (_, i) => ({
         id: `TrnTest_07_${String(i + 1).padStart(2, '0')}`,
         audioUrl: `/audio/training/test/day4/${String(i + 1).padStart(2, '0')}`,
         type: 'TrnTest',
