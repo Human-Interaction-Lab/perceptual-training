@@ -550,10 +550,11 @@ const PhaseSelection = ({
   
   // Helper function to check if training is complete (all 4 days)
   const isTrainingCompleted = () => {
-    return completedTests['training_day1'] && 
-           completedTests['training_day2'] && 
-           completedTests['training_day3'] && 
-           completedTests['training_day4'];
+    // Add explicit boolean conversion for safety
+    return Boolean(completedTests['training_day1']) && 
+           Boolean(completedTests['training_day2']) && 
+           Boolean(completedTests['training_day3']) && 
+           Boolean(completedTests['training_day4']);
   };
   
   // Helper function to calculate days until a specific date
@@ -607,8 +608,9 @@ const PhaseSelection = ({
     console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
 
     return {
-      // Also consider actual phase from currentPhase as a condition
-      posttest1: today >= posttest1Date || currentPhase === 'posttest1',
+      // For posttest1, check both date AND that all training days are completed
+      // This ensures posttest1 isn't available until the required date even if training is done
+      posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
       // For posttest2, check both date AND that the current phase is posttest2
       // This ensures even if we've completed posttest1, we can't access posttest2 until the date
       posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
@@ -621,6 +623,22 @@ const PhaseSelection = ({
     console.log("Posttest availability:", availability);
     setPosttestAvailability(availability);
   }, [pretestDate, trainingDay, currentPhase]);
+  
+  // Debug useEffect to log training completion conditions
+  useEffect(() => {
+    // Debug training completion and posttest1 message conditions
+    console.log("Training completion conditions:", {
+      currentPhase,
+      isTrainingCompleted: isTrainingCompleted(),
+      trainingDay,
+      training_day1: completedTests['training_day1'],
+      training_day2: completedTests['training_day2'],
+      training_day3: completedTests['training_day3'],
+      training_day4: completedTests['training_day4'],
+      posttest1Available: posttestAvailability.posttest1,
+      daysUntilPosttest1: getDaysUntilPosttest1()
+    });
+  }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
 
   // Completely redesigned phase selection without preloading during navigation
   const handleSelectPhase = (phase, testType, day = null) => {
@@ -797,8 +815,8 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Posttest1 Section - Show based on availability or current phase */}
-        {(currentPhase === 'posttest1' || posttestAvailability.posttest1) && (
+        {/* Posttest1 Section - Only show if current phase is posttest1 AND the date requirement is met */}
+        {currentPhase === 'posttest1' && posttestAvailability.posttest1 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Posttest #1 Assessment (1-week follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
@@ -826,8 +844,8 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Message for countdown to posttest1 - Show when training day 4 is completed and posttest1 isn't available yet */}
-        {currentPhase === 'training' && isTrainingCompleted() && !posttestAvailability.posttest1 && getDaysUntilPosttest1() > 0 && (
+        {/* Message for countdown to posttest1 - Show whenever we're in posttest1 phase but the date requirement for showing the cards hasn't been met */}
+        {(currentPhase === 'posttest1' && !posttestAvailability.posttest1) && (
           <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
             <div className="flex items-center justify-center mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -877,8 +895,8 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Posttest2 Section - Show based on availability or current phase */}
-        {(currentPhase === 'posttest2' || posttestAvailability.posttest2) && (
+        {/* Posttest2 Section - Only show if current phase is posttest2 AND the date requirement is met */}
+        {currentPhase === 'posttest2' && posttestAvailability.posttest2 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Posttest #2 Assessment (1-month follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>

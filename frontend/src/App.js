@@ -305,8 +305,15 @@ const App = () => {
         intelligibilityStimuli={trainData.testStimuli}
         userId={userId}
         onComplete={(day) => {
+          // Mark this training day as completed in completedTests
+          setCompletedTests(prev => ({
+            ...prev,
+            [`training_day${day}`]: true
+          }));
+          
           if (day >= 4) {
-            setCurrentPhase('posttest');
+            console.log('Training day 4 completed, advancing to posttest1 phase');
+            setCurrentPhase('posttest1');
           }
           setPhase('selection');
           setShowComplete(true);
