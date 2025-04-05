@@ -142,7 +142,7 @@ const audioService = {
     },
 
     /**
-    * Also add a method for randomized training test audio
+    * Play randomized training audio (for the training phase)
     * @param {string} day - day of training
     * @param {string} index - index between 1 and 20
     * @param {string} userId - userId
@@ -224,6 +224,104 @@ const audioService = {
             };
         } catch (error) {
             console.error('Error playing randomized training audio:', error);
+            throw error;
+        }
+    },
+    
+    /**
+    * Play randomized intelligibility files for the training test phase
+    * @param {string} day - day of training (1-4)
+    * @param {string} index - index between 1 and 20
+    * @param {string} userId - userId
+    * @returns {Promise<{success: boolean, fileNumber: number}>}
+    */
+    async playTrainingTestAudio(day, index, userId = null) {
+        try {
+            console.log(`playTrainingTestAudio called for day ${day}, index ${index}`);
+            
+            // Extract userId from token if not provided
+            if (!userId) {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('No authentication token available');
+                }
+                
+                try {
+                    const tokenParts = token.split('.');
+                    if (tokenParts.length === 3) {
+                        const payload = JSON.parse(atob(tokenParts[1]));
+                        userId = payload.userId;
+                    }
+                } catch (tokenError) {
+                    console.error('Error extracting userId from token:', tokenError);
+                }
+            }
+            
+            // Get randomized file numbers specific for training test
+            // These are different from the training and pretest/posttest file sets
+            const testFiles = getGroupForPhase('training_test', day, userId);
+            
+            // Ensure index is within bounds
+            if (index < 1 || index > testFiles.length) {
+                throw new Error(`Invalid index ${index}. Must be between 1 and ${testFiles.length}`);
+            }
+            
+            // Map the sequential index to the actual file number
+            const actualFileNumber = testFiles[index - 1];
+            
+            console.log(`Playing training test audio: Day ${day}, Index ${index} -> File #${actualFileNumber}`);
+            
+            // Request intelligibility audio file from the server
+            // We're using the same endpoint as for pretest, but with our randomized file number
+            const response = await fetch(
+                `${BASE_URL}/audio/intelligibility/${actualFileNumber}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }
+            );
+            
+            if (!response.ok) {
+                // Handle specific errors
+                if (response.status === 404) {
+                    throw new Error('AUDIO_NOT_FOUND');
+                }
+                
+                // Try to get error details
+                let errorMessage = `Server error: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    // Ignore JSON parse errors
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
+            // Parse the response
+            const data = await response.json();
+            
+            if (!data || !data.url) {
+                throw new Error('Invalid server response - missing URL');
+            }
+            
+            // Play the audio file
+            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+            
+            // Notify backend that the file was played
+            if (data.filename) {
+                await this.notifyAudioPlayed(data.filename);
+            }
+            
+            // Return information about the played file
+            return {
+                success: true,
+                fileNumber: actualFileNumber
+            };
+        } catch (error) {
+            console.error('Error playing training test audio:', error);
             throw error;
         }
     },

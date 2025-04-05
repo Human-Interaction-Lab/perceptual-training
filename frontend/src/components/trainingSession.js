@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { ArrowRight, Headphones, Volume2, Loader } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
-import { TRAINING_DATA, TRAINING_TEST_STIMULI, TRAINING_DAY_TO_STORY } from './trainingData';
+import { TRAINING_DATA, TRAINING_TEST_STIMULI, TRAINING_DAY_TO_STORY, STORY_METADATA } from './trainingData';
 import audioService from '../services/audioService';
 import config from '../config';
 
@@ -31,14 +31,14 @@ const TrainingSession = ({
             const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
             // Also check the old format for backward compatibility
             const legacyKey = `training_progress_day_${trainingDay}`;
-            
+
             // First try the new format
             let savedProgress = localStorage.getItem(userSpecificKey);
-            
+
             // If not found, try the legacy format
             if (!savedProgress) {
                 savedProgress = localStorage.getItem(legacyKey);
-                
+
                 // If we found data in the legacy format, log it and will save in new format later
                 if (savedProgress) {
                     console.log('Found legacy format progress data, will migrate to new format');
@@ -99,9 +99,9 @@ const TrainingSession = ({
 
             // Use the new user-specific format
             const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
-            
+
             localStorage.setItem(userSpecificKey, JSON.stringify(progressData));
-            
+
             // Also remove any legacy format data to avoid confusion
             localStorage.removeItem(`training_progress_day_${trainingDay}`);
 
@@ -114,30 +114,39 @@ const TrainingSession = ({
     const [audioStoryNumber, setAudioStoryNumber] = useState('loading');
     // State to track the actual file number being played
     const [currentFileNumber, setCurrentFileNumber] = useState(null);
-    
+    // State to track the total number of stimuli for the current story
+    const [totalStoryStimuli, setTotalStoryStimuli] = useState(null);
+
     // Listen for custom events from the audio service
     // This ensures we get story number updates BEFORE audio actually plays
     useEffect(() => {
         const handleStoryIdentified = (event) => {
             const { storyNumber, fileNumber } = event.detail;
             console.log(`Event received: Story ${storyNumber}, File ${fileNumber} identified before audio plays`);
-            
+
             // Immediately update the state to show the correct text
             setAudioStoryNumber(storyNumber);
             if (fileNumber) {
                 setCurrentFileNumber(fileNumber);
             }
+
+            // Update the total stimuli count based on the identified story
+            if (storyNumber && STORY_METADATA[storyNumber]) {
+                const storyLength = STORY_METADATA[storyNumber].length;
+                console.log(`Setting total story stimuli to ${storyLength} for story ${storyNumber}`);
+                setTotalStoryStimuli(storyLength);
+            }
         };
-        
+
         // Add the event listener
         window.addEventListener('trainingStoryIdentified', handleStoryIdentified);
-        
+
         // Clean up the listener when component unmounts
         return () => {
             window.removeEventListener('trainingStoryIdentified', handleStoryIdentified);
         };
     }, []);
-    
+
     // Add a MutationObserver to detect when new audio elements are added to the DOM
     // This is a fallback to ensure we catch the story number as soon as possible
     useEffect(() => {
@@ -147,23 +156,30 @@ const TrainingSession = ({
             audioElements.forEach(audio => {
                 if (audio.src) {
                     console.log(`Mutation observer found audio: ${audio.src}`);
-                    
+
                     // Use the same pattern matching logic to extract story number
                     const patterns = [
                         { regex: /Trn_(\d{2})_\d{2}/i, group: 1 },
                         { regex: /day\/(\d{2})\/\d+/i, group: 1 },
                         { regex: /(\d{2})_\d{2}\.wav/i, group: 1 }
                     ];
-                    
+
                     for (const pattern of patterns) {
                         const match = audio.src.match(pattern.regex);
                         if (match && match[pattern.group]) {
                             const detectedStory = match[pattern.group];
                             console.log(`Observer detected story ${detectedStory} in audio element`);
-                            
+
                             // Update if different from current
                             if (detectedStory !== audioStoryNumber) {
                                 setAudioStoryNumber(detectedStory);
+
+                                // Also update the total stimuli count
+                                if (STORY_METADATA[detectedStory]) {
+                                    const storyLength = STORY_METADATA[detectedStory].length;
+                                    console.log(`Observer setting total stimuli to ${storyLength} for story ${detectedStory}`);
+                                    setTotalStoryStimuli(storyLength);
+                                }
                             }
                             break;
                         }
@@ -171,32 +187,32 @@ const TrainingSession = ({
                 }
             });
         };
-        
+
         // Create a mutation observer to watch for DOM changes
         const observer = new MutationObserver((mutations) => {
             // Check if any audio elements were added
-            const audioAdded = mutations.some(mutation => 
-                Array.from(mutation.addedNodes).some(node => 
-                    node.nodeName === 'AUDIO' || 
+            const audioAdded = mutations.some(mutation =>
+                Array.from(mutation.addedNodes).some(node =>
+                    node.nodeName === 'AUDIO' ||
                     (node.nodeType === 1 && node.querySelector('audio'))
                 )
             );
-            
+
             if (audioAdded) {
                 console.log('MutationObserver detected new audio element');
                 checkAudioElements();
             }
         });
-        
+
         // Start observing the document for changes
-        observer.observe(document.body, { 
-            childList: true, 
-            subtree: true 
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
         });
-        
+
         // Initial check
         checkAudioElements();
-        
+
         // Clean up
         return () => {
             observer.disconnect();
@@ -210,28 +226,28 @@ const TrainingSession = ({
             const autoPlay = async () => {
                 try {
                     setAudioPlaying(true);
-                    
+
                     // The sentence index needs to be 1-based for the audio file
                     const sentenceIndex = currentStimulusIndex + 1;
-                    
+
                     console.log(`Auto-playing training audio for day ${trainingDay}, stimulus index ${sentenceIndex}`);
-                    
+
                     // Play the audio matching the current training day
                     const result = await audioService.playTrainingAudio(
                         trainingDay,
                         sentenceIndex
                     );
-                    
+
                     // Get the actual story number from the result
                     const actualStoryNumber = result.storyNumber;
-                    
+
                     console.log(`Audio played successfully with story number: ${actualStoryNumber}`);
-                    
+
                     // Set the story number for text display
                     setAudioStoryNumber(actualStoryNumber);
                     // Set the current file number (which matches the stimulus index)
                     setCurrentFileNumber(sentenceIndex);
-                    
+
                     setAudioPlayed(true);
                 } catch (error) {
                     console.error('Error auto-playing audio:', error);
@@ -273,16 +289,28 @@ const TrainingSession = ({
             // Reset for next stimulus
             setAudioPlayed(false);
             setShowText(true);
-            
+
             // Set the audio story number back to loading state
             // This prevents showing the wrong text while loading the next audio
             setAudioStoryNumber('loading');
             setCurrentFileNumber(null);
 
+            // Determine if we've reached the end of the current story
+            const currentTotal = totalStoryStimuli ||
+                (audioStoryNumber && STORY_METADATA[audioStoryNumber]?.length) ||
+                trainingStimuli.length;
+
+            console.log(`Checking if at end: index=${currentStimulusIndex}, total=${currentTotal}`);
+
             // Move to next stimulus or to test phase
-            if (currentStimulusIndex < trainingStimuli.length - 1) {
+            if (currentStimulusIndex < currentTotal - 1) {
+                // Still have stimuli left in this story
+                console.log(`Moving to next stimulus (${currentStimulusIndex + 1})`);
                 setCurrentStimulusIndex(prevIndex => prevIndex + 1);
             } else {
+                // Reached the end of the story
+                console.log(`End of story reached with ${currentStimulusIndex + 1}/${currentTotal} stimuli`);
+
                 // Move to test phase after completing all training stimuli
                 setCurrentPhase('test');
                 setCurrentStimulusIndex(0);
@@ -368,21 +396,21 @@ const TrainingSession = ({
     const handlePlayTestAudio = async () => {
         // First set audio story to loading state to prevent showing the wrong text
         setAudioStoryNumber('loading');
-        
+
         // Try up to 3 times to play the training test audio
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 console.log(`Attempt ${attempt} to play training test audio...`);
                 // Convert to 1-based index for the audio file
                 const stimulusIndex = currentStimulusIndex + 1;
-                
+
                 console.log(`Playing randomized training test audio for day ${trainingDay}, stimulus index ${stimulusIndex}`);
 
                 // Add a timeout for the entire operation - reduced to 10 seconds for faster failure
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
                 });
-                
+
                 // Race the audio playback against our timeout
                 const result = await Promise.race([
                     audioService.playRandomizedTrainingAudio(
@@ -396,21 +424,21 @@ const TrainingSession = ({
                 // If we got a result with file information, store it
                 if (result && result.fileNumber) {
                     console.log(`Test audio result: file #${result.fileNumber}, story #${result.storyNumber}`);
-                    
+
                     // Set both the file number and story number for text display
                     setCurrentFileNumber(result.fileNumber);
                     setAudioStoryNumber(result.storyNumber);
-                    
+
                     // This is key: we get the actual story number from the audio service
                     console.log(`Will show text for story ${result.storyNumber}, stimulus ${result.fileNumber}`);
                 }
-                
+
                 // Additional check: wait for the audio element to be available, then check its src
                 setTimeout(() => {
                     const audioElement = document.querySelector('audio');
                     if (audioElement && audioElement.src) {
                         console.log(`Test audio element source: ${audioElement.src}`);
-                        
+
                         // Try to extract story number from audio element URL
                         if (audioElement.src.includes("03_01") && audioStoryNumber !== "03") {
                             console.log(`Detected story 03 in test audio element. Overriding story number.`);
@@ -435,24 +463,24 @@ const TrainingSession = ({
                 console.error(`Attempt ${attempt} failed:`, error);
 
                 // Handle critical errors immediately
-                if (error.message === 'AUDIO_NOT_FOUND' || 
+                if (error.message === 'AUDIO_NOT_FOUND' ||
                     error.message.includes('not found') ||
                     error.message.includes('404') ||
                     error.message.includes('timed out')) {
-                    
+
                     console.log('Critical error in training test audio - providing fallback');
                     alert('Audio file could not be played. You can proceed by submitting "NA" as your response.');
                     setUserResponse('NA');
                     setAudioPlayed(true);
-                    
+
                     // Ensure we clean up any hanging audio
                     audioService.dispose();
                     return false; // Failed but handled
                 }
-                
+
                 // Clean up before potential retry
                 audioService.dispose();
-                
+
                 // If this is the last attempt, handle the error
                 if (attempt >= 3) {
                     console.log('All training audio retry attempts failed');
@@ -461,13 +489,13 @@ const TrainingSession = ({
                     setAudioPlayed(true);
                     return false; // Failed but handled
                 }
-                
+
                 // Wait before retrying
                 await new Promise(r => setTimeout(r, 1000));
                 console.log(`Waiting before retry attempt ${attempt + 1}...`);
             }
         }
-        
+
         // Should never reach here due to return statements above
         return false;
     };
@@ -520,38 +548,38 @@ const TrainingSession = ({
         // Determine what story text to display
         let storyNumber;
         let loadingText = false; // Flag to show a loading message instead of text
-        
+
         // If we're in the loading state, don't show any story text yet
         if (audioStoryNumber === 'loading') {
             console.log('Audio story still loading - will show loading indicator');
             loadingText = true;
             storyNumber = null; // Don't use any story number while loading
-        } 
+        }
         // Otherwise, use the story from audio, or default mapping as last resort
         else if (audioStoryNumber) {
             console.log(`Using story number ${audioStoryNumber} from audio playback`);
             storyNumber = audioStoryNumber;
-        } 
+        }
         else {
             console.log(`Using default story number ${TRAINING_DAY_TO_STORY[trainingDay]} from mapping`);
             storyNumber = TRAINING_DAY_TO_STORY[trainingDay];
-            
+
             // Check the actual audio element that's currently playing
             // This is an immediate check that doesn't wait for async operations
             const audioElement = document.querySelector('audio');
             if (audioElement && audioElement.src) {
                 console.log(`Examining active audio element source: ${audioElement.src}`);
-                
+
                 // Check for ALL possible story numbers in the src
                 let detectedStory = null;
-                
+
                 // Try to find any story number pattern in the URL
                 const patterns = [
                     { regex: /Trn_(\d{2})_\d{2}/i, group: 1 },
                     { regex: /day\/(\d{2})\/\d+/i, group: 1 },
                     { regex: /(\d{2})_\d{2}\.wav/i, group: 1 }
                 ];
-                
+
                 for (const pattern of patterns) {
                     const match = audioElement.src.match(pattern.regex);
                     if (match && match[pattern.group]) {
@@ -560,24 +588,30 @@ const TrainingSession = ({
                         break;
                     }
                 }
-                
+
                 // If we found a story number that's different from current state, update immediately
                 if (detectedStory && detectedStory !== audioStoryNumber) {
                     console.log(`Updating story number to ${detectedStory} based on active audio element`);
                     // Update state to force re-render with correct text
                     setAudioStoryNumber(detectedStory);
                     storyNumber = detectedStory; // Use immediately in this render
+
+                    // Also update total length for this story
+                    if (STORY_METADATA[detectedStory]) {
+                        const newTotalStimuli = STORY_METADATA[detectedStory].length;
+                        setTotalStoryStimuli(newTotalStimuli);
+                    }
                 }
             }
         }
-        
+
         // The file index to display (e.g., 1, 2, 3)
         const fileIndex = currentFileNumber || (currentStimulusIndex + 1);
-        
+
         // We'll define these variables for use in rendering
         let currentStimulus = null;
         let displayText = "";
-        
+
         // Show loading indicator if we're still waiting for the actual story
         if (loadingText) {
             displayText = "Loading audio...";
@@ -587,23 +621,23 @@ const TrainingSession = ({
         else if (storyNumber) {
             // Format matches the exact ID format in trainingData.js: "Trn_03_01"
             const stimulusId = `Trn_${storyNumber}_${String(fileIndex).padStart(2, '0')}`;
-            
+
             console.log(`Looking up text for stimulus ID ${stimulusId}`);
-            
+
             // Find the text for this stimulus in all available data
             let correctStimulus = null;
             let foundInDay = null;
-            
+
             // The story number maps to a specific day in the data:
             // 02 -> day1, 03 -> day2, 04 -> day3, 07 -> day4
             // We need to find which day contains this story
             let dataDay = null;
-            
+
             if (storyNumber === "02") dataDay = "day1";
             else if (storyNumber === "03") dataDay = "day2";
             else if (storyNumber === "04") dataDay = "day3";
             else if (storyNumber === "07") dataDay = "day4";
-            
+
             if (dataDay && TRAINING_DATA[dataDay]) {
                 // First check the expected day for this story
                 correctStimulus = TRAINING_DATA[dataDay].find(item => item.id === stimulusId);
@@ -612,7 +646,7 @@ const TrainingSession = ({
                     console.log(`Found matching text in ${dataDay} data (direct match): "${correctStimulus.text}"`);
                 }
             }
-            
+
             // If not found in the expected day, search all days
             if (!correctStimulus) {
                 for (const day in TRAINING_DATA) {
@@ -625,24 +659,24 @@ const TrainingSession = ({
                     }
                 }
             }
-            
+
             // In case we still don't have a match, try searching by story number alone
             if (!correctStimulus) {
                 for (const day in TRAINING_DATA) {
                     // Look for any stimulus with the matching story number
-                    const anyStoryMatch = TRAINING_DATA[day].find(item => 
-                        item.id.includes(`_${storyNumber}_`) || 
+                    const anyStoryMatch = TRAINING_DATA[day].find(item =>
+                        item.id.includes(`_${storyNumber}_`) ||
                         item.id.includes(`Trn_${storyNumber}`)
                     );
-                    
+
                     if (anyStoryMatch) {
                         console.log(`Found at least one stimulus with story ${storyNumber} in ${day}`);
-                        
+
                         // Now look for the specific index in this day
                         const indexMatch = TRAINING_DATA[day].find(item =>
                             item.id.endsWith(`_${String(fileIndex).padStart(2, '0')}`)
                         );
-                        
+
                         if (indexMatch) {
                             correctStimulus = indexMatch;
                             foundInDay = day;
@@ -652,25 +686,28 @@ const TrainingSession = ({
                     }
                 }
             }
-            
+
             // Use the correct stimulus if found, otherwise fall back to the passed prop
             currentStimulus = correctStimulus || trainingStimuli[currentStimulusIndex];
-            
+
             // Log for debugging if the correct stimulus is not found
             if (!correctStimulus) {
                 console.warn(`Could not find training stimulus with ID ${stimulusId} in any day's data. Using fallback.`);
             } else {
                 console.log(`Using text from ${foundInDay} for story ${storyNumber}, stimulus ${fileIndex}: "${currentStimulus.text}"`);
             }
-            
+
             displayText = currentStimulus?.text || "Loading text...";
         }
         else {
             // Fallback text if no story number (shouldn't happen)
             displayText = "Preparing training session...";
         }
-        
-        const progress = ((currentStimulusIndex + 1) / trainingStimuli.length) * 100;
+
+        // Calculate progress based on the story-specific length if available
+        const total = totalStoryStimuli || (storyNumber && STORY_METADATA[storyNumber]?.length) || trainingStimuli.length;
+        const progress = ((currentStimulusIndex + 1) / total) * 100;
+        console.log(`Progress: ${currentStimulusIndex + 1}/${total} = ${progress.toFixed(1)}%`);
 
         return (
             <Card className="shadow-lg">
@@ -681,7 +718,12 @@ const TrainingSession = ({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-gray-700">
-                                Stimulus {currentStimulusIndex + 1} of {trainingStimuli.length}
+                                Stimulus {currentStimulusIndex + 1} of {total}
+                                {storyNumber && STORY_METADATA[storyNumber] && (
+                                    <span className="ml-1 text-blue-600">
+                                        ({STORY_METADATA[storyNumber].title})
+                                    </span>
+                                )}
                             </span>
                             <span className="text-blue-600 font-medium">
                                 {Math.round(progress)}% Complete

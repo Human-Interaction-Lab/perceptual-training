@@ -57,6 +57,15 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
             console.warn(`Invalid training day: ${trainingDay}. Using day 1 instead.`);
             groupIndex = 1;
         }
+    } else if (phase === 'training_test') {
+        // For training test phase, we allocate indices 7-8 for test files
+        // We use modulo in case we have more than 8 training days
+        if (trainingDay && trainingDay >= 1 && trainingDay <= 4) {
+            groupIndex = 7 + ((trainingDay - 1) % 2);
+        } else {
+            console.warn(`Invalid training test day: ${trainingDay}. Using default.`);
+            groupIndex = 7;
+        }
     } else if (phase === 'posttest1') {
         groupIndex = 5;
     } else if (phase === 'posttest2') {

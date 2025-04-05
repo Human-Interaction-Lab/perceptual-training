@@ -124,6 +124,14 @@ export const TRAINING_DAY_TO_STORY = {
     4: "07"  // Day 4 uses Story 07 - Lucas with the Kite (23 stimuli)
 };
 
+// Story metadata including their lengths
+export const STORY_METADATA = {
+    "02": { length: 30, title: "Amusement Park" },
+    "03": { length: 24, title: "Snowball the Cat" },
+    "04": { length: 22, title: "Jake at the Lake" },
+    "07": { length: 23, title: "Lucas with the Kite" }
+};
+
 // Create test stimuli for each training day
 export const TRAINING_TEST_STIMULI = {
     day1: Array.from({ length: 10 }, (_, i) => ({
