@@ -266,6 +266,7 @@ const App = () => {
   const renderTrainingSession = () => {
     // Get training data based on day
     const getTrainingData = () => {
+      console.log(`App.js: Getting training data for day ${trainingDay}`);
       switch (trainingDay) {
         case 1:
           return {
@@ -891,36 +892,30 @@ const App = () => {
 
         return true;
       }
-      // Simplest possible path for intelligibility tests
+      // Intelligibility test with proper randomization
       else if (currentTestType === 'intelligibility') {
-        console.log('Direct intelligibility file access - no randomization');
-        
-        // Add a short timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio access timeout')), 8000);
-        });
+        console.log('Using randomized intelligibility file access');
         
         try {
-          // Direct file access by stimulus number - no randomization
-          const url = `${config.API_BASE_URL}/audio/${phase}/intelligibility/null/${currentStimulus + 1}`;
-          console.log(`Directly accessing audio file URL: ${url}`);
-          
-          const token = localStorage.getItem('token');
-          const fetchPromise = fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          const response = await Promise.race([fetchPromise, timeoutPromise]);
-          
-          if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+          // Extract userId from token for randomization
+          const userId = localStorage.getItem('userId');
+          if (!userId) {
+            throw new Error('User ID not found in localStorage');
           }
           
-          const data = await response.json();
-          await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+          // Use the proper randomized audio function
+          console.log(`Playing randomized intelligibility audio for stimulus ${currentStimulus + 1}`);
+          await audioService.playRandomizedTestAudio(
+            phase, 
+            'intelligibility', 
+            null, 
+            currentStimulus + 1, 
+            userId
+          );
+          
           return true;
         } catch (error) {
-          console.error('Direct access failed, trying fallback:', error);
+          console.error('Randomized access failed, trying fallback:', error);
           
           // FALLBACK: Try direct access to a static file as a last resort
           try {
@@ -934,36 +929,31 @@ const App = () => {
           }
         }
       }
-      // Simplest possible path for effort tests
+      // Effort test with proper randomization
       else if (currentTestType === 'effort') {
-        console.log('Direct effort file access - no randomization');
-        
-        // Add a short timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Audio access timeout')), 8000);
-        });
+        console.log('Using randomized effort file access');
         
         try {
-          // Direct file access by stimulus number - no randomization
-          const url = `${config.API_BASE_URL}/audio/${phase}/effort/null/${currentStimulus + 1}`;
-          console.log(`Directly accessing audio file URL: ${url}`);
-          
-          const token = localStorage.getItem('token');
-          const fetchPromise = fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          
-          const response = await Promise.race([fetchPromise, timeoutPromise]);
-          
-          if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+          // Extract userId from token for randomization
+          const userId = localStorage.getItem('userId');
+          if (!userId) {
+            throw new Error('User ID not found in localStorage');
           }
           
-          const data = await response.json();
-          await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+          console.log(`Playing randomized effort audio for stimulus ${currentStimulus + 1}`);
+          
+          // Use the specialized effort randomized audio function
+          await audioService.playRandomizedEffortAudio(
+            phase,
+            currentStimulus + 1,
+            userId
+          );
+          
           return true;
         } catch (error) {
-          console.error('All effort file access attempts failed');
+          console.error('Randomized effort file access failed:', error);
+          
+          // No good fallback for effort files, unlike intelligibility
           throw new Error('AUDIO_NOT_FOUND');
         }
       }

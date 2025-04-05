@@ -146,7 +146,7 @@ const audioService = {
     * @param {string} day - day of training
     * @param {string} index - index between 1 and 20
     * @param {string} userId - userId
-    * @returns {Promise<void>}
+    * @returns {Promise<{success: boolean, fileNumber: number, storyNumber: string}>}
     */
     async playRandomizedTrainingAudio(day, index, userId = null) {
         try {
@@ -167,9 +167,61 @@ const audioService = {
             const actualFileNumber = groupFiles[index - 1];
 
             console.log(`Playing randomized training audio: Day ${day}/${index} -> File #${actualFileNumber}`);
+            
+            // First, try to predict the story number based on mapping
+            // This is just a preliminary guess before actual API call
+            const mappedStoryNumber = TRAINING_DAY_TO_STORY[day];
+            console.log(`Initial story prediction based on mapping: ${mappedStoryNumber}`);
+            
+            // Emit a preliminary event with our best guess
+            // This helps components show the right text immediately
+            if (typeof window !== 'undefined') {
+                try {
+                    const storyEvent = new CustomEvent('trainingStoryIdentified', {
+                        detail: { 
+                            storyNumber: mappedStoryNumber,
+                            fileNumber: actualFileNumber,
+                            preliminary: true
+                        }
+                    });
+                    console.log(`Emitting preliminary story event`);
+                    window.dispatchEvent(storyEvent);
+                } catch (eventError) {
+                    console.error('Failed to emit preliminary event:', eventError);
+                }
+            }
 
             // Call the regular playTrainingAudio with the mapped file number
-            return await this.playTrainingAudio(day, actualFileNumber);
+            const result = await this.playTrainingAudio(day, actualFileNumber);
+            
+            // Get the accurate story number from the result
+            const storyNumber = result.storyNumber;
+            
+            console.log(`Randomized training audio played with story ${storyNumber}, file #${actualFileNumber}`);
+            
+            // Emit another event with the confirmed story number after the API call
+            if (typeof window !== 'undefined' && storyNumber !== mappedStoryNumber) {
+                try {
+                    const storyEvent = new CustomEvent('trainingStoryIdentified', {
+                        detail: { 
+                            storyNumber: storyNumber,
+                            fileNumber: actualFileNumber,
+                            confirmed: true
+                        }
+                    });
+                    console.log(`Emitting confirmed story event with story=${storyNumber}`);
+                    window.dispatchEvent(storyEvent);
+                } catch (eventError) {
+                    console.error('Failed to emit confirmed event:', eventError);
+                }
+            }
+            
+            return { 
+                success: true, 
+                fileNumber: actualFileNumber,
+                storyNumber: storyNumber,
+                mappedDay: result.mappedDay
+            };
         } catch (error) {
             console.error('Error playing randomized training audio:', error);
             throw error;
@@ -431,7 +483,7 @@ const audioService = {
      * Play audio for training sessions
      * @param {number|string} day - Training day (1-4)
      * @param {number|string} sentence - Sentence number
-     * @returns {Promise<void>}
+     * @returns {Promise<{success: boolean, storyNumber: string}>} - Returns success status and the story number used
      */
     async playTrainingAudio(day, sentence) {
         try {
@@ -464,13 +516,111 @@ const audioService = {
 
             const data = await response.json();
 
-            // Play the audio file
+            // Log the actual audio URL for debugging
+            console.log(`Audio URL ready: ${BASE_URL}${data.url}`);
+            
+            // IMPORTANT: Analyze the URL BEFORE playing the audio
+            // This ensures we identify the correct story number BEFORE audio starts
+            let actualStoryNumber = storyNumber;
+            let extractedFromUrl = false;
+            
+            // Extensive logging of the exact URL structure
+            if (data.url) {
+                // Capture the entire URL and filename for detailed inspection
+                const fullUrl = `${BASE_URL}${data.url}`;
+                console.log(`Analyzing audio URL: ${fullUrl}`);
+                
+                // Look for story number patterns in the URL using multiple approaches
+                // Priority 1: Look for standard Trn_XX_YY pattern
+                const trnMatch = data.url.match(/[Tt]rn_(\d{2})_\d{2}/i);
+                if (trnMatch && trnMatch[1]) {
+                    actualStoryNumber = trnMatch[1];
+                    console.log(`Extracted story number from standard Trn pattern: ${actualStoryNumber}`);
+                    extractedFromUrl = true;
+                }
+                // Priority 2: Look for XX_YY.wav pattern
+                else if (!extractedFromUrl) {
+                    const wavMatch = data.url.match(/(\d{2})_\d{2}\.wav/i);
+                    if (wavMatch && wavMatch[1]) {
+                        actualStoryNumber = wavMatch[1];
+                        console.log(`Extracted story number from .wav filename: ${actualStoryNumber}`);
+                        extractedFromUrl = true;
+                    }
+                }
+                
+                // Additional pattern checks for other filename formats
+                if (!extractedFromUrl) {
+                    // Check for pattern like "day/03/01" which indicates story 03
+                    const pathMatch = data.url.match(/day\/(\d{2})\/\d+/i);
+                    if (pathMatch && pathMatch[1]) {
+                        actualStoryNumber = pathMatch[1];
+                        console.log(`Extracted story number from URL path: ${actualStoryNumber}`);
+                        extractedFromUrl = true;
+                    }
+                }
+                
+                // If we can't automatically extract it, log detailed information to help debug
+                if (!extractedFromUrl) {
+                    console.log(`Could not extract story number from URL structure. URL parts:`, {
+                        basename: data.url.split('/').pop(),
+                        directory: data.url.split('/').slice(0, -1).join('/'),
+                        extension: data.url.split('.').pop()
+                    });
+                }
+                
+                // Emit a custom event with the story number BEFORE audio plays
+                // This allows components to update immediately without waiting for audio
+                if (extractedFromUrl && typeof window !== 'undefined') {
+                    try {
+                        const storyEvent = new CustomEvent('trainingStoryIdentified', {
+                            detail: { 
+                                storyNumber: actualStoryNumber,
+                                fileNumber: sentence
+                            }
+                        });
+                        console.log(`Emitting story event with story=${actualStoryNumber}, file=${sentence}`);
+                        window.dispatchEvent(storyEvent);
+                    } catch (eventError) {
+                        console.error('Failed to emit custom event:', eventError);
+                    }
+                }
+            }
+            
+            // Now play the audio file AFTER analysis and event emission
+            console.log(`Now playing audio: ${BASE_URL}${data.url}`);
             await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
-
+            
             // Notify backend that file was played
             await this.notifyAudioPlayed(data.filename);
-
-            return true;
+            
+            // Additional analysis from filename if URL didn't work
+            if (data.filename && !extractedFromUrl) {
+                console.log(`Analyzing filename: ${data.filename}`);
+                
+                // Similar pattern matching on filename
+                const filenameMatch = data.filename.match(/[Tt]rn_(\d{2})_\d{2}/i) || 
+                                      data.filename.match(/(\d{2})_\d{2}\.wav/i);
+                                      
+                if (filenameMatch && filenameMatch[1]) {
+                    actualStoryNumber = filenameMatch[1];
+                    console.log(`Extracted story number from filename: ${actualStoryNumber}`);
+                } else {
+                    // Final fallback - capture any two-digit number in the filename
+                    const digitMatch = data.filename.match(/_(\d{2})_/);
+                    if (digitMatch && digitMatch[1]) {
+                        actualStoryNumber = digitMatch[1];
+                        console.log(`Extracted potential story number from filename: ${actualStoryNumber}`);
+                    } else {
+                        console.log(`Unable to extract story number from filename`);
+                    }
+                }
+            }
+            
+            return {
+                success: true,
+                storyNumber: actualStoryNumber || storyNumber,
+                mappedDay: mappedDay
+            };
         } catch (error) {
             console.error('Error playing training audio:', error);
             throw error;
