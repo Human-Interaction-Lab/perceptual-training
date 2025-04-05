@@ -2,9 +2,9 @@
 import {
     getGroupForPhase,
     getStoriesForPhase,
-    getEffortFilesForPhase
+    getEffortFilesForPhase,
+    getStoryForTrainingDay
 } from '../utils/randomization';
-import { TRAINING_DAY_TO_STORY } from '../components/trainingData';
 import config from '../config';
 
 // Use the constant instead of hardcoded URL
@@ -168,10 +168,12 @@ const audioService = {
 
             console.log(`Playing randomized training audio: Day ${day}/${index} -> File #${actualFileNumber}`);
             
-            // First, try to predict the story number based on mapping
+            // First, try to predict the story number based on the randomized mapping for this user
             // This is just a preliminary guess before actual API call
-            const mappedStoryNumber = TRAINING_DAY_TO_STORY[day];
-            console.log(`Initial story prediction based on mapping: ${mappedStoryNumber}`);
+            // Use the userId we already extracted above
+            // Use randomized story assignments instead of the fixed mapping
+            const mappedStoryNumber = getStoryForTrainingDay(day, userId);
+            console.log(`Initial story prediction based on randomized mapping: ${mappedStoryNumber}`);
             
             // Emit a preliminary event with our best guess
             // This helps components show the right text immediately
@@ -195,7 +197,7 @@ const audioService = {
             const result = await this.playTrainingAudio(day, actualFileNumber);
             
             // Get the accurate story number from the result
-            const storyNumber = result.storyNumber;
+            const storyNumber = result.storyNumber || mappedStoryNumber;
             
             console.log(`Randomized training audio played with story ${storyNumber}, file #${actualFileNumber}`);
             
@@ -442,11 +444,11 @@ const audioService = {
                     let url;
 
                     if (fileInfo.phase === 'training') {
-                        // Map training day to story number (02, 03, 04, or 07)
-                        const storyNumber = TRAINING_DAY_TO_STORY[fileInfo.day];
-                        const mappedDay = storyNumber || fileInfo.day; // Fallback for backward compatibility
+                        // Use randomized story number instead of fixed mapping
+                        const storyNumber = getStoryForTrainingDay(fileInfo.day, userId);
                         
-                        url = `${BASE_URL}/audio/training/day/${mappedDay}/${fileInfo.actualFile}`;
+                        // Include the story number as a query parameter
+                        url = `${BASE_URL}/audio/training/day/${fileInfo.day}/${fileInfo.actualFile}?story=${storyNumber}`;
                     } else if (fileInfo.testType === 'comprehension') {
                         url = `${BASE_URL}/audio/${fileInfo.phase}/${fileInfo.testType}/${fileInfo.version}/${fileInfo.sentence}`;
                     } else {
@@ -615,17 +617,15 @@ const audioService = {
      */
     async playTrainingAudio(day, sentence) {
         try {
-            // Map the training day to the actual story number (02, 03, 04, or 07)
-            const storyNumber = TRAINING_DAY_TO_STORY[day];
+            // Get randomized story number based on user ID
+            const userId = this.extractUserIdFromToken();
+            const storyNumber = getStoryForTrainingDay(day, userId);
             
-            // If we can't find a mapping, use the day directly (for backward compatibility)
-            const mappedDay = storyNumber || day;
+            console.log(`Playing training audio for day ${day} (randomized story ${storyNumber}), sentence ${sentence}`);
             
-            console.log(`Playing training audio for day ${day} (story ${mappedDay}), sentence ${sentence}`);
-            
-            // Request the audio file URL from the backend
+            // Request the audio file URL from the backend with the story number as a query parameter
             const response = await fetch(
-                `${BASE_URL}/audio/training/day/${mappedDay}/${sentence}`,
+                `${BASE_URL}/audio/training/day/${day}/${sentence}?story=${storyNumber}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -747,7 +747,7 @@ const audioService = {
             return {
                 success: true,
                 storyNumber: actualStoryNumber || storyNumber,
-                mappedDay: mappedDay
+                mappedDay: day // Return the original day instead of mapped day
             };
         } catch (error) {
             console.error('Error playing training audio:', error);

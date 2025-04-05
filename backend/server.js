@@ -200,9 +200,25 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
     }
     const speaker = user.speaker;
 
-    // Check if file exists in Box
-    // We add 1 to the day to match the file naming convention (days are 1-indexed in UI, 2-indexed in files)
-    const pattern = `Trn_${String(parseInt(day) + 1).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
+    // The story number will now be passed as a query parameter from the frontend
+    let storyNumber;
+    
+    // Check if a specific story is requested via query param
+    if (req.query.story) {
+      storyNumber = req.query.story;
+      console.log(`Using requested story number: ${storyNumber} for day ${day}`);
+    } else {
+      // Fallback to the default mapping if no story is specified
+      const dayToStory = {
+        "1": "02",
+        "2": "03",
+        "3": "04",
+        "4": "07"
+      };
+      storyNumber = dayToStory[day] || String(parseInt(day) + 1).padStart(2, '0');
+      console.log(`Using fallback story number: ${storyNumber} for day ${day}`);
+    }
+    const pattern = `Trn_${storyNumber}_${String(sentence).padStart(2, '0')}`;
     const exists = await boxService.fileExists(speaker, pattern);
 
     if (!exists) {
@@ -212,12 +228,13 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
     }
 
     // FIXED: Corrected parameter order in streamAndSaveFile call
+    // Use the same story number we determined above
     const fileInfo = await tempFileService.streamAndSaveFile(
       userId,                  // First param should be userId (was speaker)
       speaker,                 // Second param should be speaker (was 'training')
       'training',              // Third param should be phase (was null)
       null,                    // Fourth param should be testType (was day+1)
-      parseInt(day) + 1,       // Fifth param should be version (was sentence)
+      storyNumber,             // Fifth param should be version (use the story number from query or mapping)
       parseInt(sentence)       // Sixth param should be sentence (was missing)
     );
 

@@ -116,12 +116,14 @@ export const TRAINING_DATA = {
     ]
 };
 
-// Map training days to their actual story numbers
+// DEPRECATED - No longer using fixed mapping
+// Now using randomized stories for each user via randomizeTrainingStories() in randomization.js
+// This is kept for backward compatibility reference only
 export const TRAINING_DAY_TO_STORY = {
-    1: "02", // Day 1 uses Story 02 - Amusement Park (30 stimuli)
-    2: "03", // Day 2 uses Story 03 - Snowball the Cat (24 stimuli)
-    3: "04", // Day 3 uses Story 04 - Jake at the Lake (22 stimuli)
-    4: "07"  // Day 4 uses Story 07 - Lucas with the Kite (23 stimuli)
+    1: "02", // Story 02 - Amusement Park (30 stimuli)
+    2: "03", // Story 03 - Snowball the Cat (24 stimuli)
+    3: "04", // Story 04 - Jake at the Lake (22 stimuli)
+    4: "07"  // Story 07 - Lucas with the Kite (23 stimuli)
 };
 
 // Story metadata including their lengths

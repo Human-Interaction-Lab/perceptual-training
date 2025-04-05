@@ -218,11 +218,55 @@ const getEffortFilesForPhase = (phase, userId = null) => {
     return allPhaseEffortFiles[phase] || [];
 };
 
+// Function to randomize training stories - which story is shown on which day
+const randomizeTrainingStories = (userId = null) => {
+    // Available story numbers
+    const storyIds = ["02", "03", "04", "07"];
+    
+    // Generate a seed based on userId
+    let seedValue;
+    if (userId) {
+        seedValue = hashString(userId + '_training_stories');
+    } else {
+        seedValue = Math.floor(Math.random() * 10000);
+    }
+    
+    // Use a seeded random function that doesn't modify the seed directly
+    const seededRandom = () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+    };
+    
+    // Shuffle the story IDs using Fisher-Yates with seeded random
+    const shuffledStories = [...storyIds];
+    for (let i = shuffledStories.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [shuffledStories[i], shuffledStories[j]] = [shuffledStories[j], shuffledStories[i]];
+    }
+    
+    // Create a mapping from training day to story number
+    const mapping = {};
+    for (let day = 1; day <= 4; day++) {
+        // Use modulo to handle cases with fewer stories than days
+        mapping[day] = shuffledStories[(day - 1) % shuffledStories.length];
+    }
+    
+    return mapping;
+};
+
+// Get the randomized story number for a specific training day
+const getStoryForTrainingDay = (day, userId = null) => {
+    const mapping = randomizeTrainingStories(userId);
+    return mapping[day] || null;
+};
+
 export {
     stratifyAndRandomizeFiles,
     getGroupForPhase,
     randomizeComprehensionStories,
     getStoriesForPhase,
     randomizeEffortFiles,
-    getEffortFilesForPhase
+    getEffortFilesForPhase,
+    randomizeTrainingStories,
+    getStoryForTrainingDay
 };
