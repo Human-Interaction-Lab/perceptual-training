@@ -53,25 +53,25 @@ const App = () => {
     if (phase === 'demographics') {
       return;
     }
-    
+
     // Try to load saved progress for current user and phase
     const userId = localStorage.getItem('userId');
     if (userId && phase !== 'selection' && phase !== 'auth') {
       const savedProgressKey = `progress_${userId}_${phase}_${currentTestType || ''}`;
       const savedProgress = localStorage.getItem(savedProgressKey);
-      
+
       if (savedProgress) {
         try {
           const progress = JSON.parse(savedProgress);
           console.log(`Resuming saved progress for ${phase} (${currentTestType}):`, progress);
-          
+
           // Restore state from saved progress
           setCurrentStimulus(progress.stimulus || 0);
           setUserResponse(progress.response || '');
           if (progress.rating) setRating(progress.rating);
           if (progress.questionIndex !== undefined) setQuestionIndex(progress.questionIndex);
           if (progress.currentStoryIndex !== undefined) setCurrentStoryIndex(progress.currentStoryIndex);
-          
+
           // Don't reset other states when resuming
           return;
         } catch (error) {
@@ -79,13 +79,13 @@ const App = () => {
         }
       }
     }
-    
+
     // If no saved progress or error parsing, use default initial values
     setCurrentStimulus(0);
     setUserResponse('');
     setShowComplete(false);
   }, [phase, currentTestType]);
-  
+
   // Add a special check to ensure demographics data is loaded when needed
   useEffect(() => {
     // If we've transitioned to demographics phase, ensure we're in the right state
@@ -94,14 +94,14 @@ const App = () => {
       // When entering demographics, make sure we:
       // 1. Reset the demographics completion flags to allow form to work
       setIsDemographicsCompleted(false);
-      
+
       // 2. Update completedTests to match (important for consistency)
       setCompletedTests(prev => ({
         ...prev,
         demographics: false,
         pretest_demographics: false
       }));
-      
+
       // 3. DON'T change currentPhase to prevent confusion
       // This means demographics phase is NOT the same as pretest phase
     }
@@ -117,40 +117,40 @@ const App = () => {
       showComplete,
       stimuliLength: getCurrentStimuli()?.length
     });
-    
+
     // Save progress for resuming later - applies to all test phases
     const userId = localStorage.getItem('userId');
-    if (userId && phase !== 'selection' && phase !== 'auth' && phase !== 'demographics' 
-        && !showComplete && currentTestType) {
-      
+    if (userId && phase !== 'selection' && phase !== 'auth' && phase !== 'demographics'
+      && !showComplete && currentTestType) {
+
       // Create a unique key for this user, phase and test type
       const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
-      
+
       // Save all relevant state for this test type
       const progressData = {
         stimulus: currentStimulus,
         response: userResponse,
         timestamp: new Date().toISOString()
       };
-      
+
       // Add test-specific data
       if (currentTestType === 'effort' && rating !== null) {
         progressData.rating = rating;
       }
-      
+
       if (currentTestType === 'comprehension') {
         progressData.questionIndex = questionIndex;
         progressData.currentStoryIndex = currentStoryIndex;
       }
-      
+
       // Only save if we're actively in a test (stimulus > 0 or explicit save)
       if (currentStimulus > 0 || phase === 'training') {
         console.log(`Saving progress for ${progressKey}`, progressData);
         localStorage.setItem(progressKey, JSON.stringify(progressData));
       }
     }
-  }, [phase, currentPhase, trainingDay, currentStimulus, currentTestType, 
-      userResponse, rating, questionIndex, currentStoryIndex, showComplete]);
+  }, [phase, currentPhase, trainingDay, currentStimulus, currentTestType,
+    userResponse, rating, questionIndex, currentStoryIndex, showComplete]);
 
   // stimuli data structure
   const stimuli = {
@@ -310,7 +310,7 @@ const App = () => {
             ...prev,
             [`training_day${day}`]: true
           }));
-          
+
           if (day >= 4) {
             console.log('Training day 4 completed, advancing to posttest1 phase');
             setCurrentPhase('posttest1');
@@ -354,7 +354,7 @@ const App = () => {
         // Check if this is a test user that was recently initialized
         if (userId.startsWith('test_') && data.testUsersInitialized) {
           console.log('Recently initialized test user detected! Clearing all localStorage progress...');
-          
+
           // Clear any existing localStorage progress for test users
           const progressKeys = [
             // Training progress - both new format
@@ -362,13 +362,13 @@ const App = () => {
             `progress_${userId}_training_day2`,
             `progress_${userId}_training_day3`,
             `progress_${userId}_training_day4`,
-            
+
             // Training progress - legacy format
             `training_progress_day_1`,
             `training_progress_day_2`,
-            `training_progress_day_3`, 
+            `training_progress_day_3`,
             `training_progress_day_4`,
-            
+
             // Test progress
             `progress_${userId}_pretest_intelligibility`,
             `progress_${userId}_pretest_effort`,
@@ -381,7 +381,7 @@ const App = () => {
             `progress_${userId}_posttest2_comprehension`,
             `progress_${userId}_demographics_demographics`
           ];
-          
+
           // Remove all progress keys
           progressKeys.forEach(key => {
             if (localStorage.getItem(key) !== null) {
@@ -389,12 +389,12 @@ const App = () => {
               localStorage.removeItem(key);
             }
           });
-          
+
           console.log('Test user localStorage progress cleared');
           // Show a toast or notification to the user
           alert('Test users have been reinitialized. All progress has been reset.');
         }
-        
+
         localStorage.setItem('token', data.token);
         localStorage.setItem('userId', userId);
         setUserId(userId); // Ensure this is also set in component state
@@ -408,8 +408,8 @@ const App = () => {
 
         // Explicitly check for demographics completion from multiple sources
         const completedTestsObj = data.completedTests || {};
-        const demoCompleted = 
-          completedTestsObj.demographics === true || 
+        const demoCompleted =
+          completedTestsObj.demographics === true ||
           completedTestsObj.pretest_demographics === true ||
           data.isDemographicsCompleted === true;
 
@@ -422,7 +422,7 @@ const App = () => {
 
         // Ensure demographics completion is properly set
         setIsDemographicsCompleted(demoCompleted);
-        
+
         // Update completedTests to include demographics status if needed
         if (demoCompleted && !completedTestsObj.demographics && !completedTestsObj.pretest_demographics) {
           setCompletedTests(prev => ({
@@ -618,7 +618,7 @@ const App = () => {
         // Move to the next assigned story
         setCurrentStoryIndex(prevIndex => prevIndex + 1);
         setQuestionIndex(0);
-        
+
         // Save the progress for the new story
         const userId = localStorage.getItem('userId');
         if (userId) {
@@ -727,7 +727,7 @@ const App = () => {
 
       // Show completion message
       setShowComplete(true);
-      
+
       // Clear saved progress for completed test
       const userId = localStorage.getItem('userId');
       if (userId) {
@@ -757,7 +757,7 @@ const App = () => {
                 [`${phase}_COMPLETED`]: true,
                 posttest1_COMPLETED: true
               }));
-              
+
               // Set phase to posttest2 but it will still be date-restricted
               setCurrentPhase('posttest2');
               console.log('Posttest1 completed. Setting phase to posttest2 (will be date-restricted)');
@@ -801,7 +801,7 @@ const App = () => {
     // Special handling for demographics - completely separated from pretest
     if (selectedPhase === 'demographics') {
       console.log('Setting phase to demographics - completely separate from pretest');
-      
+
       // Explicitly reset demographic completion state to ensure clean form
       setIsDemographicsCompleted(false);
       setCompletedTests(prev => ({
@@ -809,7 +809,7 @@ const App = () => {
         demographics: false,
         pretest_demographics: false
       }));
-      
+
       // Navigate to demographics phase
       setPhase('demographics');
       return;
@@ -866,7 +866,7 @@ const App = () => {
     setCurrentTestType(startingTestType);
     setPhase(selectedPhase);
     setCurrentStimulus(0);
-    
+
     // Initialize user response with correct type based on test type
     if (startingTestType === 'comprehension') {
       setUserResponse(null); // Multiple choice uses null for no selection
@@ -878,7 +878,7 @@ const App = () => {
     // CRITICAL CHANGE: NO PRELOADING AT ALL - not even in the background
     // This ensures we don't trigger any file loading until the exact moment we need each file
     console.log(`DISABLED: No preloading for ${selectedPhase} - will load files only when needed`);
-    
+
     // The strategy is now to load each file exactly when it's needed, not in advance
     // This should prevent race conditions and waiting for preloading
   };
@@ -888,7 +888,7 @@ const App = () => {
   const handlePlayAudio = async (input) => {
     try {
       console.log(`SIMPLIFIED handlePlayAudio - phase: ${phase}, testType: ${currentTestType}, stimulus: ${currentStimulus + 1}`);
-      
+
       // Check if we're playing a full story (input will be storyId like "Comp_01")
       if (typeof input === 'string' && input.startsWith('Comp_')) {
         // Story playback uses the most basic direct method
@@ -900,17 +900,17 @@ const App = () => {
           // Use the simplest, most direct path
           const url = `${config.API_BASE_URL}/audio/${phase}/comprehension/${storyNum}/${i}`;
           console.log(`Directly accessing audio file URL: ${url}`);
-          
+
           try {
             const token = localStorage.getItem('token');
             const response = await fetch(url, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             if (!response.ok) {
               throw new Error(`Server error: ${response.status}`);
             }
-            
+
             const data = await response.json();
             await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
           } catch (clipError) {
@@ -928,28 +928,28 @@ const App = () => {
       // Intelligibility test with proper randomization
       else if (currentTestType === 'intelligibility') {
         console.log('Using randomized intelligibility file access');
-        
+
         try {
           // Extract userId from token for randomization
           const userId = localStorage.getItem('userId');
           if (!userId) {
             throw new Error('User ID not found in localStorage');
           }
-          
+
           // Use the proper randomized audio function
           console.log(`Playing randomized intelligibility audio for stimulus ${currentStimulus + 1}`);
           await audioService.playRandomizedTestAudio(
-            phase, 
-            'intelligibility', 
-            null, 
-            currentStimulus + 1, 
+            phase,
+            'intelligibility',
+            null,
+            currentStimulus + 1,
             userId
           );
-          
+
           return true;
         } catch (error) {
           console.error('Randomized access failed, trying fallback:', error);
-          
+
           // FALLBACK: Try direct access to a static file as a last resort
           try {
             const fallbackUrl = `${config.API_BASE_URL}/audio/public/Grace Norman_Int${String(currentStimulus + 1).padStart(2, '0')}.wav`;
@@ -965,27 +965,27 @@ const App = () => {
       // Effort test with proper randomization
       else if (currentTestType === 'effort') {
         console.log('Using randomized effort file access');
-        
+
         try {
           // Extract userId from token for randomization
           const userId = localStorage.getItem('userId');
           if (!userId) {
             throw new Error('User ID not found in localStorage');
           }
-          
+
           console.log(`Playing randomized effort audio for stimulus ${currentStimulus + 1}`);
-          
+
           // Use the specialized effort randomized audio function
           await audioService.playRandomizedEffortAudio(
             phase,
             currentStimulus + 1,
             userId
           );
-          
+
           return true;
         } catch (error) {
           console.error('Randomized effort file access failed:', error);
-          
+
           // No good fallback for effort files, unlike intelligibility
           throw new Error('AUDIO_NOT_FOUND');
         }
@@ -993,22 +993,22 @@ const App = () => {
       // Simplest fallback method
       else {
         console.log('Using generic fallback method for unknown test type');
-        
+
         // Very simple direct access attempt
         try {
           // Direct file access by stimulus number - no randomization or complexity
           const url = `${config.API_BASE_URL}/audio/${phase}/${currentTestType || 'intelligibility'}/null/${currentStimulus + 1}`;
           console.log(`Last-resort direct URL: ${url}`);
-          
+
           const token = localStorage.getItem('token');
           const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          
+
           if (!response.ok) {
             throw new Error(`Server error: ${response.status}`);
           }
-          
+
           const data = await response.json();
           await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
           return true;
@@ -1019,12 +1019,12 @@ const App = () => {
       }
     } catch (error) {
       console.error('Error playing audio:', error);
-      
+
       // Handle different error types 
-      if (error.message === 'AUDIO_NOT_FOUND' || 
-          error.message.includes('not found') ||
-          error.message.includes('timeout') ||
-          error.message.includes('404')) {
+      if (error.message === 'AUDIO_NOT_FOUND' ||
+        error.message.includes('not found') ||
+        error.message.includes('timeout') ||
+        error.message.includes('404')) {
         // Pass this specific error to the components to handle
         return false;
       } else {
@@ -1082,21 +1082,21 @@ const App = () => {
   // Helper function to detect browser type
   const getBrowserType = () => {
     if (typeof window === 'undefined') return 'unknown'; // SSR handling
-    
+
     const userAgent = window.navigator.userAgent.toLowerCase();
-    
+
     if (userAgent.indexOf('chrome') > -1) return 'chrome';
     if (userAgent.indexOf('firefox') > -1) return 'firefox';
     if (userAgent.indexOf('safari') > -1) return 'safari';
     if (userAgent.indexOf('edge') > -1 || userAgent.indexOf('edg') > -1) return 'edge';
     if (userAgent.indexOf('opr') > -1 || userAgent.indexOf('opera') > -1) return 'opera';
-    
+
     return 'other';
   };
 
   // renderAuth() updated
   const renderAuth = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12">
       {/* Browser compatibility warning for non-Chrome browsers */}
       {getBrowserType() !== 'chrome' && (
         <div className="max-w-5xl mx-auto mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded-md">
@@ -1111,7 +1111,7 @@ const App = () => {
           </div>
         </div>
       )}
-      
+
       {/* Welcome Section - wider width */}
       <WelcomeSection />
 
@@ -1329,9 +1329,9 @@ const App = () => {
               <h3 className="text-xl font-semibold text-[#406368] mb-4">
                 {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test Complete' :
                   phase === 'training' ? `Training Day ${trainingDay} Complete` :
-                  phase === 'posttest1' ? '1-Week Post-test Complete' :
-                  phase === 'posttest2' ? '1-Month Post-test Complete' :
-                    'Post-test Complete'}
+                    phase === 'posttest1' ? '1-Week Post-test Complete' :
+                      phase === 'posttest2' ? '1-Month Post-test Complete' :
+                        'Post-test Complete'}
               </h3>
               <p className="text-[#6e6e6d] mb-6">
                 {phase === 'pretest' || phase === 'intelligibility'
@@ -1398,7 +1398,7 @@ const App = () => {
                   demographics: true,
                   pretest_demographics: true
                 }));
-                
+
                 // Very important - keep current phase and phase separate
                 // Demographics is not part of pretest
                 setPhase('selection');

@@ -102,7 +102,7 @@ const ComprehensionTest = ({
 
     if (showInstructions) {
         return (
-            <Card className="shadow-lg !border-0">
+            <Card className="shadow-lg">
                 <CardHeader className="bg-[#406368] text-white">
                     <h2 className="text-xl font-semibold">Story Comprehension Test</h2>
                 </CardHeader>
@@ -117,7 +117,7 @@ const ComprehensionTest = ({
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="pt-4 !border-0">
+                <CardFooter className="pt-4">
                     <Button
                         onClick={handleStartTest}
                         className="w-full bg-[#406368] hover:bg-[#6c8376]"
@@ -131,7 +131,7 @@ const ComprehensionTest = ({
     }
 
     return (
-        <Card className="shadow-lg !border-0">
+        <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
                 {/* Instructions - Shown at the top */}
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">

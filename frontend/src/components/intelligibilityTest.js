@@ -30,7 +30,7 @@ const IntelligibilityTest = ({
     const handlePlayAudio = async () => {
         setIsPlaying(true);
         setAudioError(false);
-        
+
         // Reset in case of retry
         setAudioPlayed(false);
 
@@ -38,44 +38,44 @@ const IntelligibilityTest = ({
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 console.log(`Attempt ${attempt} to play audio...`);
-                
+
                 // Add a timeout for the entire operation - reduced to fail faster
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
                 });
-                
+
                 // Important: Don't wait for preloading
                 console.log("Attempting to play audio directly - no preloading");
-                
+
                 // Just use the direct play function without randomization or preloading
                 await Promise.race([
                     // Use the provided onPlayAudio directly - simplest path
                     onPlayAudio(),
                     timeoutPromise
                 ]);
-                
+
                 console.log('Audio playback completed successfully!');
                 setAudioPlayed(true);
                 break; // Success! Exit the retry loop
             } catch (error) {
                 console.error(`Attempt ${attempt} failed:`, error);
-                
+
                 // If we have a timeout or not found error, handle immediately
-                if (error.message === 'AUDIO_NOT_FOUND' || 
+                if (error.message === 'AUDIO_NOT_FOUND' ||
                     error.message.includes('not found') ||
                     error.message.includes('404') ||
                     error.message.includes('timed out')) {
-                    
+
                     console.log('Critical audio error - providing fallback experience');
                     setAudioError(true);
                     setAudioPlayed(true); // Allow form submission with NA
                     onResponseChange("NA");
-                    
+
                     // Add helpful user message
                     if (!audioError) { // Only show once
                         alert('Audio file could not be played. You can proceed by clicking Submit with "NA" as your response.');
                     }
-                    
+
                     break; // No need to retry for file not found or timeout
                 } else if (attempt >= 3) {
                     // On the last attempt, handle any other error
@@ -83,16 +83,16 @@ const IntelligibilityTest = ({
                     setAudioError(true);
                     setAudioPlayed(true); // Allow form submission
                     onResponseChange("NA");
-                    
+
                     // Add helpful user message on final failure
                     if (!audioError) { // Only show once
                         alert('After multiple attempts, the audio could not be played. You can proceed by submitting "NA" as your response.');
                     }
                 }
-                
+
                 // Clean up before potential retry
                 audioService.dispose();
-                
+
                 // If this wasn't the last attempt, wait a bit before retrying
                 if (attempt < 3) {
                     await new Promise(r => setTimeout(r, 1000));
@@ -100,10 +100,10 @@ const IntelligibilityTest = ({
                 }
             }
         }
-        
+
         // Always reset the playing state when done with all attempts
         setIsPlaying(false);
-        
+
         // Ensure we clean up any hanging audio
         audioService.dispose();
     };
@@ -117,7 +117,7 @@ const IntelligibilityTest = ({
     };
 
     return (
-        <Card className="shadow-lg !border-0">
+        <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
                 {/* Browser compatibility notice */}
                 {getBrowserType() !== 'chrome' && (
@@ -126,7 +126,7 @@ const IntelligibilityTest = ({
                         <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
                     </div>
                 )}
-                
+
                 {/* Instructions - Moved to top */}
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
@@ -145,7 +145,7 @@ const IntelligibilityTest = ({
                         )}
                     </ul>
                 </div>
-                
+
                 {/* Progress Section */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
