@@ -23,9 +23,31 @@ const TrainingSession = ({
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
     const [cleanupStarted, setCleanupStarted] = useState(false);
+    
+    // State to track which story pair we're on (first or second story)
+    const [storyPairIndex, setStoryPairIndex] = useState(0);
+    // State to track all stories for this training day with default values based on day
+    const [trainingDayStories, setTrainingDayStories] = useState(() => {
+        // Default initialization based on training day
+        if (trainingDay === 1 || trainingDay === 3) {
+            return ["02", "04"];
+        } else if (trainingDay === 2 || trainingDay === 4) {
+            return ["03", "07"];
+        }
+        // Fallback if trainingDay is invalid
+        return ["02"];
+    });
 
     // Load saved progress when component mounts
     useEffect(() => {
+        // Import getTrainingStoriesForDay here to avoid any import confusion
+        const { getTrainingStoriesForDay } = require('../utils/randomization');
+        
+        // Load the stories for this training day
+        const stories = getTrainingStoriesForDay(trainingDay);
+        setTrainingDayStories(stories);
+        console.log(`Training day ${trainingDay} will use stories:`, stories);
+        
         const loadSavedProgress = () => {
             // Get the proper user-specific progress key
             const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
@@ -56,6 +78,11 @@ const TrainingSession = ({
                         setCurrentPhase(progress.phase);
                         setCurrentStimulusIndex(progress.stimulusIndex);
                         setShowText(true);
+                        
+                        // Restore story pair index if available
+                        if (progress.storyPairIndex !== undefined) {
+                            setStoryPairIndex(progress.storyPairIndex);
+                        }
 
                         // If we're resuming in the test phase, don't mark audio as played yet
                         if (progress.phase !== 'test') {
@@ -76,6 +103,7 @@ const TrainingSession = ({
         if (!loadSavedProgress()) {
             setCurrentPhase('instruction');
             setCurrentStimulusIndex(0);
+            setStoryPairIndex(0); // Start with the first story
             setShowText(true);
             setAudioPlayed(false);
         }
@@ -94,6 +122,7 @@ const TrainingSession = ({
                 trainingDay,
                 phase: currentPhase,
                 stimulusIndex: currentStimulusIndex,
+                storyPairIndex, // Save which story in the pair we're on
                 audioPlayed
             };
 
@@ -107,7 +136,7 @@ const TrainingSession = ({
 
             console.log('Saved progress using new format:', progressData);
         }
-    }, [trainingDay, currentPhase, currentStimulusIndex, audioPlayed, userId]);
+    }, [trainingDay, currentPhase, currentStimulusIndex, storyPairIndex, audioPlayed, userId]);
 
     // State to track the actual story number being used for audio
     // Initialize with a special token that indicates we haven't determined the story yet
@@ -230,16 +259,19 @@ const TrainingSession = ({
                     // The sentence index needs to be 1-based for the audio file
                     const sentenceIndex = currentStimulusIndex + 1;
 
-                    console.log(`Auto-playing training audio for day ${trainingDay}, stimulus index ${sentenceIndex}`);
+                    // Get the current story number for this pair index
+                    const currentStoryNumber = trainingDayStories[storyPairIndex];
+                    console.log(`Auto-playing training audio for day ${trainingDay}, story ${currentStoryNumber}, stimulus index ${sentenceIndex}`);
 
-                    // Play the audio matching the current training day
+                    // Override the story number parameter in the audioService
                     const result = await audioService.playTrainingAudio(
                         trainingDay,
-                        sentenceIndex
+                        sentenceIndex,
+                        currentStoryNumber // Force the service to use this story number
                     );
 
                     // Get the actual story number from the result
-                    const actualStoryNumber = result.storyNumber;
+                    const actualStoryNumber = result.storyNumber || currentStoryNumber;
 
                     console.log(`Audio played successfully with story number: ${actualStoryNumber}`);
 
@@ -263,7 +295,7 @@ const TrainingSession = ({
 
             return () => clearTimeout(timer);
         }
-    }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay]);
+    }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay, storyPairIndex, trainingDayStories]);
 
     //const handleManualPlayAudio = async () => {
     //    if (audioPlaying || audioPlayed) return;
@@ -302,18 +334,28 @@ const TrainingSession = ({
 
             console.log(`Checking if at end: index=${currentStimulusIndex}, total=${currentTotal}`);
 
-            // Move to next stimulus or to test phase
+            // Move to next stimulus or transition to next story or test phase
             if (currentStimulusIndex < currentTotal - 1) {
                 // Still have stimuli left in this story
                 console.log(`Moving to next stimulus (${currentStimulusIndex + 1})`);
                 setCurrentStimulusIndex(prevIndex => prevIndex + 1);
             } else {
-                // Reached the end of the story
+                // Reached the end of the current story
                 console.log(`End of story reached with ${currentStimulusIndex + 1}/${currentTotal} stimuli`);
-
-                // Move to test phase after completing all training stimuli
-                setCurrentPhase('test');
-                setCurrentStimulusIndex(0);
+                
+                // Check if we have another story to play for this training day
+                if (storyPairIndex < trainingDayStories.length - 1) {
+                    // Move to the next story in the pair
+                    console.log(`Moving to next story in pair (${storyPairIndex + 1}/${trainingDayStories.length})`);
+                    setStoryPairIndex(prevIndex => prevIndex + 1);
+                    setCurrentStimulusIndex(0);
+                    setAudioStoryNumber(trainingDayStories[storyPairIndex + 1]);
+                } else {
+                    // Completed all stories for this training day, move to test phase
+                    console.log(`All stories completed, moving to test phase`);
+                    setCurrentPhase('test');
+                    setCurrentStimulusIndex(0);
+                }
             }
         }
     };
@@ -745,10 +787,36 @@ const TrainingSession = ({
             displayText = "Preparing training session...";
         }
 
-        // Calculate progress based on the story-specific length if available
-        const total = totalStoryStimuli || (storyNumber && STORY_METADATA[storyNumber]?.length) || trainingStimuli.length;
-        const progress = ((currentStimulusIndex + 1) / total) * 100;
-        console.log(`Progress: ${currentStimulusIndex + 1}/${total} = ${progress.toFixed(1)}%`);
+        // Calculate progress based on all stories for this training day
+        const currentStoryTotal = totalStoryStimuli || 
+            (storyNumber && STORY_METADATA[storyNumber]?.length) || 
+            trainingStimuli.length;
+            
+        // Calculate total stimuli across all stories
+        let totalStimuli = 0;
+        if (trainingDayStories.length > 0) {
+            for (const storyId of trainingDayStories) {
+                totalStimuli += STORY_METADATA[storyId]?.length || 0;
+            }
+        } else {
+            // Fallback if stories aren't loaded yet
+            totalStimuli = currentStoryTotal;
+        }
+        
+        // Calculate actual progress considering completed stories
+        let completedCount = 0;
+        // Add all completed stories
+        if (trainingDayStories.length > 0) {
+            for (let i = 0; i < storyPairIndex; i++) {
+                const storyId = trainingDayStories[i];
+                completedCount += STORY_METADATA[storyId]?.length || 0;
+            }
+        }
+        // Add progress in current story
+        completedCount += currentStimulusIndex + 1;
+        
+        const progress = (completedCount / totalStimuli) * 100;
+        console.log(`Progress: ${completedCount}/${totalStimuli} = ${progress.toFixed(1)}% (Story ${storyPairIndex + 1}/${trainingDayStories.length}, stimuli ${currentStimulusIndex + 1}/${currentStoryTotal})`);
 
         return (
             <Card className="shadow-lg !border-0">
@@ -759,7 +827,15 @@ const TrainingSession = ({
                     <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-gray-700">
-                                Stimulus {currentStimulusIndex + 1} of {total}
+                                {trainingDayStories.length > 0 ? (
+                                    <>
+                                        Story {storyPairIndex + 1}/{trainingDayStories.length}: Stimulus {currentStimulusIndex + 1} of {currentStoryTotal}
+                                    </>
+                                ) : (
+                                    <>
+                                        Stimulus {currentStimulusIndex + 1} of {currentStoryTotal}
+                                    </>
+                                )}
                                 {storyNumber && STORY_METADATA[storyNumber] && (
                                     <span className="ml-1 text-[#406368]">
                                         ({STORY_METADATA[storyNumber].title})

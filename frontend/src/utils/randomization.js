@@ -218,46 +218,33 @@ const getEffortFilesForPhase = (phase, userId = null) => {
     return allPhaseEffortFiles[phase] || [];
 };
 
-// Function to randomize training stories - which story is shown on which day
-const randomizeTrainingStories = (userId = null) => {
-    // Available story numbers
-    const storyIds = ["02", "03", "04", "07"];
-    
-    // Generate a seed based on userId
-    let seedValue;
-    if (userId) {
-        seedValue = hashString(userId + '_training_stories');
-    } else {
-        seedValue = Math.floor(Math.random() * 10000);
+// Function to get fixed training stories for each day
+// No more randomization - using fixed story assignments
+const getTrainingStoriesForDay = (day) => {
+    // Fixed mapping: 
+    // Days 1 and 3 get stories 02 and 04
+    // Days 2 and 4 get stories 03 and 07
+    switch (day) {
+        case 1: 
+            return ["02", "04"];
+        case 2:
+            return ["03", "07"];
+        case 3:
+            return ["02", "04"];
+        case 4:
+            return ["03", "07"];
+        default:
+            console.error(`Invalid training day: ${day}`);
+            return ["02"]; // fallback to story 02 if invalid day
     }
-    
-    // Use a seeded random function that doesn't modify the seed directly
-    const seededRandom = () => {
-        seedValue = (seedValue * 9301 + 49297) % 233280;
-        return seedValue / 233280;
-    };
-    
-    // Shuffle the story IDs using Fisher-Yates with seeded random
-    const shuffledStories = [...storyIds];
-    for (let i = shuffledStories.length - 1; i > 0; i--) {
-        const j = Math.floor(seededRandom() * (i + 1));
-        [shuffledStories[i], shuffledStories[j]] = [shuffledStories[j], shuffledStories[i]];
-    }
-    
-    // Create a mapping from training day to story number
-    const mapping = {};
-    for (let day = 1; day <= 4; day++) {
-        // Use modulo to handle cases with fewer stories than days
-        mapping[day] = shuffledStories[(day - 1) % shuffledStories.length];
-    }
-    
-    return mapping;
 };
 
-// Get the randomized story number for a specific training day
+// Get the primary story for a specific training day (for backward compatibility)
 const getStoryForTrainingDay = (day, userId = null) => {
-    const mapping = randomizeTrainingStories(userId);
-    return mapping[day] || null;
+    // Return the first story in the pair for this day
+    // This maintains backward compatibility with code that expects a single story
+    const stories = getTrainingStoriesForDay(day);
+    return stories[0] || null;
 };
 
 export {
@@ -267,6 +254,6 @@ export {
     getStoriesForPhase,
     randomizeEffortFiles,
     getEffortFilesForPhase,
-    randomizeTrainingStories,
+    getTrainingStoriesForDay,
     getStoryForTrainingDay
 };

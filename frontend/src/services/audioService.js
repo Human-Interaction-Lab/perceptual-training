@@ -613,15 +613,23 @@ const audioService = {
      * Play audio for training sessions
      * @param {number|string} day - Training day (1-4)
      * @param {number|string} sentence - Sentence number
+     * @param {string|null} forceStoryNumber - Optional override to force a specific story number
      * @returns {Promise<{success: boolean, storyNumber: string}>} - Returns success status and the story number used
      */
-    async playTrainingAudio(day, sentence) {
+    async playTrainingAudio(day, sentence, forceStoryNumber = null) {
         try {
-            // Get randomized story number based on user ID
-            const userId = this.extractUserIdFromToken();
-            const storyNumber = getStoryForTrainingDay(day, userId);
+            // Use forced story number if provided, otherwise get from user ID
+            let storyNumber;
+            if (forceStoryNumber) {
+                storyNumber = forceStoryNumber;
+                console.log(`Using forced story number: ${storyNumber}`);
+            } else {
+                // Get story number based on user ID (this is just a fallback)
+                const userId = this.extractUserIdFromToken();
+                storyNumber = getStoryForTrainingDay(day, userId);
+            }
             
-            console.log(`Playing training audio for day ${day} (randomized story ${storyNumber}), sentence ${sentence}`);
+            console.log(`Playing training audio for day ${day} (story ${storyNumber}), sentence ${sentence}`);
             
             // Request the audio file URL from the backend with the story number as a query parameter
             const response = await fetch(
