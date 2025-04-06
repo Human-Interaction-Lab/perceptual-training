@@ -291,7 +291,45 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
     if (testTypeUpper === "COMPREHENSION") {
       pattern = `Comp_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}`;
     } else if (testTypeUpper === "INTELLIGIBILITY") {
-      pattern = `Int${String(sentence).padStart(2, '0')}`;
+      // For intelligibility, we need to use the proper randomized sequence
+      // Get the randomization module from the frontend code
+      // We're using the same randomization logic on the server side to ensure consistency
+      try {
+        // Import the randomization utils
+        const path = require('path');
+        const randomizationPath = path.join(__dirname, '..', 'frontend', 'src', 'utils', 'randomization.js');
+        const randomization = require(randomizationPath);
+        
+        // Get the randomized sequence for this user and phase
+        const randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+        console.log(`Server.js: Got randomized sequence for ${userId}, phase=${phase}: ${randomizedFiles.slice(0, 5)}...`);
+        
+        // IMPORTANT: If sentence is already a randomized file number, we should use it directly
+        // instead of trying to look it up in the randomized sequence
+        let randomizedFileNumber;
+        
+        // Check if the sentence is already one of the randomized file numbers
+        if (randomizedFiles.includes(parseInt(sentence))) {
+            console.log(`Server.js: Sentence ${sentence} is already a randomized file number, using directly`);
+            randomizedFileNumber = parseInt(sentence);
+        } else {
+            // Otherwise, map the sequential index to the randomized file number
+            // Note: sentence is 1-indexed in the URL params, but array is 0-indexed
+            console.log(`Server.js: Treating ${sentence} as a sequential index, mapping to randomized file`);
+            randomizedFileNumber = randomizedFiles[parseInt(sentence) - 1];
+        }
+        
+        console.log(`Using randomized intelligibility number ${randomizedFileNumber} instead of ${sentence}`);
+        
+        // Create the pattern with the randomized file number
+        pattern = `Int${String(randomizedFileNumber).padStart(2, '0')}`;
+        console.log(`Using randomized intelligibility file pattern: ${pattern}`);
+      } catch (randomizationError) {
+        console.error('Error using randomization for intelligibility files:', randomizationError);
+        // Fallback to using the sequential number if randomization fails
+        pattern = `Int${String(sentence).padStart(2, '0')}`;
+        console.log(`FALLBACK: Using sequential intelligibility file pattern: ${pattern}`);
+      }
     } else { // EFFORT
       pattern = `EFF${String(sentence).padStart(2, '0')}`;
     }
@@ -495,6 +533,45 @@ app.post('/api/session/end', authenticateToken, async (req, res) => {
   }
 });
 
+// Special endpoint to explicitly mark a test as completed
+app.post('/api/test-completed', authenticateToken, async (req, res) => {
+  try {
+    const { phase, testType, completed } = req.body;
+    
+    if (!phase || !testType) {
+      return res.status(400).json({ error: 'Phase and testType are required' });
+    }
+    
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log(`Explicitly marking test ${testType} as ${completed ? 'completed' : 'not completed'} for phase ${phase}`);
+    
+    // Mark the test as completed with multiple formats for consistency and backward compatibility
+    user.markTestCompleted(phase, testType.toUpperCase(), completed);
+    user.markTestCompleted(phase, `${phase}_${testType}`, completed);
+    user.markTestCompleted(phase, testType, completed);
+    
+    // Additional key for the combined format
+    const combinedKey = `${phase}_${testType}`;
+    user.completedTests.set(combinedKey, completed);
+    
+    // Save the user to persist changes
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: `Test ${testType} marked as ${completed ? 'completed' : 'not completed'} for phase ${phase}`,
+      completedTests: Object.fromEntries(user.completedTests) || {}
+    });
+  } catch (error) {
+    console.error('Error marking test as completed:', error);
+    res.status(500).json({ error: 'Failed to mark test completion status' });
+  }
+});
+
 
 // 
 // REGISTER POST
@@ -653,7 +730,7 @@ app.post('/api/login', async (req, res) => {
 // Response Routes
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
-    const { phase, testType, stimulusId, response, trainingDay, rating } = req.body;
+    const { phase, testType, stimulusId, response, trainingDay, rating, isTestCompleted } = req.body;
     const user = await User.findOne({ userId: req.user.userId });
 
     if (!user) {
@@ -677,6 +754,28 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     } else if (testType === 'intelligibility') {
       // Also create a test ID for training tests with intelligibility
       testId = `training_intel_${stimulusId}`;
+    }
+    
+    // Special handling for test completion
+    // This is true when the frontend indicates this is the last response of a test type
+    if (isTestCompleted) {
+      console.log(`*** MARKING TEST TYPE ${testType} AS COMPLETED FOR PHASE ${phase} ***`);
+      // Also mark the entire test type as completed in addition to the individual stimulus
+      user.markTestCompleted(phase, testType.toUpperCase(), true);
+      
+      // For backward compatibility, also mark it with the special key format
+      user.markTestCompleted(phase, `${phase}_${testType}`, true);
+      user.markTestCompleted(phase, testType, true); // Simple key for backward compatibility
+      
+      // Additional key for the combined format
+      const combinedKey = `${phase}_${testType}`;
+      user.completedTests.set(combinedKey, true);
+      
+      console.log(`Added test completion markers to user record for ${phase}_${testType}`);
+      
+      // Immediately save the user to ensure completion state is persisted
+      await user.save();
+      console.log(`User record saved with updated test completion status`);
     }
 
     // Create response record
@@ -1384,6 +1483,7 @@ app.get('/api/admin/export/demographics', authenticateAdmin, async (req, res) =>
 if (process.env.NODE_ENV !== 'test') {
   startServer().catch(console.error);
 }
+
 
 // Export for testing
 module.exports = { app, startServer, connectDB };

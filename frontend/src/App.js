@@ -486,6 +486,11 @@ const App = () => {
 
     try {
       const token = localStorage.getItem('token');
+      
+      // Check if this is the last stimulus (20th file, index 19)
+      const isLastStimulus = currentStimulus === 19;
+      
+      // Send the response to the backend with an isTestCompleted flag when it's the last stimulus
       await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
@@ -496,14 +501,36 @@ const App = () => {
           phase,
           testType: 'intelligibility',
           stimulusId: `${phase}_intel_${currentStimulus + 1}`,
-          response: userResponse
+          response: userResponse,
+          isTestCompleted: isLastStimulus  // Flag to tell backend this completes the entire test
         }),
       });
 
       // Prevent multiple submissions of last stimulus
-      if (currentStimulus === 19) {
+      if (isLastStimulus) {
         // Disable the submit button or add loading state
-        setIsSubmitting(true); // Add this state variable
+        setIsSubmitting(true);
+        
+        // Also mark test as completed in database with a direct API call
+        try {
+          // Make a separate call to explicitly mark the test as completed
+          await fetch(`${config.API_BASE_URL}/api/test-completed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              phase,
+              testType: 'intelligibility',
+              completed: true
+            }),
+          });
+          console.log(`Explicitly marked ${phase} intelligibility test as completed`);
+        } catch (markError) {
+          console.error('Error marking test as completed:', markError);
+          // Continue even if this fails - the isTestCompleted flag should still work
+        }
       }
 
       handleResponseSuccess();
@@ -523,6 +550,10 @@ const App = () => {
       // Ensure rating is a number and at least 1
       const ratingValue = typeof rating === 'number' ? Math.max(1, rating) : 1;
       const token = localStorage.getItem('token');
+      
+      // Check if this is the last stimulus (30th file, index 29)
+      const isLastStimulus = currentStimulus === 29;
+      
       const response = await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
@@ -535,7 +566,8 @@ const App = () => {
           stimulusId: `${phase}_effort_${currentStimulus + 1}`,
           response: userResponse,
           trainingDay: 1,
-          rating: ratingValue  // Use the validated rating value
+          rating: ratingValue,  // Use the validated rating value
+          isTestCompleted: isLastStimulus  // Flag to tell backend this completes the entire test
         }),
       });
 
@@ -550,8 +582,29 @@ const App = () => {
       console.log('Server response:', responseData);
 
       // Prevent multiple submissions of last stimulus
-      if (currentStimulus === 29) {
+      if (isLastStimulus) {
         setIsSubmitting(true);
+        
+        // Also mark test as completed in database with a direct API call
+        try {
+          // Make a separate call to explicitly mark the test as completed
+          await fetch(`${config.API_BASE_URL}/api/test-completed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              phase,
+              testType: 'effort',
+              completed: true
+            }),
+          });
+          console.log(`Explicitly marked ${phase} effort test as completed`);
+        } catch (markError) {
+          console.error('Error marking test as completed:', markError);
+          // Continue even if this fails - the isTestCompleted flag should still work
+        }
       }
 
       // Store the current values before resetting
@@ -594,6 +647,16 @@ const App = () => {
       const storyNum = currentStoryId.replace('Comp_', '');
       const questionNum = questionIndex + 1;
       const stimulusId = `${phase}_comprehension_${storyNum}_${questionNum}`;
+      
+      // Determine if this is the last question of the last story
+      const isLastStory = currentStoryIndex >= assignedStories.length - 1;
+      const isLastQuestion = questionIndex >= currentStory.questions.length - 1;
+      const isTestCompleted = isLastStory && isLastQuestion;
+      
+      // Log test completion status
+      if (isTestCompleted) {
+        console.log(`This is the last question of the last story - completing comprehension test`);
+      }
 
       await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
@@ -606,9 +669,33 @@ const App = () => {
           testType: 'comprehension',
           stimulusId: stimulusId,
           response: optionLabels[userResponse],
-          isCorrect: optionLabels[userResponse] === currentQuestion.answer
+          isCorrect: optionLabels[userResponse] === currentQuestion.answer,
+          isTestCompleted: isTestCompleted  // Flag to tell backend this completes the entire test
         }),
       });
+      
+      // If this completes the whole comprehension test
+      if (isTestCompleted) {
+        // Make a separate call to explicitly mark the test as completed
+        try {
+          await fetch(`${config.API_BASE_URL}/api/test-completed`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              phase,
+              testType: 'comprehension',
+              completed: true
+            }),
+          });
+          console.log(`Explicitly marked ${phase} comprehension test as completed`);
+        } catch (markError) {
+          console.error('Error marking test as completed:', markError);
+          // Continue even if this fails - the isTestCompleted flag should still work
+        }
+      }
 
       // Move to next question or complete the test
       if (questionIndex < currentStory.questions.length - 1) {
@@ -884,7 +971,7 @@ const App = () => {
   };
 
 
-  // Completely rewritten handlePlayAudio function with simplified direct access
+  // Completely rewritten handlePlayAudio function with direct randomization
   const handlePlayAudio = async (input) => {
     try {
       console.log(`SIMPLIFIED handlePlayAudio - phase: ${phase}, testType: ${currentTestType}, stimulus: ${currentStimulus + 1}`);
@@ -927,7 +1014,7 @@ const App = () => {
       }
       // Intelligibility test with proper randomization
       else if (currentTestType === 'intelligibility') {
-        console.log('Using randomized intelligibility file access');
+        console.log('Using randomized intelligibility file access with PRE-REQUEST randomization');
 
         try {
           // Extract userId from token for randomization
@@ -936,25 +1023,76 @@ const App = () => {
             throw new Error('User ID not found in localStorage');
           }
 
-          // Use the proper randomized audio function
-          console.log(`Playing randomized intelligibility audio for stimulus ${currentStimulus + 1}`);
-          await audioService.playRandomizedTestAudio(
+          // Get the randomized sequence directly in the App component
+          const { getGroupForPhase } = require('./utils/randomization');
+          const randomizedFiles = getGroupForPhase(phase, null, userId);
+          
+          // Map the sequential index to the randomized file number
+          const sequentialIndex = currentStimulus;
+          const randomizedFileNumber = randomizedFiles[sequentialIndex];
+          
+          console.log(`*** PRE-REQUEST RANDOMIZATION: Index ${sequentialIndex+1} maps to file ${randomizedFileNumber} ***`);
+          console.log(`Randomized files for ${phase}: ${randomizedFiles.slice(0, 5)}...`);
+          
+          if (!randomizedFileNumber) {
+            console.error(`ERROR: Could not get randomized file number for index ${sequentialIndex}`);
+            throw new Error('Randomization failed - invalid file index');
+          }
+          
+          // Use the regular playTestAudio instead of the randomized version
+          // This ensures we directly use the file number
+          console.log(`Using direct playTestAudio with randomizedFileNumber=${randomizedFileNumber}`);
+          
+          await audioService.playTestAudio(
             phase,
             'intelligibility',
             null,
-            currentStimulus + 1,
-            userId
+            randomizedFileNumber // Use the randomized file number directly
           );
 
           return true;
         } catch (error) {
           console.error('Randomized access failed, trying fallback:', error);
 
-          // FALLBACK: Try direct access to a static file as a last resort
+          // FALLBACK: Try direct access to a static file as a last resort, but using randomized file number
           try {
-            const fallbackUrl = `${config.API_BASE_URL}/audio/public/Grace Norman_Int${String(currentStimulus + 1).padStart(2, '0')}.wav`;
-            console.log(`Trying last-resort fallback URL: ${fallbackUrl}`);
-            await audioService.playAudioFromUrl(fallbackUrl);
+            // Get the randomized file number from the sequence
+            const { getGroupForPhase } = require('./utils/randomization');
+            const userId = localStorage.getItem('userId');
+            
+            // Get the randomized sequence for the current phase
+            const randomizedFiles = getGroupForPhase(phase, null, userId);
+            
+            // Map the sequential index to the randomized file number
+            const randomizedFileNumber = randomizedFiles[currentStimulus];
+            
+            if (!randomizedFileNumber) {
+              console.error(`ERROR in fallback: Could not get randomized file number for index ${currentStimulus}`);
+              throw new Error('Randomization failed in fallback - invalid file index');
+            }
+            
+            console.log(`App.js fallback: Using randomized file number: ${randomizedFileNumber} instead of sequential: ${currentStimulus + 1}`);
+            console.log(`Fallback randomized files: ${randomizedFiles.slice(0, 5)}...`);
+            
+            // Instead of trying a public file that doesn't exist, use the regular API endpoint directly
+            // But with the randomized file number
+            console.log(`Using API endpoint fallback with randomized number ${randomizedFileNumber}`);
+            
+            const token = localStorage.getItem('token');
+            // Tell the server we want file #randomizedFileNumber (not a sequential index)
+            const url = `${config.API_BASE_URL}/audio/${phase}/intelligibility/null/${randomizedFileNumber}`;
+            console.log(`Fallback API URL: ${url}`);
+            
+            const response = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
             return true;
           } catch (fallbackError) {
             console.error('All fallback attempts failed');
@@ -1115,11 +1253,11 @@ const App = () => {
       {/* Welcome Section - wider width */}
       <WelcomeSection />
 
-      <div className="bg-white shadow-xl rounded-lg px-8 py-6 mb-4 border border-gray-100 max-w-5xl mx-auto px-4 mb-11">
+      <div className="bg-white shadow-xl rounded-lg px-8 py-6 mb-4 border border-[#dad6d9] max-w-5xl mx-auto px-4 mb-11">
         <div className="max-w-md mx-auto">
           {/* Logo/Title Section */}
           <div className="text-center mb-8">
-            <p className="text-gray-600">
+            <p className="text-[#6e6e6d]">
               {authMode === 'login'
                 ? 'Welcome back! Please login to continue your study.'
                 : 'Create an account to participate in the study.'}
@@ -1128,7 +1266,7 @@ const App = () => {
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white shadow-xl rounded-lg px-8 py-6 mb-4 border border-gray-100">
+        <div className="bg-white shadow-xl rounded-lg px-8 py-6 mb-4 border border-[#dad6d9]">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
             {authMode === 'login' ? 'Login' : 'Create Account'}
           </h2>
@@ -1196,7 +1334,7 @@ const App = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full bg-[#406368] hover:bg-[#6c8376] text-white transition-colors"
               >
                 {authMode === 'login' ? 'Sign In' : 'Create Account'}
               </Button>
@@ -1212,7 +1350,7 @@ const App = () => {
                 setPassword('');
                 setConfirmPassword('');
               }}
-              className="text-blue-600 hover:text-blue-800"
+              className="text-[#406368] hover:text-[#6c8376]"
             >
               {authMode === 'login'
                 ? "Don't have an account? Sign up"
@@ -1226,7 +1364,7 @@ const App = () => {
           <Button
             variant="link"
             onClick={() => setShowAdminLogin(true)}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-[#406368]"
           >
             Access Admin Panel
           </Button>

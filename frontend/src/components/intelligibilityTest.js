@@ -45,12 +45,12 @@ const IntelligibilityTest = ({
                 });
 
                 // Important: Don't wait for preloading
-                console.log("Attempting to play audio directly - no preloading");
+                console.log("Attempting to play audio directly with randomization");
 
-                // Just use the direct play function without randomization or preloading
+                // Just use the direct play function with randomization 
                 await Promise.race([
-                    // Use the provided onPlayAudio directly - simplest path
-                    onPlayAudio(),
+                    // Use the provided onPlayAudio directly from App.js
+                    onPlayAudio(), 
                     timeoutPromise
                 ]);
 

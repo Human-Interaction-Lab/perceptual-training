@@ -24,7 +24,34 @@ const audioService = {
     */
     async playRandomizedTestAudio(phase, testType, version, sentence, userId) {
         try {
-            console.log(`playRandomizedTestAudio: phase=${phase}, testType=${testType}, version=${version}, sentence=${sentence}`);
+            console.log(`playRandomizedTestAudio: phase=${phase}, testType=${testType}, version=${version}, sequence index=${sentence}`);
+            
+            // For intelligibility test, convert the sequential index to randomized file number
+            let fileNumber = sentence;
+            if (testType.toLowerCase() === 'intelligibility') {
+                try {
+                    // Import randomization function to get randomized file number
+                    const { getGroupForPhase } = require('../utils/randomization');
+                    
+                    // If userId not provided, try to extract from token
+                    if (!userId) {
+                        userId = this.extractUserIdFromToken();
+                    }
+                    
+                    // Get the randomized sequence for this phase
+                    const randomizedFiles = getGroupForPhase(phase, null, userId);
+                    
+                    // Map the sequential index (sentence) to the randomized file number
+                    // Note: sentence is 1-indexed, array is 0-indexed
+                    fileNumber = randomizedFiles[sentence - 1];
+                    
+                    console.log(`RANDOMIZATION: Using file number ${fileNumber} instead of sequential ${sentence}`);
+                } catch (randError) {
+                    console.error('Error applying randomization:', randError);
+                    // Fallback to sequential if randomization fails
+                    fileNumber = sentence;
+                }
+            }
             
             // Normalize phase name to ensure consistency
             const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
@@ -36,8 +63,8 @@ const audioService = {
                 throw new Error('Authentication required');
             }
 
-            // Request the audio file URL from the backend
-            const apiUrl = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`;
+            // Request the audio file URL from the backend WITH the randomized file number
+            const apiUrl = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${fileNumber}`;
             console.log(`Fetching audio file from: ${apiUrl}`);
             
             try {
@@ -77,9 +104,22 @@ const audioService = {
                 // FALLBACK: Try direct file access approach if the API fails
                 // For intelligibility test, try a simple direct file URL pattern
                 if (testType.toLowerCase() === 'intelligibility') {
-                    // Try direct access to a likely file pattern
-                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sentence).padStart(2, '0')}.wav`;
-                    console.log(`Trying direct file access: ${directUrl}`);
+                    // Get the randomized file number from the sequence
+                    // Import randomization function to ensure we get the same randomized number
+                    const { getGroupForPhase } = require('../utils/randomization');
+                    const userId = this.extractUserIdFromToken();
+                    
+                    // Get the randomized sequence for the current phase
+                    const randomizedFiles = getGroupForPhase(phase, null, userId);
+                    
+                    // Map the sequential index (sentence) to the randomized file number
+                    const randomizedFileNumber = randomizedFiles[sentence - 1];
+                    
+                    console.log(`Using randomized file number: ${randomizedFileNumber} instead of sequential number: ${sentence}`);
+                    
+                    // Try direct access to the randomized file pattern
+                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
+                    console.log(`Trying direct file access with randomized number: ${directUrl}`);
                     
                     try {
                         // This will fail if the file doesn't exist, which is fine
@@ -271,12 +311,16 @@ const audioService = {
             // Map the sequential index to the actual file number
             const actualFileNumber = testFiles[index - 1];
             
-            console.log(`Playing training test audio: Day ${day}, Index ${index} -> File #${actualFileNumber}`);
+            // Map the random file number (1-160) to a 1-20 range that exists on the server
+            // This preserves randomization order but ensures we request files that exist
+            const serverFileNumber = (actualFileNumber % 20) + 1;
+            
+            console.log(`Playing training test audio: Day ${day}, Index ${index} -> File #${actualFileNumber} (mapped to server file: ${serverFileNumber})`);
             
             // Use the same endpoint pattern as regular intelligibility tests
             // This is the format that works for pretest and posttest phases
             const response = await fetch(
-                `${BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`,
+                `${BASE_URL}/audio/pretest/intelligibility/null/${serverFileNumber}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -285,7 +329,7 @@ const audioService = {
             );
             
             // Log the URL for debugging
-            console.log(`Using URL: ${BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`);
+            console.log(`Using URL: ${BASE_URL}/audio/pretest/intelligibility/null/${serverFileNumber}`);
             
             if (!response.ok) {
                 console.warn(`First attempt failed with status ${response.status}. Trying fallback...`);
@@ -294,7 +338,7 @@ const audioService = {
                 try {
                     // Try a different endpoint format as fallback
                     const fallbackResponse = await fetch(
-                        `${BASE_URL}/audio/intelligibility/${actualFileNumber % 20 + 1}`,
+                        `${BASE_URL}/audio/intelligibility/${serverFileNumber}`,
                         {
                             headers: {
                                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -302,7 +346,7 @@ const audioService = {
                         }
                     );
                     
-                    console.log(`Fallback URL: ${BASE_URL}/audio/intelligibility/${actualFileNumber % 20 + 1}`);
+                    console.log(`Fallback URL: ${BASE_URL}/audio/intelligibility/${serverFileNumber}`);
                     
                     if (fallbackResponse.ok) {
                         console.log('Fallback request succeeded!');
@@ -811,32 +855,72 @@ const audioService = {
                 // This is a new fallback: Try hacking the URL to see if it's an intelligibility file
                 // that we can access directly
                 if (url.includes('/audio/') && !url.includes('Grace Norman_Int')) {
-                    // Try to extract the sentence number from the URL
-                    const match = url.match(/\/(\d+)$/);
-                    if (match && match[1]) {
-                        const sentenceNum = match[1];
-                        // Construct a direct file URL to try as fallback
-                        const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sentenceNum).padStart(2, '0')}.wav`;
-                        console.log(`Original audio URL failed, trying fallback URL: ${directUrl}`);
+                    // Try to extract the phase and sentence number from the URL
+                    const phaseMatch = url.match(/\/audio\/([^\/]+)/);
+                    const numberMatch = url.match(/\/(\d+)$/);
+                    
+                    if (phaseMatch && phaseMatch[1] && numberMatch && numberMatch[1]) {
+                        const phase = phaseMatch[1];
+                        const sequentialNum = parseInt(numberMatch[1]);
                         
-                        // Create a new audio element for the fallback
-                        const fallbackAudio = new Audio(directUrl);
-                        fallbackAudio.onended = () => {
-                            console.log('Fallback audio playback completed successfully');
-                            resolve();
-                        };
-                        fallbackAudio.onerror = () => {
-                            console.error('Fallback audio also failed');
-                            reject(new Error('All audio playback methods failed'));
-                        };
-                        
-                        // Try playing the fallback
-                        fallbackAudio.play().catch(fallbackError => {
-                            console.error('Fallback playback attempt failed:', fallbackError);
-                            reject(new Error('All audio playback methods failed'));
-                        });
-                        
-                        return; // Exit early since we're handling with fallback
+                        // Get randomized file number
+                        try {
+                            const { getGroupForPhase } = require('../utils/randomization');
+                            const userId = this.extractUserIdFromToken();
+                            
+                            // Get the randomized sequence for this phase
+                            const randomizedFiles = getGroupForPhase(phase, null, userId);
+                            
+                            // Map sequential index to randomized file number
+                            const randomizedFileNumber = randomizedFiles[sequentialNum - 1];
+                            console.log(`Fallback: Using randomized file ${randomizedFileNumber} instead of sequential ${sequentialNum}`);
+                            
+                            // Construct a direct file URL using randomized number
+                            const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
+                            console.log(`Original audio URL failed, trying randomized fallback URL: ${directUrl}`);
+                            
+                            // Create a new audio element for the fallback
+                            const fallbackAudio = new Audio(directUrl);
+                            fallbackAudio.onended = () => {
+                                console.log('Fallback audio playback completed successfully');
+                                resolve();
+                            };
+                            fallbackAudio.onerror = () => {
+                                console.error('Fallback audio also failed');
+                                reject(new Error('All audio playback methods failed'));
+                            };
+                            
+                            // Try playing the fallback
+                            fallbackAudio.play().catch(fallbackError => {
+                                console.error('Fallback playback attempt failed:', fallbackError);
+                                reject(new Error('All audio playback methods failed'));
+                            });
+                            
+                            return; // Exit early since we're handling with fallback
+                        } catch (randomizationError) {
+                            console.error('Error with randomization in fallback:', randomizationError);
+                            
+                            // Fall back to sequential as last resort
+                            const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sequentialNum).padStart(2, '0')}.wav`;
+                            console.log(`Randomization failed, using sequential fallback: ${directUrl}`);
+                            
+                            const fallbackAudio = new Audio(directUrl);
+                            fallbackAudio.onended = () => {
+                                console.log('Sequential fallback audio playback completed');
+                                resolve();
+                            };
+                            fallbackAudio.onerror = () => {
+                                console.error('Sequential fallback audio also failed');
+                                reject(new Error('All audio playback methods failed'));
+                            };
+                            
+                            fallbackAudio.play().catch(fallbackError => {
+                                console.error('Sequential fallback playback attempt failed:', fallbackError);
+                                reject(new Error('All audio playback methods failed'));
+                            });
+                            
+                            return; // Exit early
+                        }
                     }
                 }
                 

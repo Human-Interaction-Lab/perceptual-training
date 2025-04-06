@@ -60,8 +60,11 @@ class BoxService {
         code: 'INTELLIGIBILITY',
         fileCode: 'Int',
         hasVersion: false,
-        pattern: (speaker, _, sentence) =>
-          `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`
+        pattern: (speaker, _, sentence) => {
+          // The sentence parameter may already be randomized by the server.js route
+          // Just use it directly rather than trying to re-randomize here
+          return `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+        }
       }
     };
   }

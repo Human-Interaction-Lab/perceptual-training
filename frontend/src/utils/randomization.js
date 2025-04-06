@@ -1,4 +1,76 @@
-// for randomization of intelligibility files
+// Helper function to create a numeric hash from a string
+const hashString = (str) => {
+    let hash = 0;
+    if (str.length === 0) return hash;
+
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+
+    return Math.abs(hash);
+};
+
+// Create a seeded random function that doesn't modify the original seed
+const createSeededRandom = (seed) => {
+    let seedValue = seed;
+    return () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+    };
+};
+
+// Create a single randomized sequence of all intelligibility files for a user
+// This ensures consistent randomization across all phases
+const getFullRandomizedSequence = (userId = null) => {
+    // Use a consistent key for localStorage to retrieve the sequence
+    const storageKey = userId ? `intelligibility_sequence_${userId}` : 'intelligibility_sequence_default';
+    
+    // Try to retrieve from localStorage first for consistency across sessions
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const savedSequence = localStorage.getItem(storageKey);
+            if (savedSequence) {
+                console.log(`Retrieved saved intelligibility sequence for user ${userId || 'default'}`);
+                return JSON.parse(savedSequence);
+            }
+        } catch (e) {
+            console.warn('Error reading saved sequence from localStorage:', e);
+        }
+    }
+    
+    // Create a new randomized sequence if not found in localStorage
+    console.log(`Creating new randomized intelligibility sequence for user ${userId || 'default'}`);
+    
+    // Create array of all file indices [1...160]
+    const totalFiles = 160;
+    const allIndices = Array.from({ length: totalFiles }, (_, i) => i + 1);
+    
+    // Seed the randomization based on userId
+    const seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+    const seededRandom = createSeededRandom(seedValue);
+    
+    // Fisher-Yates shuffle to randomize the entire sequence
+    for (let i = allIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom() * (i + 1));
+        [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
+    }
+    
+    // Save to localStorage for consistency across sessions
+    if (typeof localStorage !== 'undefined') {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(allIndices));
+            console.log(`Saved randomized sequence to localStorage with key ${storageKey}`);
+        } catch (e) {
+            console.warn('Error saving sequence to localStorage:', e);
+        }
+    }
+    
+    return allIndices;
+};
+
+// for backwards compatibility - uses stratified groups rather than single sequence
 const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
     console.log(`Stratifying ${total} files into groups of size ${groupSize}`);
     
@@ -20,12 +92,7 @@ const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
     if (seed !== null) {
         // Generate a seed based on userId
         let seedValue = seed ? hashString(seed) : Math.floor(Math.random() * 10000);
-
-        // Use a seeded random function that doesn't modify the seed directly
-        const seededRandom = () => {
-            seedValue = (seedValue * 9301 + 49297) % 233280;
-            return seedValue / 233280;
-        };
+        const seededRandom = createSeededRandom(seedValue);
 
         // Fisher-Yates shuffle with seeded random
         for (let i = groups.length - 1; i > 0; i--) {
@@ -40,88 +107,69 @@ const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
     return groups;
 };
 
-// Function to get a specific group for a phase/day
+// Function to get a specific group for a phase/day using a single randomized sequence
 const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
-    // Total of 160 intelligibility files available
-    // Use 140 of them: 20 for pretest, 80 for training tests (20×4), 20 for posttest1, 20 for posttest2
-    const totalFiles = 160;
+    // Group size for each phase
     const groupSize = 20;
     
-    console.log(`Getting group for phase ${phase}, day ${trainingDay}, totalFiles=${totalFiles}`);
+    console.log(`Getting intelligibility group for phase ${phase}, day ${trainingDay}`);
 
-    // Use userId as seed if available for consistent randomization per user
-    // For test users, use a different seed for each one to ensure different audio assignments
-    let seed;
-    if (userId && userId.startsWith('test_')) {
-        // Add phase to seed to ensure different assignments for pretest vs posttest test users
-        seed = userId + '_' + phase;
-    } else {
-        seed = userId;
-    }
+    // Get the full randomized sequence for this user
+    const fullSequence = getFullRandomizedSequence(userId);
     
-    const groups = stratifyAndRandomizeFiles(totalFiles, groupSize, seed);
-
-    // Map phases to group indices (0-7)
-    let groupIndex;
-
-    // Map phases to specific group indices to avoid overlap
-    // Group assignments (8 groups total):
-    // 0: pretest
-    // 1-4: training tests (days 1-4)
-    // 5: posttest1
-    // 6: posttest2
-    // 7: intentionally left unused as backup
+    // Determine the starting index in the sequence based on phase and training day
+    let startIndex = 0;
+    
+    // Map phases to specific segments in the sequence
+    // Segment assignments:
+    // 0: pretest (first 20 files)
+    // 1-4: training tests days 1-4 (next 80 files)
+    // 5: posttest1 (next 20 files) 
+    // 6: posttest2 (next 20 files)
+    // 7: unused (remaining 20 files as backup)
     
     if (phase === 'pretest') {
-        // Pretest uses group 0
-        groupIndex = 0;
-        console.log(`Pretest using group index ${groupIndex}`);
+        // Pretest uses the first 20 files (index 0-19)
+        startIndex = 0;
+        console.log(`Pretest using sequence segment starting at index ${startIndex}`);
     } else if (phase === 'training') {
         // Regular training doesn't use intelligibility files
-        // So we'll just return group 7 (unused) which won't matter
-        groupIndex = 7;
-        console.log(`Training phase using group index ${groupIndex} (unused)`);
+        // Return unused segment at the end
+        startIndex = 140;
+        console.log(`Training phase using unused segment (index ${startIndex}+)`);
     } else if (phase === 'training_test') {
-        // Each training_test day gets its own group to avoid overlap
+        // Each training_test day gets its own segment
         if (trainingDay && trainingDay >= 1 && trainingDay <= 4) {
-            // Training test uses groups 1-4
-            groupIndex = trainingDay;
-            console.log(`Training test for day ${trainingDay} using group index ${groupIndex}`);
+            startIndex = 20 + (trainingDay - 1) * groupSize;
+            console.log(`Training test for day ${trainingDay} using segment at index ${startIndex}`);
         } else {
-            console.warn(`Invalid training test day: ${trainingDay}. Using default group 1.`);
-            groupIndex = 1; // Default to first training group
+            console.warn(`Invalid training test day: ${trainingDay}. Using default segment.`);
+            startIndex = 20; // Default to first training segment
         }
     } else if (phase === 'posttest1') {
-        // Posttest1 uses group 5
-        groupIndex = 5;
-        console.log(`Posttest1 using group index ${groupIndex}`);
+        // Posttest1 uses index 100-119
+        startIndex = 100;
+        console.log(`Posttest1 using segment at index ${startIndex}`);
     } else if (phase === 'posttest2') {
-        // Posttest2 uses group 6
-        groupIndex = 6;
-        console.log(`Posttest2 using group index ${groupIndex}`);
+        // Posttest2 uses index 120-139
+        startIndex = 120;
+        console.log(`Posttest2 using segment at index ${startIndex}`);
     } else {
-        // Default to last group (7) for any other phase
-        groupIndex = 7;
+        // Default to unused segment for any other phase
+        startIndex = 140;
     }
 
-    // Ensure index is within bounds
-    groupIndex = groupIndex % groups.length;
-
-    return groups[groupIndex];
-};
-
-// Helper function to create a numeric hash from a string
-const hashString = (str) => {
-    let hash = 0;
-    if (str.length === 0) return hash;
-
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
+    // Extract the group from the sequence
+    const group = fullSequence.slice(startIndex, startIndex + groupSize);
+    console.log(`Extracted ${group.length} intelligibility files starting from index ${startIndex}`);
+    
+    // Log a few sample files for verification
+    if (group.length > 0) {
+        const samples = group.slice(0, Math.min(3, group.length));
+        console.log(`Sample files for ${phase}: ${samples.join(', ')}...`);
     }
 
-    return Math.abs(hash);
+    return group;
 };
 
 // Function to randomize comprehension stories
@@ -133,20 +181,17 @@ const randomizeComprehensionStories = (userId = null, phase = null) => {
     // without repetition
 
     // Generate a seed based on userId
-    let seedValue;
+    let seed;
     
     // For test users, use a different seed for each phase
     if (userId && userId.startsWith('test_') && phase) {
-        seedValue = hashString(userId + '_' + phase);
+        seed = hashString(userId + '_' + phase);
     } else {
-        seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+        seed = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
     }
 
-    // Use a seeded random function that doesn't modify the seed directly
-    const seededRandom = () => {
-        seedValue = (seedValue * 9301 + 49297) % 233280;
-        return seedValue / 233280;
-    };
+    // Use our consistent seeded random function
+    const seededRandom = createSeededRandom(seed);
 
     // Shuffle the story IDs using Fisher-Yates with seeded random
     const shuffledStories = [...allStoryIds];
@@ -176,13 +221,13 @@ const randomizeEffortFiles = (userId = null, phase = null) => {
     const groupSize = 30;
 
     // Get random seed from userId
-    let seedValue;
+    let seed;
     
     // For test users, use a different seed for each phase
     if (userId && userId.startsWith('test_') && phase) {
-        seedValue = hashString(userId + '_' + phase);
+        seed = hashString(userId + '_' + phase);
     } else {
-        seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
+        seed = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
     }
 
     // Generate array of all file indices [1...90]
@@ -194,16 +239,23 @@ const randomizeEffortFiles = (userId = null, phase = null) => {
         groups.push(allIndices.slice(i, i + groupSize));
     }
 
-    // Shuffle groups using seeded random
-    const seededRandom = () => {
-        seedValue = (seedValue * 9301 + 49297) % 233280;
-        return seedValue / 233280;
-    };
+    // Use our consistent seeded random function
+    const seededRandom = createSeededRandom(seed);
 
+    // Shuffle the groups (order of assignment to phases)
     for (let i = groups.length - 1; i > 0; i--) {
         const j = Math.floor(seededRandom() * (i + 1));
         [groups[i], groups[j]] = [groups[j], groups[i]];
     }
+    
+    // Also shuffle WITHIN each group to randomize the presentation order
+    groups.forEach(group => {
+        // Fisher-Yates shuffle for each group internally
+        for (let i = group.length - 1; i > 0; i--) {
+            const j = Math.floor(seededRandom() * (i + 1));
+            [group[i], group[j]] = [group[j], group[i]];
+        }
+    });
 
     return {
         pretest: groups[0],
@@ -247,6 +299,58 @@ const getStoryForTrainingDay = (day, userId = null) => {
     return stories[0] || null;
 };
 
+// Function to reset a user's randomized sequence (for debugging or if needed)
+const resetIntelligibilitySequence = (userId = null) => {
+    const storageKey = userId ? `intelligibility_sequence_${userId}` : 'intelligibility_sequence_default';
+    
+    if (typeof localStorage !== 'undefined') {
+        try {
+            localStorage.removeItem(storageKey);
+            console.log(`Reset intelligibility sequence for user ${userId || 'default'}`);
+            return true;
+        } catch (e) {
+            console.warn('Error resetting sequence:', e);
+            return false;
+        }
+    }
+    return false;
+};
+
+// Debugging function to verify intelligibility sequence is consistent
+const testIntelligibilitySequence = (userId = null) => {
+    const sequence = getFullRandomizedSequence(userId);
+    
+    // Log information about the sequence
+    console.log('=======================================');
+    console.log(`INTELLIGIBILITY SEQUENCE TEST FOR USER: ${userId || 'default'}`);
+    console.log(`Total sequence length: ${sequence.length}`);
+    console.log('=======================================');
+    
+    // Show a preview of how files are assigned to each phase
+    const phases = ['pretest', 'training_test_day1', 'training_test_day2', 
+                   'training_test_day3', 'training_test_day4', 'posttest1', 'posttest2'];
+    
+    phases.forEach(phaseKey => {
+        let phase, day;
+        
+        if (phaseKey.includes('day')) {
+            // Extract day number for training test
+            phase = 'training_test';
+            day = parseInt(phaseKey.replace('training_test_day', ''));
+        } else {
+            phase = phaseKey;
+            day = null;
+        }
+        
+        const files = getGroupForPhase(phase, day, userId);
+        console.log(`${phaseKey}: ${files.slice(0, 5).join(', ')}... (${files.length} files)`);
+    });
+    
+    console.log('=======================================');
+    
+    return sequence;
+};
+
 export {
     stratifyAndRandomizeFiles,
     getGroupForPhase,
@@ -255,5 +359,8 @@ export {
     randomizeEffortFiles,
     getEffortFilesForPhase,
     getTrainingStoriesForDay,
-    getStoryForTrainingDay
+    getStoryForTrainingDay,
+    getFullRandomizedSequence,
+    testIntelligibilitySequence,  // Export for testing
+    resetIntelligibilitySequence  // Export for debugging/admin use
 };

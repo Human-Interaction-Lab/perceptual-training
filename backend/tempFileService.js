@@ -107,7 +107,9 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
       filename = `${speaker}_EFF${String(sentence).padStart(2, '0')}.wav`;
     } else if (testType === 'INTELLIGIBILITY') {
       // Intelligibility: <speaker>_Int<sentence>.wav
+      // Here sentence is the already randomized file number passed from server.js
       filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+      console.log(`Using intelligibility file pattern with (possibly randomized) number: ${sentence}`);
     } else {
       throw new Error(`Invalid test type: ${testType}`);
     }
@@ -356,8 +358,27 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
           const maxIntelligibilityFiles = maxFiles ? Math.min(maxFiles, 20) : 20;
           console.log(`Will preload up to ${maxIntelligibilityFiles} intelligibility files`);
           
-          for (let sentence = 1; sentence <= maxIntelligibilityFiles; sentence++) {
+          // Get the randomized intelligibility file sequence for this user
+          let randomizedFiles;
+          try {
+            // Import the randomization utils if needed
+            const randomizationPath = path.join(__dirname, '..', 'frontend', 'src', 'utils', 'randomization.js');
+            const randomization = require(randomizationPath);
+            randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+            console.log(`Loaded randomized intelligibility sequence for user ${userId}: ${randomizedFiles.slice(0, 5)}...`);
+          } catch (randomizationError) {
+            console.error('Error getting randomized sequence:', randomizationError);
+            // Fallback to sequential numbers if randomization fails
+            randomizedFiles = Array.from({ length: maxIntelligibilityFiles }, (_, i) => i + 1);
+            console.log('Using fallback sequential numbers due to randomization error');
+          }
+          
+          // Limit to the max number if specified
+          const sequenceToUse = randomizedFiles.slice(0, maxIntelligibilityFiles);
+          
+          for (let i = 0; i < sequenceToUse.length; i++) {
             try {
+              const sentence = sequenceToUse[i];
               // Generate expected filename for this intelligibility file
               const filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
               const userFilename = `${userId}_${filename}`;
@@ -383,13 +404,14 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
               const exists = await boxService.fileExists(speaker, pattern);
 
               if (exists) {
+                // Pass the randomized file number as the sentence parameter
                 const fileInfo = await streamAndSaveFile(
                   userId,
                   speaker,
                   phase,
                   'INTELLIGIBILITY',
                   null,
-                  sentence
+                  sentence // This is already the randomized number from sequenceToUse
                 );
                 preloadedFiles.push(fileInfo);
                 console.log(`Preloaded intelligibility file ${sentence} of ${maxIntelligibilityFiles}`);
