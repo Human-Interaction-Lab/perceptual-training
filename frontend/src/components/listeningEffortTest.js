@@ -40,7 +40,7 @@ const ListeningEffortTest = ({
     const handlePlayAudio = async () => {
         setIsPlaying(true);
         setAudioError(false);
-        
+
         // Reset in case of retry
         setAudioPlayed(false);
 
@@ -48,30 +48,30 @@ const ListeningEffortTest = ({
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 console.log(`Attempt ${attempt} to play effort audio...`);
-                
+
                 // Add a timeout for the entire operation - reduced time for faster failure
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
                 });
-                
+
                 // Race the audio playback against our timeout
                 await Promise.race([onPlayAudio(), timeoutPromise]);
-                
+
                 console.log('Effort audio played successfully!');
                 setAudioPlayed(true);
                 break; // Success! Exit the retry loop
             } catch (error) {
                 console.error(`Attempt ${attempt} failed:`, error);
-                
-                if (error.message === 'AUDIO_NOT_FOUND' || 
+
+                if (error.message === 'AUDIO_NOT_FOUND' ||
                     error.message.includes('not found') ||
                     error.message.includes('404') ||
                     error.message.includes('timed out')) {
-                    
+
                     console.log('Critical audio error - providing fallback for effort test');
                     setAudioError(true);
                     setAudioPlayed(true); // Mark as played even if not found
-                    
+
                     // Auto-fill "NA" as response when audio is not found
                     onResponseChange("NA");
 
@@ -79,36 +79,36 @@ const ListeningEffortTest = ({
                     if (!rating) {
                         onRatingChange(1); // Set minimum rating
                     }
-                    
+
                     // Only show alert once
                     if (!audioError) {
                         alert('Audio file could not be played. You can proceed by entering "NA" as your response and setting a rating.');
                     }
-                    
+
                     break; // No need to retry for these critical errors
                 } else if (attempt >= 3) {
                     // On the last attempt, handle any other error
                     console.log('All attempts failed, showing error');
                     setAudioError(true);
                     setAudioPlayed(true); // Mark as played so user can proceed
-                    
+
                     // Auto-fill "NA" as response
                     onResponseChange("NA");
-                    
+
                     // Set a default rating value
                     if (!rating) {
                         onRatingChange(1); // Set minimum rating
                     }
-                    
+
                     // Only show alert once
                     if (!audioError) {
                         alert('After multiple attempts, the audio could not be played. You can proceed with "NA" as your response.');
                     }
                 }
-                
+
                 // Clean up before potential retry
                 audioService.dispose();
-                
+
                 // If this wasn't the last attempt, wait a bit before retrying
                 if (attempt < 3) {
                     await new Promise(r => setTimeout(r, 1000));
@@ -116,10 +116,10 @@ const ListeningEffortTest = ({
                 }
             }
         }
-        
+
         // Always reset the playing state when done with all attempts
         setIsPlaying(false);
-        
+
         // Ensure we clean up any hanging audio
         audioService.dispose();
     };
@@ -142,20 +142,39 @@ const ListeningEffortTest = ({
                         <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
                     </div>
                 )}
-                
+
+                {/* Instructions - Moved to top */}
+                <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                        <li>1. Click "Play Audio" to hear the stimulus</li>
+                        <li>2. Type the final word you heard</li>
+                        <li>3. Rate how much effort it took to understand the audio</li>
+                        <li>4. Click "Submit Response" when you're ready</li>
+                        <li className="text-[#406368] font-medium">
+                            Note: You must wait for the audio to finish playing completely before submitting
+                        </li>
+                        {audioError && (
+                            <li className="text-red-500">
+                                If audio is not available, enter "NA" as your response
+                            </li>
+                        )}
+                    </ul>
+                </div>
+
                 {/* Progress Section */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-gray-700">
                             Stimulus {currentStimulus + 1} of {totalStimuli}
                         </span>
-                        <span className="text-blue-600 font-medium">
+                        <span className="text-[#406368] font-medium">
                             {Math.round(progress)}% Complete
                         </span>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                            className="h-full bg-[#406368] rounded-full transition-all duration-300 ease-in-out"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -166,10 +185,10 @@ const ListeningEffortTest = ({
                     <Button
                         onClick={handlePlayAudio}
                         className={`w-full h-16 text-lg flex items-center justify-center space-x-3 
-                            ${isPlaying ? "bg-blue-400" :
+                            ${isPlaying ? "bg-[#6c8376]" :
                                 audioError ? "bg-red-500 hover:bg-red-600" :
-                                    audioPlayed ? "bg-gray-400 hover:bg-gray-500" :
-                                        "bg-blue-600 hover:bg-blue-700"
+                                    audioPlayed ? "bg-[#6e6e6d] hover:bg-[#6e6e6d]" :
+                                        "bg-[#406368] hover:bg-[#6c8376]"
                             } transition-colors`}
                         disabled={audioPlayed || isPlaying}
                     >
@@ -214,7 +233,7 @@ const ListeningEffortTest = ({
                             value={userResponse}
                             onChange={(e) => onResponseChange(e.target.value)}
                             placeholder={audioError ? "Type NA" : "Enter the final word..."}
-                            className="w-full p-3 text-lg border-gray-200 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full p-3 text-lg border-gray-200 focus:ring-[#406368] focus:border-[#406368]"
                             disabled={!audioPlayed}
                         />
                     </div>
@@ -225,7 +244,7 @@ const ListeningEffortTest = ({
                             <Label className="text-sm font-medium text-gray-700">
                                 Rate your listening effort:
                             </Label>
-                            <span className="text-sm font-medium text-blue-600">
+                            <span className="text-sm font-medium text-[#406368]">
                                 {rating || 1} - {getRatingLabel(rating || 1)}
                             </span>
                         </div>
@@ -236,12 +255,12 @@ const ListeningEffortTest = ({
                                     type="range"
                                     min="1"
                                     max="100"
-                                    value={rating || 1}
+                                    value={rating || 50}
                                     onChange={(e) => onRatingChange(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
-                                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full h-2 bg-[#dad6d9] rounded-lg appearance-none cursor-pointer
+                                             focus:outline-none focus:ring-2 focus:ring-[#406368]"
                                     style={{
-                                        background: `linear-gradient(to right, #2563eb ${rating || 1}%, #e5e7eb ${rating || 1}%)`
+                                        background: `linear-gradient(to right, #406368 ${rating || 1}%, #dad6d9 ${rating || 1}%)`
                                     }}
                                     disabled={!audioPlayed}
                                 />
@@ -266,7 +285,7 @@ const ListeningEffortTest = ({
                     <Button
                         onClick={onSubmit}
                         disabled={!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting}
-                        className="w-full h-12 mt-4 flex items-center justify-center space-x-2
+                        className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <span>{isSubmitting ? "Submitting..." : "Submit Response"}</span>
@@ -274,24 +293,6 @@ const ListeningEffortTest = ({
                     </Button>
                 </div>
 
-                {/* Instructions */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                        <li>1. Click "Play Audio" to hear the stimulus</li>
-                        <li>2. Type the final word you heard</li>
-                        <li>3. Rate how much effort it took to understand the audio</li>
-                        <li>4. Click "Submit Response" when you're ready</li>
-                        <li className="text-blue-600 font-medium">
-                            Note: You must wait for the audio to finish playing completely before submitting
-                        </li>
-                        {audioError && (
-                            <li className="text-red-500">
-                                If audio is not available, enter "NA" as your response
-                            </li>
-                        )}
-                    </ul>
-                </div>
             </CardContent>
         </Card>
     );

@@ -7,12 +7,12 @@ const WelcomeSection = () => {
 
         <div className="prose mx-auto max-w-none">
 
-          <h1 className="text-3xl text-center font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl text-center font-bold text-[#406368] mb-2">
             Communication Training
           </h1>
 
           <div className="space-y-4 text-gray-700 leading-relaxed">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-[#406368] mb-2">
               Why use this app?
             </h3>
 

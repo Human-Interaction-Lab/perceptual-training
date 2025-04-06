@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
-import { Card, CardContent } from "./ui/card";
-import { Volume2, Send, BookOpen, AlertCircle, ArrowRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardFooter } from "./ui/card";
+import { Volume2, Send, BookOpen, AlertCircle, ArrowRight, Headphones } from 'lucide-react';
 
 const ComprehensionTest = ({
     question,
@@ -22,6 +22,7 @@ const ComprehensionTest = ({
     const [isPlayingStory, setIsPlayingStory] = useState(false);
     const [audioError, setAudioError] = useState(false);
     const [showQuestions, setShowQuestions] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(true);
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
@@ -61,32 +62,95 @@ const ComprehensionTest = ({
             setIsPlayingStory(false);
         }
     };
+    
+    const handleStartTest = () => {
+        setShowInstructions(false);
+    };
 
     const handleSubmit = () => {
         if (isSubmitting) return;
         onSubmit();
     };
 
+    if (showInstructions) {
+        return (
+            <Card className="shadow-lg">
+                <CardHeader className="bg-[#406368] text-white">
+                    <h2 className="text-xl font-semibold">Story Comprehension Test</h2>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Instructions</h3>
+                        <p>In this next task, you will hear two stories. After each story, you will answer multiple choice questions about the story. The story will begin as soon as you click to play the audio. Multiple choice questions will use information from all parts of the story.</p>
+                        
+                        <div className="bg-[#f3ecda] p-4 rounded-lg border border-[#dad6d9] flex items-center space-x-2">
+                            <Headphones className="h-5 w-5 text-[#406368]" />
+                            <p className="text-[#406368]">Please wear headphones during this test session.</p>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter className="border-t border-gray-100 pt-4">
+                    <Button
+                        onClick={handleStartTest}
+                        className="w-full bg-[#406368] hover:bg-[#6c8376]"
+                    >
+                        Start Comprehension Test
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </CardFooter>
+            </Card>
+        );
+    }
+    
     return (
         <Card className="shadow-lg border-gray-200">
             <CardContent className="p-6 space-y-6">
+                {/* Instructions - Shown at the top */}
+                <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                        <li className="flex items-start">
+                            <span className="text-[#406368] mr-2">1.</span>
+                            Listen to the complete story first
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-[#406368] mr-2">2.</span>
+                            Click "Start Questions" after listening
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-[#406368] mr-2">3.</span>
+                            Answer each question about the story
+                        </li>
+                        <li className="flex items-start">
+                            <span className="text-[#406368] mr-2">4.</span>
+                            Click "Submit Answer" to proceed
+                        </li>
+                        {audioError && (
+                            <li className="flex items-start text-red-500">
+                                <span className="text-red-500 mr-2">*</span>
+                                If audio is not available, select an answer to continue
+                            </li>
+                        )}
+                    </ul>
+                </div>
+                
                 {/* Header with Progress and Story ID */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                            <BookOpen className="h-5 w-5 text-blue-600" />
+                            <BookOpen className="h-5 w-5 text-[#406368]" />
                             <span className="text-lg font-medium text-gray-900">
                                 Story {storyNumber}
                             </span>
                         </div>
-                        <span className="text-blue-600 font-medium">
+                        <span className="text-[#406368] font-medium">
                             {Math.round(progress)}% Complete
                         </span>
                     </div>
 
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                            className="h-full bg-[#406368] rounded-full transition-all duration-300 ease-in-out"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -96,10 +160,10 @@ const ComprehensionTest = ({
                 <div className="pt-2">
                     <Button
                         onClick={handlePlayStoryAudio}
-                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${isPlayingStory ? "bg-blue-400" :
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${isPlayingStory ? "bg-[#6c8376]" :
                                 audioError ? "bg-red-500 hover:bg-red-600" :
-                                    storyAudioPlayed ? "bg-gray-400 hover:bg-gray-500 cursor-not-allowed" :
-                                        "bg-blue-600 hover:bg-blue-700"
+                                    storyAudioPlayed ? "bg-[#6e6e6d] hover:bg-[#6e6e6d] cursor-not-allowed" :
+                                        "bg-[#406368] hover:bg-[#6c8376]"
                             }`}
                         disabled={storyAudioPlayed || isPlayingStory || isSubmitting}
                     >
@@ -123,21 +187,21 @@ const ComprehensionTest = ({
                             Story audio could not be found. Please continue with the questions.
                         </p>
                     ) : !storyAudioPlayed ? (
-                        <p className="text-center text-sm text-blue-600 mt-2 font-medium">
+                        <p className="text-center text-sm text-[#406368] mt-2 font-medium">
                             You must listen to the complete story before answering questions
                         </p>
                     ) : !showQuestions ? (
                         <div className="mt-4 text-center">
                             <Button
                                 onClick={() => setShowQuestions(true)}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-[#6c8376] hover:bg-[#406368]"
                             >
                                 <ArrowRight className="h-4 w-4 mr-2" />
                                 Start Questions
                             </Button>
                         </div>
                     ) : (
-                        <p className="text-center text-sm text-green-600 mt-2">
+                        <p className="text-center text-sm text-[#6c8376] mt-2">
                             Please answer all questions about the story.
                         </p>
                     )}
@@ -146,7 +210,7 @@ const ComprehensionTest = ({
                 {/* Question Section - Hidden until story audio is played AND Start Questions is clicked */}
                 {showQuestions && (
                     <div className="space-y-6">
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="bg-[#f3ecda] p-4 rounded-lg border border-[#dad6d9]">
                             <Label className="block text-lg font-medium text-gray-800">
                                 {question}
                             </Label>
@@ -158,15 +222,15 @@ const ComprehensionTest = ({
                                 <div
                                     key={index}
                                     className={`p-3 rounded-md border ${userResponse === index
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 bg-white'
-                                        } cursor-pointer hover:bg-gray-50`}
+                                        ? 'border-[#406368] bg-[#f3ecda]'
+                                        : 'border-[#dad6d9] bg-white'
+                                        } cursor-pointer hover:bg-[#f3ecda]`}
                                     onClick={() => !isSubmitting && onResponseChange(index)}
                                 >
                                     <div className="flex items-center space-x-3">
                                         <div className={`w-6 h-6 flex items-center justify-center rounded-full border ${userResponse === index
-                                            ? 'border-blue-500 bg-blue-500 text-white'
-                                            : 'border-gray-300'
+                                            ? 'border-[#406368] bg-[#406368] text-white'
+                                            : 'border-[#6e6e6d]'
                                             }`}>
                                             {optionLabels[index]}
                                         </div>
@@ -179,7 +243,7 @@ const ComprehensionTest = ({
                         <Button
                             onClick={handleSubmit}
                             disabled={userResponse === null || isSubmitting}
-                            className="w-full h-12 mt-4 flex items-center justify-center space-x-2
+                            className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                      disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? (
@@ -196,35 +260,6 @@ const ComprehensionTest = ({
                         </Button>
                     </div>
                 )}
-
-                {/* Instructions */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                        <li className="flex items-start">
-                            <span className="text-blue-600 mr-2">1.</span>
-                            Listen to the complete story first
-                        </li>
-                        <li className="flex items-start">
-                            <span className="text-blue-600 mr-2">2.</span>
-                            Click "Start Questions" after listening
-                        </li>
-                        <li className="flex items-start">
-                            <span className="text-blue-600 mr-2">3.</span>
-                            Answer each question about the story
-                        </li>
-                        <li className="flex items-start">
-                            <span className="text-blue-600 mr-2">4.</span>
-                            Click "Submit Answer" to proceed
-                        </li>
-                        {audioError && (
-                            <li className="flex items-start text-red-500">
-                                <span className="text-red-500 mr-2">*</span>
-                                If audio is not available, select an answer to continue
-                            </li>
-                        )}
-                    </ul>
-                </div>
             </CardContent>
         </Card>
     );

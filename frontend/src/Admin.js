@@ -277,7 +277,7 @@ const Admin = () => {
         
         <button
           onClick={() => handleExport('users', `${config.API_BASE_URL}/api/admin/export/users`, 'users.csv')}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center justify-center"
+          className="bg-[#406368] hover:bg-[#6c8376] text-white px-4 py-2 rounded flex items-center justify-center"
           disabled={isExporting.users}
         >
           {isExporting.users ? (
@@ -332,7 +332,7 @@ const Admin = () => {
         <h2 className="text-xl font-bold mb-4">Manage User: {user.userId}</h2>
 
         {modalMessage && (
-          <div className="mb-4 p-2 bg-blue-100 text-blue-700 rounded">
+          <div className="mb-4 p-2 bg-[#f3ecda] text-[#406368] rounded">
             {modalMessage}
           </div>
         )}
@@ -444,7 +444,7 @@ const Admin = () => {
 
               <button
                 onClick={() => handleResetPassword(user.userId)}
-                className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                className="w-full bg-[#406368] text-white px-4 py-2 rounded hover:bg-[#6c8376]"
               >
                 Reset Password
               </button>
@@ -569,7 +569,7 @@ const Admin = () => {
                           setSelectedUser(user);
                           setShowUserModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-[#406368] hover:text-[#6c8376]"
                       >
                         Manage
                       </button>
@@ -603,7 +603,7 @@ const Admin = () => {
 
       <button
         onClick={fetchData}
-        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        className="mt-4 bg-[#406368] text-white px-4 py-2 rounded hover:bg-[#6c8376]"
       >
         Refresh Data
       </button>

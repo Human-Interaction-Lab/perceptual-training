@@ -127,19 +127,38 @@ const IntelligibilityTest = ({
                     </div>
                 )}
                 
+                {/* Instructions - Moved to top */}
+                <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                        <li>1. Click the "Play Audio" button to hear the stimulus</li>
+                        <li>2. Listen carefully to the entire phrase</li>
+                        <li>3. Type exactly what you heard in the text box</li>
+                        <li>4. Click "Submit Response" when you're ready</li>
+                        <li className="text-[#406368] font-medium">
+                            Note: You must wait for the audio to finish playing completely before submitting
+                        </li>
+                        {audioError && (
+                            <li className="text-red-500">
+                                If audio is not available, enter "NA" as your response
+                            </li>
+                        )}
+                    </ul>
+                </div>
+                
                 {/* Progress Section */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-gray-700">
                             Stimulus {currentStimulus + 1} of {totalStimuli}
                         </span>
-                        <span className="text-blue-600 font-medium">
+                        <span className="text-[#406368] font-medium">
                             {Math.round(progress)}% Complete
                         </span>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                            className="h-full bg-[#406368] rounded-full transition-all duration-300 ease-in-out"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -150,7 +169,7 @@ const IntelligibilityTest = ({
                     <Button
                         onClick={handlePlayAudio}
                         disabled={isPlaying || audioPlayed}
-                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioError ? "bg-red-500 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-700"
+                        className={`w-full h-16 text-lg flex items-center justify-center space-x-3 ${audioError ? "bg-red-500 hover:bg-red-600" : "bg-[#406368] hover:bg-[#6c8376]"
                             } transition-colors`}
                     >
                         {isPlaying ? (
@@ -195,14 +214,14 @@ const IntelligibilityTest = ({
                             value={userResponse}
                             onChange={(e) => onResponseChange(e.target.value)}
                             placeholder={audioError ? "Type NA" : "Enter the phrase..."}
-                            className="w-full p-3 text-lg border-gray-200 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full p-3 text-lg border-gray-200 focus:ring-[#406368] focus:border-[#406368]"
                         />
                     </div>
 
                     <Button
                         onClick={onSubmit}
                         disabled={!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting}
-                        className="w-full h-12 mt-4 flex items-center justify-center space-x-2 
+                        className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <span>{isSubmitting ? "Submitting..." : "Submit Response"}</span>
@@ -210,24 +229,6 @@ const IntelligibilityTest = ({
                     </Button>
                 </div>
 
-                {/* Instructions */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                        <li>1. Click the "Play Audio" button to hear the stimulus</li>
-                        <li>2. Listen carefully to the entire phrase</li>
-                        <li>3. Type exactly what you heard in the text box</li>
-                        <li>4. Click "Submit Response" when you're ready</li>
-                        <li className="text-blue-600 font-medium">
-                            Note: You must wait for the audio to finish playing completely before submitting
-                        </li>
-                        {audioError && (
-                            <li className="text-red-500">
-                                If audio is not available, enter "NA" as your response
-                            </li>
-                        )}
-                    </ul>
-                </div>
             </CardContent>
         </Card>
     );

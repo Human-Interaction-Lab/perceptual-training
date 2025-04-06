@@ -19,53 +19,53 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
 
     // Set loading state
     setIsLoading(true);
-    
+
     // CRITICAL CHANGE: No preloading during test type selection
     // First check if this is special handling for demographics
     if (phase === 'demographics') {
       console.log('Demographics selected - no preloading needed');
-      
+
       // Short wait for visual feedback
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Proceed immediately to demographics
       setIsLoading(false);
       onSelect(phase, testType);
       return;
     }
-    
+
     // For all other phases, show brief loading spinner but don't actually preload
     // This change fundamentally separates preloading from navigation
     console.log(`Selected ${phase} ${testType} - proceeding without preloading`);
-    
+
     // Brief spinner for better UX, but not doing actual preloading
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Proceed with navigation without any preloading promises
     setIsLoading(false);
     onSelect(phase, testType);
   };
 
   return (
-    <Card className={`transition-all ${isLoading ? "border-blue-400 shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
-      <CardHeader className={isLoading ? "bg-blue-50" : ""}>
+    <Card className={`transition-all ${isLoading ? "border-[#406368] shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
+      <CardHeader className={isLoading ? "bg-[#f3ecda]" : ""}>
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <h3 className="text-lg font-semibold text-[#406368]">{title}</h3>
             <p className="text-sm text-gray-600 mt-1">{description}</p>
           </div>
           <div className="ml-4">
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
             ) : isLoading ? (
-              <Loader className="h-6 w-6 text-blue-500 animate-spin" />
+              <Loader className="h-6 w-6 text-[#406368] animate-spin" />
             ) : hasProgress ? (
               <div className="relative">
                 <Clock className="h-6 w-6 text-yellow-500" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
               </div>
             ) : isAvailable ? (
-              <Clock className="h-6 w-6 text-blue-500" />
+              <Clock className="h-6 w-6 text-[#406368]" />
             ) : (
               <Lock className="h-6 w-6 text-gray-400" />
             )}
@@ -74,15 +74,15 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-blue-600 font-medium flex items-center">
+          <p className="text-sm text-[#406368] font-medium flex items-center">
             <Loader className="animate-spin h-4 w-4 mr-2" />
             Preparing audio files...
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : 
-             hasProgress ? 'In Progress - Continue' : 
-             isAvailable ? 'Available Now' : 'Locked'}
+            {isCompleted ? 'Completed' :
+              hasProgress ? 'In Progress - Continue' :
+                isAvailable ? 'Available Now' : 'Locked'}
             {date && ` • ${date}`}
           </p>
         )}
@@ -101,9 +101,9 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : 
-               hasProgress ? 'Continue Test' : 
-               isAvailable ? 'Begin Test' : 'Locked'}
+              {isCompleted ? 'Completed' :
+                hasProgress ? 'Continue Test' :
+                  isAvailable ? 'Begin Test' : 'Locked'}
             </span>
           )}
           {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
@@ -118,12 +118,12 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Keep the original completed check - day is less than current day
   const isCompleted = day < currentDay;
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Check for in-progress data
   const hasProgress = (() => {
     const userId = localStorage.getItem('userId');
     if (!userId) return false;
-    
+
     const progressKey = `progress_${userId}_training_day${day}`;
     return localStorage.getItem(progressKey) !== null;
   })();
@@ -169,19 +169,19 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   };
 
   return (
-    <Card className={`transition-all ${isLoading ? "border-blue-400 shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
-      <CardHeader className={isLoading ? "bg-blue-50" : ""}>
+    <Card className={`transition-all ${isLoading ? "border-[#406368] shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
+      <CardHeader className={isLoading ? "bg-[#f3ecda]" : ""}>
         <div className="flex justify-between items-start">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-[#406368]">
             Training Day {day}
           </h3>
           <div>
             {isCompleted ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
             ) : isLoading ? (
-              <Loader className="h-6 w-6 text-blue-500 animate-spin" />
+              <Loader className="h-6 w-6 text-[#406368] animate-spin" />
             ) : isAvailable ? (
-              <Clock className="h-6 w-6 text-blue-500" />
+              <Clock className="h-6 w-6 text-[#406368]" />
             ) : (
               <Lock className="h-6 w-6 text-gray-400" />
             )}
@@ -190,15 +190,15 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-blue-600 font-medium flex items-center">
+          <p className="text-sm text-[#406368] font-medium flex items-center">
             <Loader className="animate-spin h-4 w-4 mr-2" />
             Preparing audio files...
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : 
-             hasProgress ? 'In Progress - Continue' : 
-             isAvailable ? 'Available Now' : 'Locked'}
+            {isCompleted ? 'Completed' :
+              hasProgress ? 'In Progress - Continue' :
+                isAvailable ? 'Available Now' : 'Locked'}
             {date && ` • ${date}`}
           </p>
         )}
@@ -217,15 +217,15 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
             </span>
           ) : (
             <span>
-              {isCompleted ? 'Completed' : 
-               hasProgress ? 'Continue Training' : 
-               isAvailable ? 'Begin Training' : 'Locked'}
+              {isCompleted ? 'Completed' :
+                hasProgress ? 'Continue Training' :
+                  isAvailable ? 'Begin Training' : 'Locked'}
             </span>
           )}
           {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </CardFooter>
-    </Card>
+    </Card >
   );
 };
 
@@ -266,7 +266,7 @@ const PhaseSelection = ({
     posttest1: false,
     posttest2: false
   });
-  
+
   // Add state to track if we're in the fresh demographics completion state
   const [isPostDemographics, setIsPostDemographics] = useState(false);
 
@@ -298,13 +298,13 @@ const PhaseSelection = ({
   useEffect(() => {
     console.log("Current phase:", currentPhase);
     console.log("Completed tests:", completedTests);
-    
+
     // Check for fresh demographics completion
     // Remove the currentPhase === 'pretest' condition since demographics is totally separate
     if (completedTests.demographics === true && !isPostDemographics) {
       console.log("Fresh demographics completion detected - preparing special handling");
       setIsPostDemographics(true);
-      
+
       // Schedule reset of this flag after a reasonable time
       setTimeout(() => {
         setIsPostDemographics(false);
@@ -333,12 +333,12 @@ const PhaseSelection = ({
   useEffect(() => {
     // Disable preloading entirely - files will be loaded only when needed
     console.log("Preloading completely disabled in phase selection");
-    
+
     // Instead, just track analytics for debugging purposes
     if (currentPhase) {
       console.log(`Current phase is ${currentPhase} - NO automatic preloading`);
     }
-    
+
     // The app will now load audio files one at a time when they are needed
     // This prevents the app from trying to preload everything at once
 
@@ -349,10 +349,10 @@ const PhaseSelection = ({
   const hasInProgressData = (phase, testType) => {
     const userId = localStorage.getItem('userId');
     if (!userId) return false;
-    
+
     const progressKey = `progress_${userId}_${phase}_${testType}`;
     const savedProgress = localStorage.getItem(progressKey);
-    
+
     return savedProgress !== null;
   };
 
@@ -436,9 +436,9 @@ const PhaseSelection = ({
         const inProgress = hasInProgressData(phase, test.type);
         return {
           // Only available if demographics is completed and we're in pretest phase
-          isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') && 
-                      demoCompleted && 
-                      !isTestCompleted,
+          isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
+            demoCompleted &&
+            !isTestCompleted,
           isCompleted: isTestCompleted,
           hasProgress: inProgress
         };
@@ -469,16 +469,16 @@ const PhaseSelection = ({
     const isTestCompleted =
       completedTests[`${phase}_${testType}`] ||
       completedTests[testType];
-    
+
     // Check if there's saved progress
     const inProgress = hasInProgressData(phase, test.type);
 
     // First test in other phases
     if (test.order === 1) {
       return {
-        isAvailable: phase === currentPhase && 
-                     demoCompleted && 
-                     !isTestCompleted,
+        isAvailable: phase === currentPhase &&
+          demoCompleted &&
+          !isTestCompleted,
         isCompleted: isTestCompleted,
         hasProgress: inProgress
       };
@@ -535,50 +535,50 @@ const PhaseSelection = ({
     expectedDate.setDate(expectedDate.getDate() + daysToAdd);
     return formatDate(expectedDate);
   };
-  
+
   // Helper function to check if a phase is complete
   const isPhaseCompleted = (phase) => {
-    return testTypes.every(test => 
+    return testTypes.every(test =>
       completedTests[`${phase}_${test.type}`] === true
     );
   };
-  
+
   // Helper for posttest1 specifically
   const isPosttest1Completed = () => {
     return isPhaseCompleted('posttest1');
   };
-  
+
   // Helper function to check if training is complete (all 4 days)
   const isTrainingCompleted = () => {
     // Add explicit boolean conversion for safety
-    return Boolean(completedTests['training_day1']) && 
-           Boolean(completedTests['training_day2']) && 
-           Boolean(completedTests['training_day3']) && 
-           Boolean(completedTests['training_day4']);
+    return Boolean(completedTests['training_day1']) &&
+      Boolean(completedTests['training_day2']) &&
+      Boolean(completedTests['training_day3']) &&
+      Boolean(completedTests['training_day4']);
   };
-  
+
   // Helper function to calculate days until a specific date
   const getDaysUntilDate = (daysToAdd) => {
     if (!pretestDate) return null;
-    
+
     const baseDate = new Date(pretestDate);
     const targetDate = new Date(baseDate);
     targetDate.setDate(targetDate.getDate() + daysToAdd);
-    
+
     const today = new Date();
-    
+
     // Calculate days difference
     const diffTime = targetDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays > 0 ? diffDays : 0;
   };
-  
+
   // Helper function to calculate days until posttest1
   const getDaysUntilPosttest1 = () => {
     return getDaysUntilDate(12); // Posttest1 is 12 days after pretest
   };
-  
+
   // Helper function to calculate days until posttest2
   const getDaysUntilPosttest2 = () => {
     return getDaysUntilDate(35); // Posttest2 is 35 days after pretest
@@ -623,7 +623,7 @@ const PhaseSelection = ({
     console.log("Posttest availability:", availability);
     setPosttestAvailability(availability);
   }, [pretestDate, trainingDay, currentPhase]);
-  
+
   // Debug useEffect to log training completion conditions
   useEffect(() => {
     // Debug training completion and posttest1 message conditions
@@ -644,19 +644,19 @@ const PhaseSelection = ({
   const handleSelectPhase = (phase, testType, day = null) => {
     // Fundamental change: No preloading at all during phase/test selection
     // This completely separates navigation from audio file preloading
-    
+
     console.log(`Phase selection: ${phase} ${testType || ''}, day ${day || 'n/a'}`);
-    
+
     // CRITICAL CHANGE: Navigate immediately WITHOUT any preloading
     console.log(`Immediately navigating to ${phase} ${testType || ''} without any preloading`);
-    
+
     // Reset preloading indicators (used for background preloading)
     setIsPreloading(false);
     setPreloadingPhase(null);
-    
+
     // Just navigate directly
     onSelectPhase(phase, testType, day);
-    
+
     // Start a background preload thread ONLY for analytics, not blocking navigation
     setTimeout(() => {
       try {
@@ -675,20 +675,20 @@ const PhaseSelection = ({
   // Helper function to detect browser type
   const getBrowserType = () => {
     if (typeof window === 'undefined') return 'unknown'; // SSR handling
-    
+
     const userAgent = window.navigator.userAgent.toLowerCase();
-    
+
     if (userAgent.indexOf('chrome') > -1) return 'chrome';
     if (userAgent.indexOf('firefox') > -1) return 'firefox';
     if (userAgent.indexOf('safari') > -1) return 'safari';
     if (userAgent.indexOf('edge') > -1 || userAgent.indexOf('edg') > -1) return 'edge';
     if (userAgent.indexOf('opr') > -1 || userAgent.indexOf('opera') > -1) return 'opera';
-    
+
     return 'other';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Browser compatibility warning for non-Chrome browsers */}
         {getBrowserType() !== 'chrome' && (
@@ -704,26 +704,26 @@ const PhaseSelection = ({
             </div>
           </div>
         )}
-        
+
         {/* Developer tools - only show in development mode */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mb-4 bg-gray-100 p-2 rounded-md border border-gray-300">
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">Developer Tools</span>
-              <a 
-                href="/clear-test-users.html" 
-                target="_blank" 
+              <a
+                href="/clear-test-users.html"
+                target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                className="text-xs text-[#406368] hover:text-[#6c8376] hover:underline"
               >
                 Clear Test User Progress
               </a>
             </div>
           </div>
         )}
-        
+
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-[#406368] mb-2">
             Communication Training Progress
           </h1>
           {pretestDate && (
@@ -736,7 +736,7 @@ const PhaseSelection = ({
         {/* Standalone Demographics card - separate from pretest section */}
         {!isDemographicsCompleted && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Background Questionnaire</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Background Questionnaire</h2>
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
               <TestTypeCard
                 title="Demographics Questionnaire"
@@ -754,15 +754,15 @@ const PhaseSelection = ({
             </div>
           </div>
         )}
-        
+
         {/* Pretest Section WITHOUT Demographics Card */}
         {currentPhase === 'pretest' && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Pre-test Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Pre-test Assessment</h2>
             <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              
+
               {/* All test type cards */}
               {testTypes
                 .sort((a, b) => a.order - b.order)
@@ -782,20 +782,20 @@ const PhaseSelection = ({
 
         {/* Message when all pretest tests are completed */}
         {currentPhase === 'pretest' && isDemographicsCompleted && isAllPretestCompleted && (
-          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="mb-8 text-center p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
             <div className="flex items-center justify-center mb-2">
-              <PartyPopper className="h-8 w-8 text-yellow-500 mr-2" />
-              <h2 className="text-xl font-semibold">Great job completing all tests!</h2>
-              <PartyPopper className="h-8 w-8 text-yellow-500 ml-2" />
+              <PartyPopper className="h-8 w-8 text-[#6c8376] mr-2" />
+              <h2 className="text-xl font-semibold text-[#406368]">Great job completing all tests!</h2>
+              <PartyPopper className="h-8 w-8 text-[#6c8376] ml-2" />
             </div>
-            <p className="text-lg text-green-700">Please return tomorrow to start the training.</p>
+            <p className="text-lg text-[#6c8376]">Please return tomorrow to start the training.</p>
           </div>
         )}
 
         {/* Training Section */}
         {currentPhase === 'training' && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Training Sessions</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Training Sessions</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <br></br>
@@ -818,7 +818,7 @@ const PhaseSelection = ({
         {/* Posttest1 Section - Only show if current phase is posttest1 AND the date requirement is met */}
         {currentPhase === 'posttest1' && posttestAvailability.posttest1 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Posttest #1 Assessment (1-week follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Posttest #1 Assessment (1-week follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}
@@ -846,17 +846,17 @@ const PhaseSelection = ({
 
         {/* Message for countdown to posttest1 - Show whenever we're in posttest1 phase but the date requirement for showing the cards hasn't been met */}
         {(currentPhase === 'posttest1' && !posttestAvailability.posttest1) && (
-          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="mb-8 text-center p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
             <div className="flex items-center justify-center mb-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#406368] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-xl font-semibold">1-Week Follow-up Coming Soon</h2>
+              <h2 className="text-xl font-semibold text-[#406368]">1-Week Follow-up Coming Soon</h2>
             </div>
-            <p className="text-lg text-blue-700">
+            <p className="text-lg text-[#406368]">
               You've completed all training days! Your 1-week follow-up will be available in <span className="font-bold">{getDaysUntilPosttest1()} days</span>.
             </p>
-            <p className="text-sm text-blue-600 mt-2">
+            <p className="text-sm text-[#6c8376] mt-2">
               Please return on {getExpectedDate('posttest1')} to complete the follow-up assessment.
             </p>
           </div>
@@ -864,17 +864,17 @@ const PhaseSelection = ({
 
         {/* Message for countdown to posttest2 - Show only when posttest1 is complete and posttest2 isn't available yet */}
         {isPosttest1Completed() && !posttestAvailability.posttest2 && getDaysUntilPosttest2() > 0 && (
-          <div className="mb-8 text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="mb-8 text-center p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
             <div className="flex items-center justify-center mb-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#406368] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-xl font-semibold">1-Month Follow-up Coming Soon</h2>
+              <h2 className="text-xl font-semibold text-[#406368]">1-Month Follow-up Coming Soon</h2>
             </div>
-            <p className="text-lg text-blue-700">
+            <p className="text-lg text-[#406368]">
               You've completed the 1-week follow-up! Your 1-month follow-up will be available in <span className="font-bold">{getDaysUntilPosttest2()} days</span>.
             </p>
-            <p className="text-sm text-blue-600 mt-2">
+            <p className="text-sm text-[#6c8376] mt-2">
               Please return on {getExpectedDate('posttest2')} to complete the final assessment.
             </p>
           </div>
@@ -882,14 +882,14 @@ const PhaseSelection = ({
 
         {/* Message when posttest2 is available but not yet started */}
         {posttestAvailability.posttest2 && currentPhase !== 'completed' && !testTypes.some(test => completedTests[`posttest2_${test.type}`]) && (
-          <div className="mb-4 text-center p-4 bg-green-50 rounded-lg border border-green-100">
+          <div className="mb-4 text-center p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
             <div className="flex items-center justify-center mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#406368] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              <h3 className="text-lg font-medium text-green-800">Your 1-month follow-up is now available!</h3>
+              <h3 className="text-lg font-medium text-[#406368]">Your 1-month follow-up is now available!</h3>
             </div>
-            <p className="text-green-700">
+            <p className="text-[#6c8376]">
               Please complete the final assessment to finish the study.
             </p>
           </div>
@@ -898,7 +898,7 @@ const PhaseSelection = ({
         {/* Posttest2 Section - Only show if current phase is posttest2 AND the date requirement is met */}
         {currentPhase === 'posttest2' && posttestAvailability.posttest2 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Posttest #2 Assessment (1-month follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Posttest #2 Assessment (1-month follow-up)</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}

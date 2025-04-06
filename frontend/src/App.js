@@ -248,13 +248,13 @@ const App = () => {
 
   // if all phases completed and submited, give thank you message
   const renderCompleted = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white shadow-xl rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-[#406368] mb-4">
             Study Completed
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-[#6e6e6d] mb-4">
             Thank you for completing all phases of the study! Your participation is greatly appreciated.
           </p>
         </div>
@@ -1030,13 +1030,13 @@ const App = () => {
 
   // Add this component to display when user can't proceed
   const NotAvailableMessage = () => (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white shadow-xl rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-[#406368] mb-4">
             Please Return Tomorrow
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-[#6e6e6d] mb-4">
             To maintain the effectiveness of the training, each session must be completed on consecutive days.
             Please return tomorrow to continue your training.
           </p>
@@ -1284,11 +1284,11 @@ const App = () => {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white shadow-xl rounded-lg overflow-hidden">
             {/* Header */}
-            <div className="bg-blue-600 text-white px-6 py-4">
+            <div className="bg-[#406368] text-white px-6 py-4">
               <h2 className="text-xl font-semibold">
                 {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test' : 'Post-test'}: {
                   currentTestType === 'intelligibility' ? 'Speech Intelligibility' :
@@ -1299,7 +1299,7 @@ const App = () => {
             </div>
 
             {/* Content */}
-            <div className="p-6">
+            <div className="p-6 bg-white">
               {renderTestComponent()}
             </div>
           </div>
@@ -1308,15 +1308,15 @@ const App = () => {
         {/* Completion Modal */}
         {showComplete && currentStimulus === getCurrentStimuli().length - 1 && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+            <div className="bg-[#f3ecda] rounded-lg max-w-md w-full p-6 shadow-xl">
+              <h3 className="text-xl font-semibold text-[#406368] mb-4">
                 {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test Complete' :
                   phase === 'training' ? `Training Day ${trainingDay} Complete` :
                   phase === 'posttest1' ? '1-Week Post-test Complete' :
                   phase === 'posttest2' ? '1-Month Post-test Complete' :
                     'Post-test Complete'}
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-[#6e6e6d] mb-6">
                 {phase === 'pretest' || phase === 'intelligibility'
                   ? "Excellent work! You've completed the pre-test. Return tomorrow to begin your training."
                   : phase === 'training'
@@ -1330,9 +1330,9 @@ const App = () => {
                         : "Congratulations! You've successfully completed the study."}
               </p>
               {phase === 'training' && (
-                <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[#dad6d9] rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-blue-500 h-full transition-all duration-1000 ease-out"
+                    className="bg-[#406368] h-full transition-all duration-1000 ease-out"
                     style={{ width: "100%" }}
                   />
                 </div>

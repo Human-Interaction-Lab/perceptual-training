@@ -45,13 +45,13 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-[#406368] mb-2">
             Admin Login
           </h1>
-          <p className="text-gray-600">
+          <p className="text-[#6e6e6d]">
             Please login with your admin credentials
           </p>
         </div>
@@ -89,7 +89,7 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full bg-[#406368] hover:bg-[#6c8376] text-white"
               >
                 Sign In as Admin
               </Button>
@@ -101,7 +101,7 @@ const AdminLogin = ({ onBack, onLoginSuccess }) => {
           <Button
             variant="link"
             onClick={onBack}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-[#6e6e6d] hover:text-[#406368]"
           >
             ← Back to Main App
           </Button>

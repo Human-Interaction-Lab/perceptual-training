@@ -555,7 +555,7 @@ const TrainingSession = ({
 
     const renderInstructionPhase = () => (
         <Card className="shadow-lg">
-            <CardHeader className="bg-blue-600 text-white">
+            <CardHeader className="bg-[#406368] text-white">
                 <h2 className="text-xl font-semibold">Training Day {trainingDay}</h2>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -567,16 +567,16 @@ const TrainingSession = ({
                         <li>After completing all training clips, you will be tested on your ability to understand similar speech</li>
                     </ol>
 
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center space-x-2">
-                        <Headphones className="h-5 w-5 text-blue-500" />
-                        <p className="text-blue-700">Please wear headphones during this training session.</p>
+                    <div className="bg-[#f3ecda] p-4 rounded-lg border border-[#dad6d9] flex items-center space-x-2">
+                        <Headphones className="h-5 w-5 text-[#406368]" />
+                        <p className="text-[#406368]">Please wear headphones during this training session.</p>
                     </div>
                 </div>
             </CardContent>
             <CardFooter className="border-t border-gray-100 pt-4">
                 <Button
                     onClick={handleStartTraining}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    className="w-full bg-[#406368] hover:bg-[#6c8376]"
                 >
                     Start Training
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -752,7 +752,7 @@ const TrainingSession = ({
 
         return (
             <Card className="shadow-lg">
-                <CardHeader className="bg-blue-600 text-white">
+                <CardHeader className="bg-[#406368] text-white">
                     <h2 className="text-xl font-semibold">Training Day {trainingDay}</h2>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
@@ -761,18 +761,18 @@ const TrainingSession = ({
                             <span className="font-medium text-gray-700">
                                 Stimulus {currentStimulusIndex + 1} of {total}
                                 {storyNumber && STORY_METADATA[storyNumber] && (
-                                    <span className="ml-1 text-blue-600">
+                                    <span className="ml-1 text-[#406368]">
                                         ({STORY_METADATA[storyNumber].title})
                                     </span>
                                 )}
                             </span>
-                            <span className="text-blue-600 font-medium">
+                            <span className="text-[#406368] font-medium">
                                 {Math.round(progress)}% Complete
                             </span>
                         </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-in-out"
+                                className="h-full bg-[#406368] rounded-full transition-all duration-300 ease-in-out"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
@@ -782,33 +782,33 @@ const TrainingSession = ({
                     <div className="pt-4">
                         <div
                             className={`w-full h-16 rounded-md flex items-center justify-center space-x-3 ${audioPlaying
-                                ? "bg-blue-100"
+                                ? "bg-[#f3ecda]"
                                 : audioPlayed
-                                    ? "bg-blue-50"
-                                    : "bg-gray-50"
+                                    ? "bg-[#f3ecda] bg-opacity-70"
+                                    : "bg-[#dad6d9] bg-opacity-30"
                                 }`}
                         >
                             {audioPlaying ? (
                                 <>
-                                    <Loader className="h-6 w-6 text-blue-500 animate-spin" />
-                                    <span className="text-blue-700 font-medium">Audio Playing...</span>
+                                    <Loader className="h-6 w-6 text-[#406368] animate-spin" />
+                                    <span className="text-[#406368] font-medium">Audio Playing...</span>
                                 </>
                             ) : audioPlayed ? (
                                 <>
-                                    <Volume2 className="h-6 w-6 text-green-500" />
-                                    <span className="text-green-700 font-medium">Audio Played</span>
+                                    <Volume2 className="h-6 w-6 text-[#6c8376]" />
+                                    <span className="text-[#6c8376] font-medium">Audio Played</span>
                                 </>
                             ) : (
                                 <>
-                                    <Loader className="h-6 w-6 text-gray-500 animate-spin" />
-                                    <span className="text-gray-700">Loading Audio... (Training will start automatically)</span>
+                                    <Loader className="h-6 w-6 text-[#6e6e6d] animate-spin" />
+                                    <span className="text-[#6e6e6d]">Loading Audio... (Training will start automatically)</span>
                                 </>
                             )}
                         </div>
                     </div>
 
                     {showText && (
-                        <div className="mt-6 p-6 bg-blue-50 rounded-lg border border-blue-100">
+                        <div className="mt-6 p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
                             <p className="text-lg text-center font-medium text-gray-800">
                                 {loadingText ? (
                                     <span className="text-gray-500 italic">{displayText}</span>
@@ -823,7 +823,7 @@ const TrainingSession = ({
                     <Button
                         onClick={handleNext}
                         disabled={!audioPlayed || audioPlaying}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
+                        className="w-full bg-[#406368] hover:bg-[#6c8376] disabled:bg-[#6e6e6d]"
                     >
                         Next
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -839,16 +839,25 @@ const TrainingSession = ({
         
         return (
             <div>
-                <h2 className="text-xl font-semibold mb-4 text-center">Day {trainingDay} Test</h2>
-                <IntelligibilityTest
-                    userResponse={userResponse}
-                    onResponseChange={setUserResponse}
-                    onSubmit={handleTestSubmit}
-                    currentStimulus={currentStimulusIndex}
-                    totalStimuli={TRAINING_TEST_LENGTH}
-                    onPlayAudio={handlePlayTestAudio}
-                    isSubmitting={isSubmitting}
-                />
+                <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-[#406368] text-white px-6 py-4">
+                        <h2 className="text-xl font-semibold">Day {trainingDay} Test: Speech Intelligibility</h2>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-6 bg-white">
+                        <IntelligibilityTest
+                            userResponse={userResponse}
+                            onResponseChange={setUserResponse}
+                            onSubmit={handleTestSubmit}
+                            currentStimulus={currentStimulusIndex}
+                            totalStimuli={TRAINING_TEST_LENGTH}
+                            onPlayAudio={handlePlayTestAudio}
+                            isSubmitting={isSubmitting}
+                        />
+                    </div>
+                </div>
             </div>
         );
     };
@@ -885,7 +894,7 @@ const TrainingSession = ({
     //};
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+        <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
             <div className="max-w-2xl mx-auto">
                 <Button
                     variant="ghost"
@@ -903,7 +912,7 @@ const TrainingSession = ({
                             onBack();
                         }
                     }}
-                    className="mb-4 text-gray-600 hover:text-gray-800"
+                    className="mb-4 text-[#406368] hover:text-[#6c8376]"
                 >
                     ← Back to Training Selection
                 </Button>

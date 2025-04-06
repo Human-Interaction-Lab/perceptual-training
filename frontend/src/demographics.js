@@ -39,7 +39,7 @@ const RadioGroup = ({ label, name, value, onChange, options, error }) => (
             value={option}
             checked={value === option}
             onChange={(e) => onChange(e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value)}
-            className="form-radio h-4 w-4 text-blue-600"
+            className="form-radio h-4 w-4 text-[#406368]"
           />
           <Label htmlFor={`${name}-${option}`} className="font-normal">{option}</Label>
         </div>
@@ -273,12 +273,12 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       <div className="max-w-3xl mx-auto">
         <Card className="shadow-lg">
-          <CardHeader className="border-b border-gray-100 pb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Background Information</h2>
-            <p className="text-gray-600 mt-2">Please complete all fields to continue with the study</p>
+          <CardHeader className="bg-[#406368] text-white border-b border-gray-100 pb-6">
+            <h2 className="text-2xl font-bold text-white">Background Information</h2>
+            <p className="text-white text-opacity-90 mt-2">Please complete all fields to continue with the study</p>
             {errors.general && (
               <div className="mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
                 {errors.general}
@@ -499,7 +499,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-blue-600 hover:bg-blue-700 px-8"
+                  className="bg-[#406368] hover:bg-[#6c8376] px-8"
                 >
                   {submitting ? (
                     <span className="flex items-center">
