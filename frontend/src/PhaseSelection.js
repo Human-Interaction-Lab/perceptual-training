@@ -47,7 +47,7 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
   };
 
   return (
-    <Card className={`transition-all ${isLoading ? "border-[#406368] shadow-lg" : ""} ${isAvailable ? "" : "opacity-75"}`}>
+    <Card className={`transition-all shadow-lg ${isLoading ? "border-[#406368]" : ""} ${isAvailable ? "" : "opacity-75"}`}>
       <CardHeader className={isLoading ? "bg-[#f3ecda]" : ""}>
         <div className="flex items-start justify-between">
           <div>
@@ -169,7 +169,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   };
 
   return (
-    <Card className={`transition-all ${isLoading ? "border-[#406368] shadow-lg" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
+    <Card className={`transition-all shadow-lg ${isLoading ? "border-[#406368]" : ""} ${isAvailable || isCompleted ? "" : "opacity-75"}`}>
       <CardHeader className={isLoading ? "bg-[#f3ecda]" : ""}>
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold text-[#406368]">
