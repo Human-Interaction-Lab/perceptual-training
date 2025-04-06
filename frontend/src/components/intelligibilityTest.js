@@ -117,7 +117,7 @@ const IntelligibilityTest = ({
     };
 
     return (
-        <Card className="shadow-lg border-gray-200">
+        <Card className="shadow-lg !border-0">
             <CardContent className="p-6 space-y-6">
                 {/* Browser compatibility notice */}
                 {getBrowserType() !== 'chrome' && (

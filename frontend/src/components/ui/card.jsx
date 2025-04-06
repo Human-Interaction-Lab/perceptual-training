@@ -3,7 +3,7 @@ import * as React from "react"
 const Card = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className="rounded-lg border border-gray-200 bg-white text-gray-950 shadow-sm"
+    className="rounded-lg bg-white text-gray-950 shadow-sm border-0"
     {...props}
   />
 ))
@@ -12,7 +12,7 @@ Card.displayName = "Card"
 const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className="flex flex-col space-y-1.5 p-6"
+    className={`flex flex-col space-y-1.5 p-6 border-0 ${className || ''}`}
     {...props}
   />
 ))
@@ -37,14 +37,14 @@ const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
 CardDescription.displayName = "CardDescription"
 
 const CardContent = React.forwardRef(({ className, ...props }, ref) => (
-  <div ref={ref} className="p-6 pt-0" {...props} />
+  <div ref={ref} className={`p-6 pt-0 border-0 ${className || ''}`} {...props} />
 ))
 CardContent.displayName = "CardContent"
 
 const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className="flex items-center p-6 pt-0"
+    className={`flex items-center p-6 pt-0 border-0 ${className || ''}`}
     {...props}
   />
 ))

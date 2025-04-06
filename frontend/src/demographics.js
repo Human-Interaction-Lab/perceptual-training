@@ -275,8 +275,8 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <Card className="shadow-lg">
-          <CardHeader className="bg-[#406368] text-white border-b border-gray-100 pb-6">
+        <Card className="shadow-lg !border-0">
+          <CardHeader className="bg-[#406368] text-white pb-6">
             <h2 className="text-2xl font-bold text-white">Background Information</h2>
             <p className="text-white text-opacity-90 mt-2">Please complete all fields to continue with the study</p>
             {errors.general && (
@@ -485,7 +485,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
               </div>
             </CardContent>
 
-            <CardFooter className="border-t border-gray-100 pt-6">
+            <CardFooter className="pt-6 !border-0">
               <div className="w-full flex justify-end space-x-4">
                 <Button
                   type="button"

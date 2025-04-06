@@ -751,7 +751,7 @@ const TrainingSession = ({
         console.log(`Progress: ${currentStimulusIndex + 1}/${total} = ${progress.toFixed(1)}%`);
 
         return (
-            <Card className="shadow-lg">
+            <Card className="shadow-lg !border-0">
                 <CardHeader className="bg-[#406368] text-white">
                     <h2 className="text-xl font-semibold">Training Day {trainingDay}</h2>
                 </CardHeader>
