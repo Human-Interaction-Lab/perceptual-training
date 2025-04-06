@@ -667,7 +667,8 @@ const App = () => {
       }
 
       // Reset user response for next question
-      setUserResponse('');
+      // For comprehension test, explicitly set to null to ensure consistent state
+      setUserResponse(null);
     } catch (error) {
       console.error('Error submitting response:', error);
       alert('Failed to submit response. Please try again.');
@@ -773,13 +774,23 @@ const App = () => {
         setPhase('selection');
         setShowComplete(false);
         setCurrentStimulus(0);
-        setUserResponse('');
+        // For comprehension test specifically, use null to ensure proper button disabling
+        if (currentTestType === 'comprehension') {
+          setUserResponse(null);
+        } else {
+          setUserResponse('');
+        }
         setRating(null);
       }, 2000);
     } else {
       // Just move to next stimulus
       setCurrentStimulus(prev => prev + 1);
-      setUserResponse('');
+      // For comprehension test specifically, use null to ensure proper button disabling
+      if (currentTestType === 'comprehension') {
+        setUserResponse(null);
+      } else {
+        setUserResponse('');
+      }
       setRating(null);
     }
   };
@@ -855,7 +866,13 @@ const App = () => {
     setCurrentTestType(startingTestType);
     setPhase(selectedPhase);
     setCurrentStimulus(0);
-    setUserResponse('');
+    
+    // Initialize user response with correct type based on test type
+    if (startingTestType === 'comprehension') {
+      setUserResponse(null); // Multiple choice uses null for no selection
+    } else {
+      setUserResponse(''); // Text input types use empty string
+    }
     setRating(null);
 
     // CRITICAL CHANGE: NO PRELOADING AT ALL - not even in the background

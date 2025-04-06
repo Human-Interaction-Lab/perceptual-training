@@ -23,16 +23,44 @@ const ComprehensionTest = ({
     const [audioError, setAudioError] = useState(false);
     const [showQuestions, setShowQuestions] = useState(false);
     const [showInstructions, setShowInstructions] = useState(true);
+    const [allQuestionsAnswered, setAllQuestionsAnswered] = useState(false);
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
-    const progress = ((currentStimulus + 1) / totalStimuli) * 100;
+
+    // Calculate progress across both stories (0-50% for story 1, 50-100% for story 2)
+    const calculateProgress = () => {
+        // If we're on the first story (index 0)
+        if (currentStoryIndex === 0) {
+            // Calculate progress from 0-50% based on current question
+            return ((currentStimulus + 1) / totalStimuli) * 50;
+        }
+        // If we're on the second story (index 1)
+        else if (currentStoryIndex === 1) {
+            // Start at 50% and go to 100% based on current question
+            return 50 + ((currentStimulus + 1) / totalStimuli) * 50;
+        }
+        // Fallback for any other scenario
+        else {
+            return ((currentStimulus + 1) / totalStimuli) * 100;
+        }
+    };
+
+    const progress = calculateProgress();
 
     // Reset state when story changes
     useEffect(() => {
         setStoryAudioPlayed(false);
         setAudioError(false);
         setShowQuestions(false);
+        setAllQuestionsAnswered(false);
     }, [storyId]);
+
+    // Check if a response has been selected
+    useEffect(() => {
+        // For multiple choice, userResponse is a number or null
+        // When reset between questions, it may also be an empty string or undefined
+        setAllQuestionsAnswered(userResponse !== null && userResponse !== '' && userResponse !== undefined);
+    }, [userResponse]);
 
     // Extract story number and adjust to display 1 and 2 for story indices
     // If we're dealing with assigned stories in sequence, use the currentStoryIndex + 1
@@ -62,7 +90,7 @@ const ComprehensionTest = ({
             setIsPlayingStory(false);
         }
     };
-    
+
     const handleStartTest = () => {
         setShowInstructions(false);
     };
@@ -82,7 +110,7 @@ const ComprehensionTest = ({
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium">Instructions</h3>
                         <p>In this next task, you will hear two stories. After each story, you will answer multiple choice questions about the story. The story will begin as soon as you click to play the audio. Multiple choice questions will use information from all parts of the story.</p>
-                        
+
                         <div className="bg-[#f3ecda] p-4 rounded-lg border border-[#dad6d9] flex items-center space-x-2">
                             <Headphones className="h-5 w-5 text-[#406368]" />
                             <p className="text-[#406368]">Please wear headphones during this test session.</p>
@@ -101,7 +129,7 @@ const ComprehensionTest = ({
             </Card>
         );
     }
-    
+
     return (
         <Card className="shadow-lg border-gray-200">
             <CardContent className="p-6 space-y-6">
@@ -133,14 +161,14 @@ const ComprehensionTest = ({
                         )}
                     </ul>
                 </div>
-                
+
                 {/* Header with Progress and Story ID */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                             <BookOpen className="h-5 w-5 text-[#406368]" />
                             <span className="text-lg font-medium text-gray-900">
-                                Story {storyNumber}
+                                Story {storyNumber} of 2
                             </span>
                         </div>
                         <span className="text-[#406368] font-medium">
@@ -148,11 +176,13 @@ const ComprehensionTest = ({
                         </span>
                     </div>
 
-                    <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#dad6d9] rounded-full overflow-hidden relative">
                         <div
                             className="h-full bg-[#406368] rounded-full transition-all duration-300 ease-in-out"
                             style={{ width: `${progress}%` }}
                         />
+                        {/* Add a marker at 50% to visually separate the stories */}
+                        <div className="absolute top-[-4px] left-[50%] translate-x-[-50%] w-[2px] h-[10px] bg-white"></div>
                     </div>
                 </div>
 
@@ -161,9 +191,9 @@ const ComprehensionTest = ({
                     <Button
                         onClick={handlePlayStoryAudio}
                         className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${isPlayingStory ? "bg-[#6c8376]" :
-                                audioError ? "bg-red-500 hover:bg-red-600" :
-                                    storyAudioPlayed ? "bg-[#6e6e6d] hover:bg-[#6e6e6d] cursor-not-allowed" :
-                                        "bg-[#406368] hover:bg-[#6c8376]"
+                            audioError ? "bg-red-500 hover:bg-red-600" :
+                                storyAudioPlayed ? "bg-[#6e6e6d] hover:bg-[#6e6e6d] cursor-not-allowed" :
+                                    "bg-[#406368] hover:bg-[#6c8376]"
                             }`}
                         disabled={storyAudioPlayed || isPlayingStory || isSubmitting}
                     >
@@ -242,7 +272,7 @@ const ComprehensionTest = ({
 
                         <Button
                             onClick={handleSubmit}
-                            disabled={userResponse === null || isSubmitting}
+                            disabled={!allQuestionsAnswered || isSubmitting}
                             className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                      disabled:opacity-50 disabled:cursor-not-allowed"
                         >
