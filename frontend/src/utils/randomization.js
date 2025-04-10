@@ -1,3 +1,25 @@
+// Define localStorage polyfill for Node.js environment
+// This allows the code to run on the server without errors when accessing localStorage
+if (typeof localStorage === 'undefined') {
+    // Simple localStorage polyfill for Node environment
+    const nodeLocalStorage = {
+        _data: {},
+        getItem: function(key) {
+            return this._data[key] || null;
+        },
+        setItem: function(key, value) {
+            this._data[key] = value.toString();
+        },
+        removeItem: function(key) {
+            delete this._data[key];
+        }
+    };
+    
+    // In Node environment, define global localStorage
+    global.localStorage = nodeLocalStorage;
+    console.log("Created localStorage polyfill for Node environment");
+}
+
 // Helper function to create a numeric hash from a string
 const hashString = (str) => {
     let hash = 0;
@@ -351,16 +373,36 @@ const testIntelligibilitySequence = (userId = null) => {
     return sequence;
 };
 
-export {
-    stratifyAndRandomizeFiles,
-    getGroupForPhase,
-    randomizeComprehensionStories,
-    getStoriesForPhase,
-    randomizeEffortFiles,
-    getEffortFilesForPhase,
-    getTrainingStoriesForDay,
-    getStoryForTrainingDay,
-    getFullRandomizedSequence,
-    testIntelligibilitySequence,  // Export for testing
-    resetIntelligibilitySequence  // Export for debugging/admin use
-};
+// Use module.exports for CommonJS compatibility (Node.js) and support for require()
+// This makes the file compatible with both frontend and backend
+if (typeof module !== 'undefined' && module.exports) {
+    // CommonJS environment (Node.js)
+    module.exports = {
+        stratifyAndRandomizeFiles,
+        getGroupForPhase,
+        randomizeComprehensionStories,
+        getStoriesForPhase,
+        randomizeEffortFiles,
+        getEffortFilesForPhase,
+        getTrainingStoriesForDay,
+        getStoryForTrainingDay,
+        getFullRandomizedSequence,
+        testIntelligibilitySequence,
+        resetIntelligibilitySequence
+    };
+} else {
+    // ES Module environment (Browser)
+    export {
+        stratifyAndRandomizeFiles,
+        getGroupForPhase,
+        randomizeComprehensionStories,
+        getStoriesForPhase,
+        randomizeEffortFiles,
+        getEffortFilesForPhase,
+        getTrainingStoriesForDay,
+        getStoryForTrainingDay,
+        getFullRandomizedSequence,
+        testIntelligibilitySequence,
+        resetIntelligibilitySequence
+    };
+}
