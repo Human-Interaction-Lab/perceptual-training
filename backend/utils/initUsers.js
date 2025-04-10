@@ -18,6 +18,10 @@ const initializeUsers = async () => {
             'test_pretest', 'test_training', 'test_posttest',
             'test_training2', 'test_training4',
             'test_pretest1', 'test_pretest2', 'test_pretest3',
+            'test_pretest5', 'test_pretest6', 'test_pretest7', 'test_pretest8', 
+            'test_pretest9', 'test_pretest10', 'test_pretest11', 'test_pretest12',
+            'test_training5', 'test_training6', 'test_training7', 'test_training8',
+            'test_training9', 'test_training10', 'test_training11', 'test_training12',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
         
@@ -136,6 +140,138 @@ const initializeUsers = async () => {
                 ...baseTestUser
                 // Will add demographics + intelligibility + effort responses
             },
+            
+            // Additional pretest users (test_pretest5 - test_pretest12)
+            {
+                userId: 'test_pretest5',
+                email: 'pretest5@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest6',
+                email: 'pretest6@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest7',
+                email: 'pretest7@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest8',
+                email: 'pretest8@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest9',
+                email: 'pretest9@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest10',
+                email: 'pretest10@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest11',
+                email: 'pretest11@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            {
+                userId: 'test_pretest12',
+                email: 'pretest12@test.com',
+                currentPhase: 'pretest',
+                speaker: 'Grace Norman',
+                ...baseTestUser
+            },
+            
+            // Additional training users on day 4 (test_training5 - test_training12)
+            {
+                userId: 'test_training5',
+                email: 'training5@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training6',
+                email: 'training6@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training7',
+                email: 'training7@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training8',
+                email: 'training8@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training9',
+                email: 'training9@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training10',
+                email: 'training10@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training11',
+                email: 'training11@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
+            {
+                userId: 'test_training12',
+                email: 'training12@test.com',
+                currentPhase: 'training',
+                speaker: 'Grace Norman',
+                trainingDay: 4,
+                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
+                ...baseTestUser
+            },
 
             // Three posttest users with different testing states
             {
@@ -211,7 +347,11 @@ const initializeUsers = async () => {
 
         const allTestUsers = [
             'test_pretest1', 'test_pretest2', 'test_pretest3',
+            'test_pretest5', 'test_pretest6', 'test_pretest7', 'test_pretest8',
+            'test_pretest9', 'test_pretest10', 'test_pretest11', 'test_pretest12',
             'test_training', 'test_training2', 'test_training4',
+            'test_training5', 'test_training6', 'test_training7', 'test_training8',
+            'test_training9', 'test_training10', 'test_training11', 'test_training12',
             'test_posttest1', 'test_posttest2', 'test_posttest3'
         ];
 
@@ -376,6 +516,29 @@ const initializeUsers = async () => {
             training4User.completedTests.set('training_day3', true);
             await training4User.save();
             console.log('Updated completedTests for test_training4 user (day 4 pending)');
+        }
+        
+        // Configure new training users (5-12) with all pretest phases completed and training days 1-3
+        const trainingUsers = [
+            'test_training5', 'test_training6', 'test_training7', 'test_training8',
+            'test_training9', 'test_training10', 'test_training11', 'test_training12'
+        ];
+        
+        for (const userId of trainingUsers) {
+            const user = await User.findOne({ userId });
+            if (user) {
+                user.completedTests.set('pretest_demographics', true);
+                user.completedTests.set('demographics', true); // General flag for demographics completion
+                user.completedTests.set('pretest_intelligibility', true);
+                user.completedTests.set('pretest_effort', true);
+                user.completedTests.set('pretest_comprehension', true);
+                // Mark training day 1-3 as complete
+                user.completedTests.set('training_day1', true);
+                user.completedTests.set('training_day2', true);
+                user.completedTests.set('training_day3', true);
+                await user.save();
+                console.log(`Updated completedTests for ${userId} user (day 4 pending)`);
+            }
         }
 
         // Update completedTests property for the posttest users
