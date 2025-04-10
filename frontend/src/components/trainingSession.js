@@ -380,11 +380,19 @@ const TrainingSession = ({
             const token = localStorage.getItem('token');
             //const stimulus = intelligibilityStimuli[currentStimulusIndex];
 
+            // Get the actual stimulus ID from the file number (Int01, Int02, etc.)
+            // Map the sequential index to the actual randomized file number
+            const { getGroupForPhase } = require('../utils/randomization');
+            const actualFileNumber = getGroupForPhase('training_test', trainingDay, userId)[currentStimulusIndex];
+            
+            // Int01, Int02, etc. format for the actual stimulus ID
+            const actualStimulusId = `Int${String(actualFileNumber).padStart(2, '0')}`;
+            
             // Log what we're about to send
             const requestBody = {
                 phase: 'training', // Use standard 'training' phase name which is expected by backend
                 testType: 'intelligibility', 
-                stimulusId: `training_day${trainingDay}_intel_${currentStimulusIndex + 1}`,
+                stimulusId: actualStimulusId, // Use the actual stimulus ID format (Int01, Int02, etc.)
                 response: userResponse,
                 trainingDay: trainingDay, // Add the required trainingDay field
                 currentTestType: 'intelligibility' // Add this field which may be expected by backend

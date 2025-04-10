@@ -490,6 +490,16 @@ const App = () => {
       // Check if this is the last stimulus (20th file, index 19)
       const isLastStimulus = currentStimulus === 19;
       
+      // Get the actual stimulus ID (Int01, Int02, etc.)
+      // Map the sequential index to the actual randomized file number
+      const { getGroupForPhase } = require('./utils/randomization');
+      const actualFileNumber = getGroupForPhase(phase, null, userId)[currentStimulus];
+      
+      // Format the stimulusId as Int01, Int02, etc.
+      const actualStimulusId = `Int${String(actualFileNumber).padStart(2, '0')}`;
+      
+      console.log(`Submitting intelligibility response for stimulus ${actualStimulusId} (sequential index: ${currentStimulus + 1})`);
+      
       // Send the response to the backend with an isTestCompleted flag when it's the last stimulus
       await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
@@ -500,7 +510,7 @@ const App = () => {
         body: JSON.stringify({
           phase,
           testType: 'intelligibility',
-          stimulusId: `${phase}_intel_${currentStimulus + 1}`,
+          stimulusId: actualStimulusId, // Use actual Int01, Int02 format
           response: userResponse,
           isTestCompleted: isLastStimulus  // Flag to tell backend this completes the entire test
         }),
@@ -554,6 +564,16 @@ const App = () => {
       // Check if this is the last stimulus (30th file, index 29)
       const isLastStimulus = currentStimulus === 29;
       
+      // Get the actual stimulus ID (Eff01, Eff02, etc.) for effort test
+      // Map the sequential index to the actual randomized file number
+      const { getEffortFilesForPhase } = require('./utils/randomization');
+      const actualEffortFileNumber = getEffortFilesForPhase(phase, userId)[currentStimulus];
+      
+      // Format the stimulusId as Eff01, Eff02, etc.
+      const actualEffortStimulusId = `Eff${String(actualEffortFileNumber).padStart(2, '0')}`;
+      
+      console.log(`Submitting effort response for stimulus ${actualEffortStimulusId} (sequential index: ${currentStimulus + 1})`);
+      
       const response = await fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
@@ -563,7 +583,7 @@ const App = () => {
         body: JSON.stringify({
           phase,
           testType: 'effort',
-          stimulusId: `${phase}_effort_${currentStimulus + 1}`,
+          stimulusId: actualEffortStimulusId, // Use actual Eff01, Eff02 format
           response: userResponse,
           trainingDay: 1,
           rating: ratingValue,  // Use the validated rating value
