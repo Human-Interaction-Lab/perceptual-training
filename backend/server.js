@@ -298,10 +298,27 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         // Import the randomization utils
         const path = require('path');
         const randomizationPath = path.join(__dirname, '..', 'frontend', 'src', 'utils', 'randomization.js');
+        
+        // Force clear require cache to ensure we get fresh module
+        delete require.cache[require.resolve(randomizationPath)];
+        
+        // Load the randomization module
         const randomization = require(randomizationPath);
+        
+        // Verify randomization module is loaded correctly
+        if (!randomization || typeof randomization.getGroupForPhase !== 'function') {
+          throw new Error('Randomization module not loaded correctly. Available methods: ' + 
+                         Object.keys(randomization).join(', '));
+        }
         
         // Get the randomized sequence for this user and phase
         const randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+        
+        // Verify we got a valid array back
+        if (!Array.isArray(randomizedFiles) || randomizedFiles.length === 0) {
+          throw new Error(`No randomized files returned for user ${userId}, phase ${phase}`);
+        }
+        
         console.log(`Server.js: Got randomized sequence for ${userId}, phase=${phase}: ${randomizedFiles.slice(0, 5)}...`);
         
         // IMPORTANT: If sentence is already a randomized file number, we should use it directly
@@ -326,6 +343,21 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         console.log(`Using randomized intelligibility file pattern: ${pattern}`);
       } catch (randomizationError) {
         console.error('Error using randomization for intelligibility files:', randomizationError);
+        
+        // Add more detailed error logging to help diagnose issues
+        if (randomizationError.stack) {
+          console.error('Stack trace:', randomizationError.stack);
+        }
+        
+        // Check if randomization module exists but has incorrect exports
+        try {
+          const randomizationTest = require(randomizationPath);
+          console.error('Randomization module loaded but methods missing. Available methods:', 
+                        Object.keys(randomizationTest).join(', '));
+        } catch (e) {
+          console.error('Could not load randomization module at all:', e.message);
+        }
+        
         // Fallback to using the sequential number if randomization fails
         pattern = `Int${String(sentence).padStart(2, '0')}`;
         console.log(`FALLBACK: Using sequential intelligibility file pattern: ${pattern}`);
