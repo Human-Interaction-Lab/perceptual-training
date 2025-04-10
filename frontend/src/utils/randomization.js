@@ -392,17 +392,17 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 } else {
     // ES Module environment (Browser)
-    export {
-        stratifyAndRandomizeFiles,
-        getGroupForPhase,
-        randomizeComprehensionStories,
-        getStoriesForPhase,
-        randomizeEffortFiles,
-        getEffortFilesForPhase,
-        getTrainingStoriesForDay,
-        getStoryForTrainingDay,
-        getFullRandomizedSequence,
-        testIntelligibilitySequence,
-        resetIntelligibilitySequence
-    };
+    //export {
+    //    stratifyAndRandomizeFiles,
+    //    getGroupForPhase,
+    //    randomizeComprehensionStories,
+    //    getStoriesForPhase,
+    //    randomizeEffortFiles,
+    //    getEffortFilesForPhase,
+    //    getTrainingStoriesForDay,
+    //    getStoryForTrainingDay,
+    //    getFullRandomizedSequence,
+    //    testIntelligibilitySequence,
+    //    resetIntelligibilitySequence
+    //};
 }
