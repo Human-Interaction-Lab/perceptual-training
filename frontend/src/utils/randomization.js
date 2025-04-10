@@ -4,17 +4,17 @@ if (typeof localStorage === 'undefined') {
     // Simple localStorage polyfill for Node environment
     const nodeLocalStorage = {
         _data: {},
-        getItem: function(key) {
+        getItem: function (key) {
             return this._data[key] || null;
         },
-        setItem: function(key, value) {
+        setItem: function (key, value) {
             this._data[key] = value.toString();
         },
-        removeItem: function(key) {
+        removeItem: function (key) {
             delete this._data[key];
         }
     };
-    
+
     // In Node environment, define global localStorage
     global.localStorage = nodeLocalStorage;
     console.log("Created localStorage polyfill for Node environment");
@@ -48,7 +48,7 @@ const createSeededRandom = (seed) => {
 const getFullRandomizedSequence = (userId = null) => {
     // Use a consistent key for localStorage to retrieve the sequence
     const storageKey = userId ? `intelligibility_sequence_${userId}` : 'intelligibility_sequence_default';
-    
+
     // Try to retrieve from localStorage first for consistency across sessions
     if (typeof localStorage !== 'undefined') {
         try {
@@ -61,24 +61,24 @@ const getFullRandomizedSequence = (userId = null) => {
             console.warn('Error reading saved sequence from localStorage:', e);
         }
     }
-    
+
     // Create a new randomized sequence if not found in localStorage
     console.log(`Creating new randomized intelligibility sequence for user ${userId || 'default'}`);
-    
+
     // Create array of all file indices [1...160]
     const totalFiles = 160;
     const allIndices = Array.from({ length: totalFiles }, (_, i) => i + 1);
-    
+
     // Seed the randomization based on userId
     const seedValue = userId ? hashString(userId) : Math.floor(Math.random() * 10000);
     const seededRandom = createSeededRandom(seedValue);
-    
+
     // Fisher-Yates shuffle to randomize the entire sequence
     for (let i = allIndices.length - 1; i > 0; i--) {
         const j = Math.floor(seededRandom() * (i + 1));
         [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
     }
-    
+
     // Save to localStorage for consistency across sessions
     if (typeof localStorage !== 'undefined') {
         try {
@@ -88,17 +88,17 @@ const getFullRandomizedSequence = (userId = null) => {
             console.warn('Error saving sequence to localStorage:', e);
         }
     }
-    
+
     return allIndices;
 };
 
 // for backwards compatibility - uses stratified groups rather than single sequence
 const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
     console.log(`Stratifying ${total} files into groups of size ${groupSize}`);
-    
+
     // Create array of all file indices [1...total]
     const allIndices = Array.from({ length: total }, (_, i) => i + 1);
-    
+
     // Safety check - log a warning if there aren't enough files
     if (total < groupSize * 8) {
         console.warn(`Warning: Not enough files (${total}) to create 8 unique groups of ${groupSize} files.`);
@@ -133,15 +133,15 @@ const stratifyAndRandomizeFiles = (total, groupSize, seed = null) => {
 const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     // Group size for each phase
     const groupSize = 20;
-    
+
     console.log(`Getting intelligibility group for phase ${phase}, day ${trainingDay}`);
 
     // Get the full randomized sequence for this user
     const fullSequence = getFullRandomizedSequence(userId);
-    
+
     // Determine the starting index in the sequence based on phase and training day
     let startIndex = 0;
-    
+
     // Map phases to specific segments in the sequence
     // Segment assignments:
     // 0: pretest (first 20 files)
@@ -149,7 +149,7 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     // 5: posttest1 (next 20 files) 
     // 6: posttest2 (next 20 files)
     // 7: unused (remaining 20 files as backup)
-    
+
     if (phase === 'pretest') {
         // Pretest uses the first 20 files (index 0-19)
         startIndex = 0;
@@ -184,7 +184,7 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     // Extract the group from the sequence
     const group = fullSequence.slice(startIndex, startIndex + groupSize);
     console.log(`Extracted ${group.length} intelligibility files starting from index ${startIndex}`);
-    
+
     // Log a few sample files for verification
     if (group.length > 0) {
         const samples = group.slice(0, Math.min(3, group.length));
@@ -204,7 +204,7 @@ const randomizeComprehensionStories = (userId = null, phase = null) => {
 
     // Generate a seed based on userId
     let seed;
-    
+
     // For test users, use a different seed for each phase
     if (userId && userId.startsWith('test_') && phase) {
         seed = hashString(userId + '_' + phase);
@@ -244,7 +244,7 @@ const randomizeEffortFiles = (userId = null, phase = null) => {
 
     // Get random seed from userId
     let seed;
-    
+
     // For test users, use a different seed for each phase
     if (userId && userId.startsWith('test_') && phase) {
         seed = hashString(userId + '_' + phase);
@@ -269,7 +269,7 @@ const randomizeEffortFiles = (userId = null, phase = null) => {
         const j = Math.floor(seededRandom() * (i + 1));
         [groups[i], groups[j]] = [groups[j], groups[i]];
     }
-    
+
     // Also shuffle WITHIN each group to randomize the presentation order
     groups.forEach(group => {
         // Fisher-Yates shuffle for each group internally
@@ -299,7 +299,7 @@ const getTrainingStoriesForDay = (day) => {
     // Days 1 and 3 get stories 02 and 04
     // Days 2 and 4 get stories 03 and 07
     switch (day) {
-        case 1: 
+        case 1:
             return ["02", "04"];
         case 2:
             return ["03", "07"];
@@ -309,7 +309,7 @@ const getTrainingStoriesForDay = (day) => {
             return ["03", "07"];
         default:
             console.error(`Invalid training day: ${day}`);
-            return ["02"]; // fallback to story 02 if invalid day
+            return ["02", "04"]; // fallback to story 02 if invalid day
     }
 };
 
@@ -324,7 +324,7 @@ const getStoryForTrainingDay = (day, userId = null) => {
 // Function to reset a user's randomized sequence (for debugging or if needed)
 const resetIntelligibilitySequence = (userId = null) => {
     const storageKey = userId ? `intelligibility_sequence_${userId}` : 'intelligibility_sequence_default';
-    
+
     if (typeof localStorage !== 'undefined') {
         try {
             localStorage.removeItem(storageKey);
@@ -341,20 +341,20 @@ const resetIntelligibilitySequence = (userId = null) => {
 // Debugging function to verify intelligibility sequence is consistent
 const testIntelligibilitySequence = (userId = null) => {
     const sequence = getFullRandomizedSequence(userId);
-    
+
     // Log information about the sequence
     console.log('=======================================');
     console.log(`INTELLIGIBILITY SEQUENCE TEST FOR USER: ${userId || 'default'}`);
     console.log(`Total sequence length: ${sequence.length}`);
     console.log('=======================================');
-    
+
     // Show a preview of how files are assigned to each phase
-    const phases = ['pretest', 'training_test_day1', 'training_test_day2', 
-                   'training_test_day3', 'training_test_day4', 'posttest1', 'posttest2'];
-    
+    const phases = ['pretest', 'training_test_day1', 'training_test_day2',
+        'training_test_day3', 'training_test_day4', 'posttest1', 'posttest2'];
+
     phases.forEach(phaseKey => {
         let phase, day;
-        
+
         if (phaseKey.includes('day')) {
             // Extract day number for training test
             phase = 'training_test';
@@ -363,13 +363,13 @@ const testIntelligibilitySequence = (userId = null) => {
             phase = phaseKey;
             day = null;
         }
-        
+
         const files = getGroupForPhase(phase, day, userId);
         console.log(`${phaseKey}: ${files.slice(0, 5).join(', ')}... (${files.length} files)`);
     });
-    
+
     console.log('=======================================');
-    
+
     return sequence;
 };
 

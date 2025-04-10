@@ -23,7 +23,7 @@ const TrainingSession = ({
     const [audioPlaying, setAudioPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
     const [cleanupStarted, setCleanupStarted] = useState(false);
-    
+
     // State to track which story pair we're on (first or second story)
     const [storyPairIndex, setStoryPairIndex] = useState(0);
     // State to track all stories for this training day with default values based on day
@@ -35,19 +35,19 @@ const TrainingSession = ({
             return ["03", "07"];
         }
         // Fallback if trainingDay is invalid
-        return ["02"];
+        return ["02", "04"];
     });
 
     // Load saved progress when component mounts
     useEffect(() => {
         // Import getTrainingStoriesForDay here to avoid any import confusion
         const { getTrainingStoriesForDay } = require('../utils/randomization');
-        
+
         // Load the stories for this training day
         const stories = getTrainingStoriesForDay(trainingDay);
         setTrainingDayStories(stories);
         console.log(`Training day ${trainingDay} will use stories:`, stories);
-        
+
         const loadSavedProgress = () => {
             // Get the proper user-specific progress key
             const userSpecificKey = `progress_${userId}_training_day${trainingDay}`;
@@ -78,7 +78,7 @@ const TrainingSession = ({
                         setCurrentPhase(progress.phase);
                         setCurrentStimulusIndex(progress.stimulusIndex);
                         setShowText(true);
-                        
+
                         // Restore story pair index if available
                         if (progress.storyPairIndex !== undefined) {
                             setStoryPairIndex(progress.storyPairIndex);
@@ -342,7 +342,7 @@ const TrainingSession = ({
             } else {
                 // Reached the end of the current story
                 console.log(`End of story reached with ${currentStimulusIndex + 1}/${currentTotal} stimuli`);
-                
+
                 // Check if we have another story to play for this training day
                 if (storyPairIndex < trainingDayStories.length - 1) {
                     // Move to the next story in the pair
@@ -363,7 +363,7 @@ const TrainingSession = ({
     const handleStartTraining = () => {
         // No more preloading - load files only when needed
         console.log('Starting training session without preloading');
-        
+
         // Immediately transition to training phase
         setCurrentPhase('training');
         setAudioPlayed(false); // Reset audio state when starting training
@@ -384,22 +384,22 @@ const TrainingSession = ({
             // Map the sequential index to the actual randomized file number
             const { getGroupForPhase } = require('../utils/randomization');
             const actualFileNumber = getGroupForPhase('training_test', trainingDay, userId)[currentStimulusIndex];
-            
+
             // Int01, Int02, etc. format for the actual stimulus ID
             const actualStimulusId = `Int${String(actualFileNumber).padStart(2, '0')}`;
-            
+
             // Log what we're about to send
             const requestBody = {
                 phase: 'training', // Use standard 'training' phase name which is expected by backend
-                testType: 'intelligibility', 
+                testType: 'intelligibility',
                 stimulusId: actualStimulusId, // Use the actual stimulus ID format (Int01, Int02, etc.)
                 response: userResponse,
                 trainingDay: trainingDay, // Add the required trainingDay field
                 currentTestType: 'intelligibility' // Add this field which may be expected by backend
             };
-            
+
             console.log('Submitting test response with data:', requestBody);
-            
+
             // Match the exact format used in App.js for successful submissions
             const response = await fetch(`${config.API_BASE_URL}/api/response`, {
                 method: 'POST',
@@ -409,12 +409,12 @@ const TrainingSession = ({
                 },
                 body: JSON.stringify(requestBody),
             });
-            
+
             // Log detailed information about the response
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`Response submission failed with status ${response.status}: ${errorText}`);
-                
+
                 // Special handling for the "correct day" error - simply log and continue
                 // This allows the test to proceed even if the backend rejects the submission
                 if (errorText.includes("correct day") || errorText.includes("Please return")) {
@@ -430,11 +430,11 @@ const TrainingSession = ({
 
             // Log response submission for debugging
             console.log(`Submitted test response for file #${currentFileNumber}, stimulus index ${currentStimulusIndex}`);
-            
+
             // Move to next test stimulus or complete
             // We always want to do 20 tests for training test, regardless of the intelligibilityStimuli.length
             const TRAINING_TEST_LENGTH = 20;
-            
+
             if (currentStimulusIndex < TRAINING_TEST_LENGTH - 1) {
                 setCurrentStimulusIndex(prevIndex => prevIndex + 1);
                 setUserResponse('');
@@ -464,7 +464,7 @@ const TrainingSession = ({
             }
         } catch (error) {
             console.error('Error submitting response:', error);
-            
+
             // Show a more detailed error message that might help debug the issue
             let errorMessage = 'Failed to submit response. Please try again.';
             if (error.message && error.message.includes('Server returned')) {
@@ -482,7 +482,7 @@ const TrainingSession = ({
                 // For non-server errors, show the generic message
                 alert(errorMessage);
             }
-            
+
             // Continue to next stimulus even if submission fails
             // This prevents users from getting stuck
             if (currentStimulusIndex < 19) {
@@ -498,7 +498,7 @@ const TrainingSession = ({
     const handlePlayTestAudio = async () => {
         // First set audio story to loading state to prevent showing the wrong text
         setAudioStoryNumber('loading');
-        
+
         // Log available files - for debugging only
         console.log("Training test phase - available files for testing:", intelligibilityStimuli);
 
@@ -532,7 +532,7 @@ const TrainingSession = ({
 
                     // For test phase, we don't need to set story number since we're using intelligibility files
                     setCurrentFileNumber(result.fileNumber);
-                    
+
                     // In test phase, we don't need to show specific story text, so we can clear this
                     setAudioStoryNumber(null);
                 }
@@ -796,10 +796,10 @@ const TrainingSession = ({
         }
 
         // Calculate progress based on all stories for this training day
-        const currentStoryTotal = totalStoryStimuli || 
-            (storyNumber && STORY_METADATA[storyNumber]?.length) || 
+        const currentStoryTotal = totalStoryStimuli ||
+            (storyNumber && STORY_METADATA[storyNumber]?.length) ||
             trainingStimuli.length;
-            
+
         // Calculate total stimuli across all stories
         let totalStimuli = 0;
         if (trainingDayStories.length > 0) {
@@ -810,7 +810,7 @@ const TrainingSession = ({
             // Fallback if stories aren't loaded yet
             totalStimuli = currentStoryTotal;
         }
-        
+
         // Calculate actual progress considering completed stories
         let completedCount = 0;
         // Add all completed stories
@@ -822,7 +822,7 @@ const TrainingSession = ({
         }
         // Add progress in current story
         completedCount += currentStimulusIndex + 1;
-        
+
         const progress = (completedCount / totalStimuli) * 100;
         console.log(`Progress: ${completedCount}/${totalStimuli} = ${progress.toFixed(1)}% (Story ${storyPairIndex + 1}/${trainingDayStories.length}, stimuli ${currentStimulusIndex + 1}/${currentStoryTotal})`);
 
@@ -920,7 +920,7 @@ const TrainingSession = ({
     const renderTestPhase = () => {
         // Always use 20 for the total number of test stimuli
         const TRAINING_TEST_LENGTH = 20;
-        
+
         return (
             <div>
                 <div className="bg-white shadow-xl rounded-lg overflow-hidden">
@@ -928,7 +928,7 @@ const TrainingSession = ({
                     <div className="bg-[#406368] text-white px-6 py-4">
                         <h2 className="text-xl font-semibold">Day {trainingDay} Test: Speech Intelligibility</h2>
                     </div>
-                    
+
                     {/* Content */}
                     <div className="p-6 bg-white">
                         <IntelligibilityTest
