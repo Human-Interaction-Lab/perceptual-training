@@ -592,8 +592,10 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
     
     // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
     if (phase === 'pretest' && completed && !user.pretestDate) {
-      console.log(`*** SETTING PRETEST DATE to ${new Date()} for user ${user.userId} via test-completed endpoint ***`);
-      user.pretestDate = new Date();
+      const { getCurrentDateInEastern } = require('./utils');
+      const easternDate = getCurrentDateInEastern();
+      console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} via test-completed endpoint ***`);
+      user.pretestDate = easternDate;
     }
     
     // Save the user to persist changes
@@ -814,8 +816,10 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
       // This ensures the pretestDate is set when users start the pretest phase
       if (phase === 'pretest' && !user.pretestDate) {
-        console.log(`*** SETTING PRETEST DATE to ${new Date()} for user ${user.userId} ***`);
-        user.pretestDate = new Date();
+        const { getCurrentDateInEastern } = require('./utils');
+        const easternDate = getCurrentDateInEastern();
+        console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} ***`);
+        user.pretestDate = easternDate;
       }
       
       // Immediately save the user to ensure completion state is persisted
@@ -1542,8 +1546,10 @@ app.post('/api/update-pretest-date', authenticateToken, async (req, res) => {
     
     // Only set if not already set
     if (!user.pretestDate) {
-      console.log(`Setting missing pretest date for user ${user.userId}`);
-      user.pretestDate = new Date();
+      const { getCurrentDateInEastern } = require('./utils');
+      const easternDate = getCurrentDateInEastern();
+      console.log(`Setting missing pretest date to ${easternDate} (Eastern Time) for user ${user.userId}`);
+      user.pretestDate = easternDate;
       await user.save();
       return res.json({ 
         success: true, 

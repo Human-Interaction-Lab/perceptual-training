@@ -16,6 +16,7 @@ import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 import audioService from './services/audioService';
 import { getStoriesForPhase } from './utils/randomization';
+import { toEasternTime } from './lib/utils';
 import config from './config';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
@@ -898,7 +899,8 @@ const App = () => {
                   console.log('Pretest date status:', data.message);
                   // Update pretestDate in frontend state if returned
                   if (data.pretestDate && !pretestDate) {
-                    setPretestDate(new Date(data.pretestDate));
+                    // Using imported toEasternTime function
+                    setPretestDate(toEasternTime(data.pretestDate));
                   }
                 })
                 .catch(err => console.error('Error updating pretest date:', err));
@@ -1648,7 +1650,8 @@ const App = () => {
                     console.log('Pretest date status after demographics:', data.message);
                     // Update pretestDate in frontend state if returned
                     if (data.pretestDate && !pretestDate) {
-                      setPretestDate(new Date(data.pretestDate));
+                      // Using imported toEasternTime function
+                      setPretestDate(toEasternTime(data.pretestDate));
                     }
                   })
                   .catch(err => console.error('Error updating pretest date after demographics:', err));
