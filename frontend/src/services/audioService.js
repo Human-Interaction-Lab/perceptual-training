@@ -271,131 +271,35 @@ const audioService = {
     },
     
     /**
-    * Play randomized intelligibility files for the training test phase
+    * IMPROVED: Play randomized intelligibility files for the training test phase
+    * This version directly uses the playTestAudio function with the correct randomized file number
+    * 
     * @param {string} day - day of training (1-4)
-    * @param {string} index - index between 1 and 20
+    * @param {string|number} fileNumber - The actual file number to play (NOT an index)
     * @param {string} userId - userId
     * @returns {Promise<{success: boolean, fileNumber: number}>}
     */
-    async playTrainingTestAudio(day, index, userId = null) {
+    async playTrainingTestAudio(day, fileNumber, userId = null) {
         try {
-            console.log(`playTrainingTestAudio called for day ${day}, index ${index}`);
+            console.log(`IMPROVED playTrainingTestAudio called for day ${day}, direct file number ${fileNumber}`);
             
             // Extract userId from token if not provided
             if (!userId) {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    throw new Error('No authentication token available');
-                }
-                
-                try {
-                    const tokenParts = token.split('.');
-                    if (tokenParts.length === 3) {
-                        const payload = JSON.parse(atob(tokenParts[1]));
-                        userId = payload.userId;
-                    }
-                } catch (tokenError) {
-                    console.error('Error extracting userId from token:', tokenError);
-                }
+                userId = this.extractUserIdFromToken();
             }
             
-            // Get randomized file numbers specific for training test
-            // These are different from the training and pretest/posttest file sets
-            const testFiles = getGroupForPhase('training_test', day, userId);
+            // CRITICAL FIX: We now receive the actual file number directly, not an index
+            // This ensures consistency between playback and response submission
+            console.log(`Playing training test audio: Day ${day}, File #${fileNumber}`);
             
-            // Ensure index is within bounds
-            if (index < 1 || index > testFiles.length) {
-                throw new Error(`Invalid index ${index}. Must be between 1 and ${testFiles.length}`);
-            }
-            
-            // Map the sequential index to the actual file number
-            const actualFileNumber = testFiles[index - 1];
-            
-            // Map the random file number (1-160) to a 1-20 range that exists on the server
-            // This preserves randomization order but ensures we request files that exist
-            const serverFileNumber = (actualFileNumber % 20) + 1;
-            
-            console.log(`Playing training test audio: Day ${day}, Index ${index} -> File #${actualFileNumber} (mapped to server file: ${serverFileNumber})`);
-            
-            // Use the same endpoint pattern as regular intelligibility tests
-            // This is the format that works for pretest and posttest phases
-            const response = await fetch(
-                `${BASE_URL}/audio/pretest/intelligibility/null/${serverFileNumber}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                }
+            // Simply use the standard playTestAudio method with 'training' phase
+            // This ensures we use the same endpoint and parameters for both playing and submitting
+            return await this.playTestAudio(
+                'training',  // Use 'training' phase for consistency with backend
+                'intelligibility',
+                null,
+                fileNumber  // Use the actual file number directly
             );
-            
-            // Log the URL for debugging
-            console.log(`Using URL: ${BASE_URL}/audio/pretest/intelligibility/null/${serverFileNumber}`);
-            
-            if (!response.ok) {
-                console.warn(`First attempt failed with status ${response.status}. Trying fallback...`);
-                
-                // Try a fallback approach - use direct intelligibility API
-                try {
-                    // Try a different endpoint format as fallback
-                    const fallbackResponse = await fetch(
-                        `${BASE_URL}/audio/intelligibility/${serverFileNumber}`,
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                            }
-                        }
-                    );
-                    
-                    console.log(`Fallback URL: ${BASE_URL}/audio/intelligibility/${serverFileNumber}`);
-                    
-                    if (fallbackResponse.ok) {
-                        console.log('Fallback request succeeded!');
-                        return await fallbackResponse.json();
-                    }
-                    
-                    // If fallback also fails, throw the original error
-                    console.error('Fallback request also failed');
-                } catch (fallbackError) {
-                    console.error('Error in fallback request:', fallbackError);
-                }
-                
-                // Handle specific errors from original request
-                if (response.status === 404) {
-                    throw new Error('AUDIO_NOT_FOUND');
-                }
-                
-                // Try to get error details
-                let errorMessage = `Server error: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                } catch (e) {
-                    // Ignore JSON parse errors
-                }
-                
-                throw new Error(errorMessage);
-            }
-            
-            // Parse the response
-            const data = await response.json();
-            
-            if (!data || !data.url) {
-                throw new Error('Invalid server response - missing URL');
-            }
-            
-            // Play the audio file
-            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
-            
-            // Notify backend that the file was played
-            if (data.filename) {
-                await this.notifyAudioPlayed(data.filename);
-            }
-            
-            // Return information about the played file
-            return {
-                success: true,
-                fileNumber: actualFileNumber
-            };
         } catch (error) {
             console.error('Error playing training test audio:', error);
             throw error;

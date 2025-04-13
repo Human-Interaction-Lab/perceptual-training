@@ -383,7 +383,18 @@ const TrainingSession = ({
             // Get the actual stimulus ID from the file number (Int01, Int02, etc.)
             // Map the sequential index to the actual randomized file number
             const { getGroupForPhase } = require('../utils/randomization');
-            const actualFileNumber = getGroupForPhase('training_test', trainingDay, userId)[currentStimulusIndex];
+            
+            // IMPORTANT: Keep track of actual stimulus index to prevent going out of bounds 
+            // Cap at 19 to stay within the allocated segment size
+            const safeIndex = Math.min(currentStimulusIndex, 19);
+            
+            // Get randomized file number from the appropriate training day sequence
+            const trainingFiles = getGroupForPhase('training_test', trainingDay, userId);
+            console.log(`Getting randomized file for day ${trainingDay}, index ${safeIndex}:`, 
+                        `Full sequence (${trainingFiles.length}):`, trainingFiles);
+            
+            const actualFileNumber = trainingFiles[safeIndex];
+            console.log(`Using randomized file number ${actualFileNumber} for index ${safeIndex} (day ${trainingDay})`);
 
             // Int01, Int02, etc. format for the actual stimulus ID
             const actualStimulusId = `Int${String(actualFileNumber).padStart(2, '0')}`;
@@ -506,10 +517,20 @@ const TrainingSession = ({
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 console.log(`Attempt ${attempt} to play training test audio...`);
-                // Convert to 1-based index for the audio file
-                const stimulusIndex = currentStimulusIndex + 1;
-
-                console.log(`Playing randomized training test audio for day ${trainingDay}, stimulus index ${stimulusIndex}`);
+                // CRITICAL FIX: Get the randomized file number rather than using sequential index
+                // Cap at 19 to stay within the allocated segment size
+                const safeIndex = Math.min(currentStimulusIndex, 19);
+                
+                // Get the actual file number using the same randomization approach as the submission
+                const { getGroupForPhase } = require('../utils/randomization');
+                const trainingFiles = getGroupForPhase('training_test', trainingDay, userId);
+                
+                // Convert to proper file number using the randomized sequence
+                // Add 1 since audio service expects 1-based indexes
+                const actualFileNumber = trainingFiles[safeIndex];
+                
+                console.log(`Playing randomized training test audio: Using file #${actualFileNumber} for day ${trainingDay}, index ${safeIndex}`);
+                console.log(`Full sequence (${trainingFiles.length}):`, trainingFiles.slice(0, 5), '...');
 
                 // Add a timeout for the entire operation - reduced to 10 seconds for faster failure
                 const timeoutPromise = new Promise((_, reject) => {
@@ -517,11 +538,13 @@ const TrainingSession = ({
                 });
 
                 // Race the audio playback against our timeout
+                // CRITICAL FIX: Pass the actual randomized file number instead of sequential index
                 const result = await Promise.race([
-                    audioService.playTrainingTestAudio(
-                        trainingDay,
-                        stimulusIndex,
-                        userId
+                    audioService.playTestAudio(
+                        'training',
+                        'intelligibility',
+                        null,
+                        actualFileNumber  // Use the randomized file number directly
                     ),
                     timeoutPromise
                 ]);
