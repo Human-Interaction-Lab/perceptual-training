@@ -124,16 +124,10 @@ userSchema.methods.needsReminder = function () {
         return null;
     }
 
-    // Create dates with time set to start of day for consistent comparison
-    const pretest = new Date(this.pretestDate);
-    pretest.setHours(0, 0, 0, 0);
+    const { toEasternTime, daysBetween } = require('../utils');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Calculate full days between dates
-    const msDiff = today.getTime() - pretest.getTime();
-    const daysDiff = Math.floor(msDiff / (1000 * 60 * 60 * 24));
+    // Calculate days difference using Eastern Time
+    const daysDiff = daysBetween(this.pretestDate);
 
     // Training phase logic (days 1-4)
     if (daysDiff >= 1 && daysDiff <= 4) {

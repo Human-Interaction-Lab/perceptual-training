@@ -86,6 +86,21 @@ const App = () => {
     setShowComplete(false);
   }, [phase, currentTestType]);
 
+  // Check localStorage for demographics completion status on initial load
+  useEffect(() => {
+    const savedDemographicsCompletion = localStorage.getItem('demographicsCompleted');
+    if (savedDemographicsCompletion === 'true') {
+      console.log('Demographics completion found in localStorage - marking as completed');
+      setIsDemographicsCompleted(true);
+      // Also ensure completedTests is consistent
+      setCompletedTests(prev => ({
+        ...prev,
+        demographics: true,
+        pretest_demographics: true
+      }));
+    }
+  }, []);  // Empty dependency array means this runs once on component mount
+
   // Add a special check to ensure demographics data is loaded when needed
   useEffect(() => {
     // If we've transitioned to demographics phase, ensure we're in the right state
@@ -94,6 +109,10 @@ const App = () => {
       // When entering demographics, make sure we:
       // 1. Reset the demographics completion flags to allow form to work
       setIsDemographicsCompleted(false);
+      
+      // Also remove from localStorage if we're explicitly entering demographics phase
+      localStorage.removeItem('demographicsCompleted');
+      console.log('Removed demographics completion from localStorage for re-entry');
 
       // 2. Update completedTests to match (important for consistency)
       setCompletedTests(prev => ({
@@ -420,11 +439,20 @@ const App = () => {
           finalStatus: demoCompleted
         });
 
-        // Ensure demographics completion is properly set
+        // CRITICAL FIX: Ensure demographics completion is properly set
+        // This is the flag that determines if we show the demographics card
         setIsDemographicsCompleted(demoCompleted);
 
+        // IMPORTANT: Save demographics completion to localStorage so it persists across sessions
+        if (demoCompleted) {
+          localStorage.setItem('demographicsCompleted', 'true');
+          console.log('Demographics completion status saved to localStorage');
+        }
+
         // Update completedTests to include demographics status if needed
-        if (demoCompleted && !completedTestsObj.demographics && !completedTestsObj.pretest_demographics) {
+        // This ensures we have both indicators of completion
+        if (demoCompleted && (!completedTestsObj.demographics || !completedTestsObj.pretest_demographics)) {
+          console.log('Updating completedTests to include demographics flags');
           setCompletedTests(prev => ({
             ...prev,
             demographics: true,
@@ -844,19 +872,56 @@ const App = () => {
       }
 
       // Handle phase transitions and user progress
+      // Increase timeout for completion message to ensure it's visible
+      // Using a longer timeout to give users time to read the completion message
+      const completionTimeout = currentTestType === 'comprehension' ? 20000 : 2000;
+      
       setTimeout(() => {
         // Update phase if needed based on test completion
         switch (currentTestType) {
           case 'intelligibility':
             // Keep same phase, just allow effort test to be available
+            // CRITICAL FIX: If we're in pretest, make sure the pretest date is set
+            if (phase === 'pretest') {
+              try {
+                // Call the API to ensure pretest date is set
+                const token = localStorage.getItem('token');
+                fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                  }
+                })
+                .then(response => response.json())
+                .then(data => {
+                  console.log('Pretest date status:', data.message);
+                  // Update pretestDate in frontend state if returned
+                  if (data.pretestDate && !pretestDate) {
+                    setPretestDate(new Date(data.pretestDate));
+                  }
+                })
+                .catch(err => console.error('Error updating pretest date:', err));
+              } catch (error) {
+                console.error('Error ensuring pretest date:', error);
+              }
+            }
             break;
           case 'effort':
             // Keep same phase, allow comprehension test to be available
             break;
           case 'comprehension':
-            // Move to next major phase
+            // Store the completion status and show message,
+            // but DON'T change the phase yet - we'll do that AFTER showing the message
             if (phase === 'pretest') {
-              setCurrentPhase('training');
+              // Save that we need to move to training phase, but don't do it immediately
+              console.log('Pretest completed - will set phase to training AFTER showing completion message');
+              
+              // Instead of immediately setting currentPhase, schedule it after returning to selection
+              setTimeout(() => {
+                console.log('Now setting phase to training after showing completion message');
+                setCurrentPhase('training');
+              }, 20000); // Increased to 20 seconds to give plenty of time to read
             } else if (phase === 'posttest1') {
               // Mark posttest1 as fully completed
               setCompletedTests(prev => ({
@@ -866,11 +931,15 @@ const App = () => {
               }));
 
               // Set phase to posttest2 but it will still be date-restricted
-              setCurrentPhase('posttest2');
-              console.log('Posttest1 completed. Setting phase to posttest2 (will be date-restricted)');
+              setTimeout(() => {
+                setCurrentPhase('posttest2');
+                console.log('Posttest1 completed. Setting phase to posttest2 (will be date-restricted)');
+              }, 20000); // Also increased to 20 seconds
             } else if (phase === 'posttest2') {
               // Mark everything as completed
-              setCurrentPhase('completed');
+              setTimeout(() => {
+                setCurrentPhase('completed');
+              }, 20000); // Also increased to 20 seconds
             }
             break;
           default:
@@ -888,7 +957,9 @@ const App = () => {
           setUserResponse('');
         }
         setRating(null);
-      }, 2000);
+        
+        console.log(`Returning to selection screen after completion of ${phase} ${currentTestType}`);
+      }, completionTimeout);
     } else {
       // Just move to next stimulus
       setCurrentStimulus(prev => prev + 1);
@@ -1556,6 +1627,34 @@ const App = () => {
                   demographics: true,
                   pretest_demographics: true
                 }));
+                
+                // CRITICAL FIX: Also save to localStorage for persistence between sessions
+                localStorage.setItem('demographicsCompleted', 'true');
+                console.log('Demographics completion saved to localStorage on form submission');
+                
+                // CRITICAL FIX: Ensure pretest date is set when demographics is completed
+                try {
+                  // Call the API to ensure pretest date is set
+                  const token = localStorage.getItem('token');
+                  fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`,
+                    }
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                    console.log('Pretest date status after demographics:', data.message);
+                    // Update pretestDate in frontend state if returned
+                    if (data.pretestDate && !pretestDate) {
+                      setPretestDate(new Date(data.pretestDate));
+                    }
+                  })
+                  .catch(err => console.error('Error updating pretest date after demographics:', err));
+                } catch (error) {
+                  console.error('Error ensuring pretest date after demographics:', error);
+                }
 
                 // Very important - keep current phase and phase separate
                 // Demographics is not part of pretest

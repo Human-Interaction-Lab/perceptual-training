@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
-import { formatDate } from './lib/utils';
+import { formatDate, getCurrentDateInEastern, toEasternTime, isToday, isSameDay } from './lib/utils';
 import audioService from './services/audioService';
 import config from './config';
 // Make audioService available globally for components that need it
@@ -131,14 +131,12 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Helper functions inside the component
   const isDateToday = (date) => {
     if (!date) return false;
-    const today = new Date();
-    const checkDate = new Date(date);
-    return today.toDateString() === checkDate.toDateString();
+    return isToday(date);
   };
 
   const getExpectedTrainingDate = (baseDate, dayNumber) => {
     if (!baseDate) return null;
-    const date = new Date(baseDate);
+    const date = toEasternTime(baseDate);
     date.setDate(date.getDate() + dayNumber);
     return date;
   };
@@ -146,7 +144,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Date availability check only applies to the current training day
   const expectedDate = getExpectedTrainingDate(pretestDate, day);
   const isDayAvailableToday = isDateToday(expectedDate) ||
-    (expectedDate && new Date() > expectedDate);
+    (expectedDate && getCurrentDateInEastern() > expectedDate);
 
   // Available only if it's current day AND correct calendar day
   // AND it's not already completed
@@ -506,7 +504,7 @@ const PhaseSelection = ({
       return '';
     }
 
-    const baseDate = new Date(pretestDate);
+    const baseDate = toEasternTime(pretestDate);
     let daysToAdd = 0;
 
     switch (phase) {
@@ -561,11 +559,11 @@ const PhaseSelection = ({
   const getDaysUntilDate = (daysToAdd) => {
     if (!pretestDate) return null;
 
-    const baseDate = new Date(pretestDate);
+    const baseDate = toEasternTime(pretestDate);
     const targetDate = new Date(baseDate);
     targetDate.setDate(targetDate.getDate() + daysToAdd);
 
-    const today = new Date();
+    const today = getCurrentDateInEastern();
 
     // Calculate days difference
     const diffTime = targetDate - today;
@@ -588,8 +586,8 @@ const PhaseSelection = ({
   const calculatePosttestAvailability = (pretestDate, trainingDay) => {
     if (!pretestDate) return { posttest1: false, posttest2: false };
 
-    const baseDate = new Date(pretestDate);
-    const today = new Date();
+    const baseDate = toEasternTime(pretestDate);
+    const today = getCurrentDateInEastern();
 
     // Now following the correct timeline:
     // Posttest1 is 12 days after pretest (1 week after 4 days of training + 1 day)
@@ -601,10 +599,10 @@ const PhaseSelection = ({
     posttest2Date.setDate(posttest2Date.getDate() + 35);
 
     // For debugging
-    console.log("Today:", today);
-    console.log("Pretest date:", baseDate);
-    console.log("Posttest1 date:", posttest1Date);
-    console.log("Posttest2 date:", posttest2Date);
+    console.log("Today (Eastern):", today);
+    console.log("Pretest date (Eastern):", baseDate);
+    console.log("Posttest1 date (Eastern):", posttest1Date);
+    console.log("Posttest2 date (Eastern):", posttest2Date);
     console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
 
     return {
@@ -728,7 +726,7 @@ const PhaseSelection = ({
           </h1>
           {pretestDate && (
             <p className="text-sm text-gray-500 mt-2">
-              Started: {new Date(pretestDate).toLocaleDateString()}
+              Started: {formatDate(pretestDate)}
             </p>
           )}
         </div>

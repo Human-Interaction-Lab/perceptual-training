@@ -590,6 +590,12 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
     const combinedKey = `${phase}_${testType}`;
     user.completedTests.set(combinedKey, completed);
     
+    // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
+    if (phase === 'pretest' && completed && !user.pretestDate) {
+      console.log(`*** SETTING PRETEST DATE to ${new Date()} for user ${user.userId} via test-completed endpoint ***`);
+      user.pretestDate = new Date();
+    }
+    
     // Save the user to persist changes
     await user.save();
     
@@ -804,6 +810,13 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       user.completedTests.set(combinedKey, true);
       
       console.log(`Added test completion markers to user record for ${phase}_${testType}`);
+      
+      // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
+      // This ensures the pretestDate is set when users start the pretest phase
+      if (phase === 'pretest' && !user.pretestDate) {
+        console.log(`*** SETTING PRETEST DATE to ${new Date()} for user ${user.userId} ***`);
+        user.pretestDate = new Date();
+      }
       
       // Immediately save the user to ensure completion state is persisted
       await user.save();
@@ -1518,4 +1531,36 @@ if (process.env.NODE_ENV !== 'test') {
 
 
 // Export for testing
+// Endpoint to update pretest date if it's missing (prevents missing dates)
+app.post('/api/update-pretest-date', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ userId: req.user.userId });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Only set if not already set
+    if (!user.pretestDate) {
+      console.log(`Setting missing pretest date for user ${user.userId}`);
+      user.pretestDate = new Date();
+      await user.save();
+      return res.json({ 
+        success: true, 
+        message: 'Pretest date set successfully',
+        pretestDate: user.pretestDate
+      });
+    }
+    
+    return res.json({ 
+      success: true, 
+      message: 'Pretest date already set',
+      pretestDate: user.pretestDate
+    });
+  } catch (error) {
+    console.error('Error updating pretest date:', error);
+    res.status(500).json({ error: 'Failed to update pretest date' });
+  }
+});
+
 module.exports = { app, startServer, connectDB };
