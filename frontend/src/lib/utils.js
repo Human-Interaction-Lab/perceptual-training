@@ -1,7 +1,7 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO } from 'date-fns';
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import { zonedTimeToUtc, toZonedTime } from 'date-fns-tz';
 
 // Eastern timezone
 export const EASTERN_TIMEZONE = 'America/New_York';
@@ -13,12 +13,12 @@ export function cn(...inputs) {
 
 // Get current date in Eastern Time
 export function getCurrentDateInEastern() {
-  return utcToZonedTime(new Date(), EASTERN_TIMEZONE);
+  return toZonedTime(new Date(), EASTERN_TIMEZONE);
 }
 
 // Convert any date to Eastern Time
 export function toEasternTime(date) {
-  return utcToZonedTime(new Date(date), EASTERN_TIMEZONE);
+  return toZonedTime(new Date(date), EASTERN_TIMEZONE);
 }
 
 // Format date to readable string in Eastern Time
