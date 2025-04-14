@@ -176,6 +176,16 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
           hearingScreenResult: 'Hearing screen result is required'
         };
       }
+    } else {
+      // Automatically set hearing test type to "Not Tested" for participants
+      // This is just for the UI - the actual submission will be handled in handleSubmit
+      setFormData(prev => ({
+        ...prev,
+        researchData: {
+          ...prev.researchData,
+          hearingTestType: 'Hearing Not Tested'
+        }
+      }));
     }
 
     setErrors(newErrors);
@@ -231,6 +241,16 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         ...formData,
         dateOfBirth: new Date(formData.dateOfBirth), // Convert to Date object
       };
+      
+      // If form is completed by participant, set default research data to prevent validation errors
+      if (formData.formCompletedBy === 'Participant') {
+        formattedData.researchData = {
+          hearingTestType: 'Hearing Not Tested',
+          hearingScreenResult: '',
+          hearingThresholds: [],
+          notes: ''
+        };
+      }
 
       const token = localStorage.getItem('token');
       const response = await fetch(`${config.API_BASE_URL}/api/demographics`, {
