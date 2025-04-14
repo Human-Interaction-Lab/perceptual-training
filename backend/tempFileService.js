@@ -97,6 +97,10 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
   if (phase === 'training') {
     // For training files: <speaker>_Trn_<day>_<sentence>.wav
     filename = `${speaker}_Trn_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+  } else if (phase === 'practice' && testType === 'PRACTICE') {
+    // Handle practice files
+    filename = `${speaker}_Practice.wav`;
+    console.log(`Using practice file pattern: ${filename}`);
   } else {
     // For pretest and posttest
     if (testType === 'COMPREHENSION') {

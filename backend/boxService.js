@@ -65,6 +65,12 @@ class BoxService {
           // Just use it directly rather than trying to re-randomize here
           return `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
         }
+      },
+      PRACTICE: {
+        code: 'PRACTICE',
+        fileCode: 'Practice',
+        hasVersion: false,
+        pattern: (speaker) => `${speaker}_Practice.wav`
       }
     };
   }

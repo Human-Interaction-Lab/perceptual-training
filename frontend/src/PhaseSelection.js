@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX } from "lucide-react";
 import { formatDate, getCurrentDateInEastern, toEasternTime, isToday, isSameDay } from './lib/utils';
 import audioService from './services/audioService';
 import config from './config';
@@ -267,6 +267,10 @@ const PhaseSelection = ({
 
   // Add state to track if we're in the fresh demographics completion state
   const [isPostDemographics, setIsPostDemographics] = useState(false);
+
+  // Add state for practice audio playback
+  const [isPlayingPractice, setIsPlayingPractice] = useState(false);
+  const [practiceAudioError, setPracticeAudioError] = useState(false);
 
   const testTypes = [
     {
@@ -729,6 +733,61 @@ const PhaseSelection = ({
               Started: {formatDate(pretestDate)}
             </p>
           )}
+        </div>
+
+        {/* Volume adjustment section */}
+        <div className="mb-8 bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-[#406368] mb-2">Volume Adjustment</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Use this audio sample to adjust your headphone volume to a comfortable level before starting an activity.
+              </p>
+            </div>
+            
+            <div className="mt-4 md:mt-0">
+              <Button
+                onClick={async () => {
+                  try {
+                    setIsPlayingPractice(true);
+                    setPracticeAudioError(false);
+                    // Use default speaker ID '01'
+                    const result = await audioService.playPracticeAudio();
+                    if (!result) {
+                      setPracticeAudioError(true);
+                    }
+                  } catch (error) {
+                    console.error('Error playing practice audio:', error);
+                    setPracticeAudioError(true);
+                  } finally {
+                    setIsPlayingPractice(false);
+                  }
+                }}
+                disabled={isPlayingPractice}
+                className={`min-w-[150px] ${practiceAudioError ? "bg-red-500 hover:bg-red-600" : "bg-[#406368] hover:bg-[#6c8376]"}`}
+              >
+                {isPlayingPractice ? (
+                  <span className="flex items-center">
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
+                    Playing...
+                  </span>
+                ) : practiceAudioError ? (
+                  <span className="flex items-center">
+                    <VolumeX className="h-4 w-4 mr-2" />
+                    Error
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <Volume2 className="h-4 w-4 mr-2" />
+                    Play Sample Audio
+                  </span>
+                )}
+              </Button>
+              {practiceAudioError && (
+                <p className="text-xs text-red-600 mt-2">Failed to play audio. Please ensure your headphones are connected.</p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Standalone Demographics card - separate from pretest section */}

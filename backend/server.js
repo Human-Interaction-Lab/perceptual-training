@@ -202,7 +202,7 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
 
     // The story number will now be passed as a query parameter from the frontend
     let storyNumber;
-    
+
     // Check if a specific story is requested via query param
     if (req.query.story) {
       storyNumber = req.query.story;
@@ -271,6 +271,39 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
     }
     const speaker = user.speaker;
 
+    // Special handling for practice files
+    if (phase === 'practice' && testType === 'practice') {
+      console.log('Processing practice audio request...');
+
+      // Use a fixed pattern for practice file
+      const pattern = `Practice`;
+
+      console.log(`Checking if file exists: ${speaker}_Practice.wav`);
+
+      const exists = await boxService.fileExists(speaker, pattern);
+      if (!exists) {
+        return res.status(404).json({
+          error: `Practice file not found for speaker ${speaker}`
+        });
+      }
+
+      // Stream and save the practice file
+      const fileInfo = await tempFileService.streamAndSaveFile(
+        userId,
+        speaker,
+        'practice',
+        'PRACTICE',
+        null,
+        ''
+      );
+
+      // Return the URL to the temporary file
+      return res.json({
+        url: fileInfo.relativeUrl,
+        filename: fileInfo.filename
+      });
+    }
+
     // Validate phase - ensure this route is only used for pretest and posttest
     if (phase !== 'pretest' && !phase.startsWith('posttest')) {
       return res.status(400).json({ error: 'Invalid phase specified. Must be pretest or posttest' });
@@ -298,66 +331,66 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         // Import the randomization utils
         const path = require('path');
         const randomizationPath = path.join(__dirname, '..', 'frontend', 'src', 'utils', 'randomization.js');
-        
+
         // Force clear require cache to ensure we get fresh module
         delete require.cache[require.resolve(randomizationPath)];
-        
+
         // Load the randomization module
         const randomization = require(randomizationPath);
-        
+
         // Verify randomization module is loaded correctly
         if (!randomization || typeof randomization.getGroupForPhase !== 'function') {
-          throw new Error('Randomization module not loaded correctly. Available methods: ' + 
-                         Object.keys(randomization).join(', '));
+          throw new Error('Randomization module not loaded correctly. Available methods: ' +
+            Object.keys(randomization).join(', '));
         }
-        
+
         // Get the randomized sequence for this user and phase
         const randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
-        
+
         // Verify we got a valid array back
         if (!Array.isArray(randomizedFiles) || randomizedFiles.length === 0) {
           throw new Error(`No randomized files returned for user ${userId}, phase ${phase}`);
         }
-        
+
         console.log(`Server.js: Got randomized sequence for ${userId}, phase=${phase}: ${randomizedFiles.slice(0, 5)}...`);
-        
+
         // IMPORTANT: If sentence is already a randomized file number, we should use it directly
         // instead of trying to look it up in the randomized sequence
         let randomizedFileNumber;
-        
+
         // Check if the sentence is already one of the randomized file numbers
         if (randomizedFiles.includes(parseInt(sentence))) {
-            console.log(`Server.js: Sentence ${sentence} is already a randomized file number, using directly`);
-            randomizedFileNumber = parseInt(sentence);
+          console.log(`Server.js: Sentence ${sentence} is already a randomized file number, using directly`);
+          randomizedFileNumber = parseInt(sentence);
         } else {
-            // Otherwise, map the sequential index to the randomized file number
-            // Note: sentence is 1-indexed in the URL params, but array is 0-indexed
-            console.log(`Server.js: Treating ${sentence} as a sequential index, mapping to randomized file`);
-            randomizedFileNumber = randomizedFiles[parseInt(sentence) - 1];
+          // Otherwise, map the sequential index to the randomized file number
+          // Note: sentence is 1-indexed in the URL params, but array is 0-indexed
+          console.log(`Server.js: Treating ${sentence} as a sequential index, mapping to randomized file`);
+          randomizedFileNumber = randomizedFiles[parseInt(sentence) - 1];
         }
-        
+
         console.log(`Using randomized intelligibility number ${randomizedFileNumber} instead of ${sentence}`);
-        
+
         // Create the pattern with the randomized file number
         pattern = `Int${String(randomizedFileNumber).padStart(2, '0')}`;
         console.log(`Using randomized intelligibility file pattern: ${pattern}`);
       } catch (randomizationError) {
         console.error('Error using randomization for intelligibility files:', randomizationError);
-        
+
         // Add more detailed error logging to help diagnose issues
         if (randomizationError.stack) {
           console.error('Stack trace:', randomizationError.stack);
         }
-        
+
         // Check if randomization module exists but has incorrect exports
         try {
           const randomizationTest = require(randomizationPath);
-          console.error('Randomization module loaded but methods missing. Available methods:', 
-                        Object.keys(randomizationTest).join(', '));
+          console.error('Randomization module loaded but methods missing. Available methods:',
+            Object.keys(randomizationTest).join(', '));
         } catch (e) {
           console.error('Could not load randomization module at all:', e.message);
         }
-        
+
         // Fallback to using the sequential number if randomization fails
         pattern = `Int${String(sentence).padStart(2, '0')}`;
         console.log(`FALLBACK: Using sequential intelligibility file pattern: ${pattern}`);
@@ -400,9 +433,9 @@ app.post('/api/audio/preload', authenticateToken, async (req, res) => {
     const { phase, trainingDay, activeTestTypes, maxFiles } = req.body;
     const userId = req.user.userId;
 
-    console.log(`Preload request for ${phase} with params:`, { 
-      trainingDay, 
-      activeTestTypes, 
+    console.log(`Preload request for ${phase} with params:`, {
+      trainingDay,
+      activeTestTypes,
       maxFiles: maxFiles || 'all',
       userId
     });
@@ -443,7 +476,7 @@ app.post('/api/audio/preload', authenticateToken, async (req, res) => {
 
     // Format a user-friendly message about what was preloaded
     const filesDescription = maxFiles ? `first ${maxFiles} files` : 'all files';
-    
+
     res.json({
       success: true,
       message: `Successfully processed ${preloadResult.count} files for ${phase}${phase === 'training' ? ` day ${trainingDay}` : ''}${activeTestTypes ? ` (test types: ${activeTestTypes.join(', ')})` : ''} (${preloadResult.newlyDownloaded} new, ${preloadResult.skipped} already loaded)`,
@@ -569,27 +602,27 @@ app.post('/api/session/end', authenticateToken, async (req, res) => {
 app.post('/api/test-completed', authenticateToken, async (req, res) => {
   try {
     const { phase, testType, completed } = req.body;
-    
+
     if (!phase || !testType) {
       return res.status(400).json({ error: 'Phase and testType are required' });
     }
-    
+
     const user = await User.findOne({ userId: req.user.userId });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     console.log(`Explicitly marking test ${testType} as ${completed ? 'completed' : 'not completed'} for phase ${phase}`);
-    
+
     // Mark the test as completed with multiple formats for consistency and backward compatibility
     user.markTestCompleted(phase, testType.toUpperCase(), completed);
     user.markTestCompleted(phase, `${phase}_${testType}`, completed);
     user.markTestCompleted(phase, testType, completed);
-    
+
     // Additional key for the combined format
     const combinedKey = `${phase}_${testType}`;
     user.completedTests.set(combinedKey, completed);
-    
+
     // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
     if (phase === 'pretest' && completed && !user.pretestDate) {
       const { getCurrentDateInEastern } = require('./utils');
@@ -597,10 +630,10 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
       console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} via test-completed endpoint ***`);
       user.pretestDate = easternDate;
     }
-    
+
     // Save the user to persist changes
     await user.save();
-    
+
     res.json({
       success: true,
       message: `Test ${testType} marked as ${completed ? 'completed' : 'not completed'} for phase ${phase}`,
@@ -711,28 +744,28 @@ app.post('/api/login', async (req, res) => {
 
     // Get completed tests for the current phase
     const currentPhaseCompletedTests = user.getCompletedTestsForPhase(user.currentPhase);
-    
+
     // Check specifically for demographics completion
-    const isDemographicsCompleted = 
-      user.completedTests.get('demographics') === true || 
+    const isDemographicsCompleted =
+      user.completedTests.get('demographics') === true ||
       user.completedTests.get('pretest_demographics') === true;
-      
+
     // Check if test users were recently initialized
     let testUsersInitialized = false;
     let testUsersInitializedAt = null;
-    
+
     if (userId.startsWith('test_')) {
       // This is a test user, so check for the initialization flag
       try {
         const adminUser = await User.findOne({ isAdmin: true });
         if (adminUser && adminUser.testUsersInitializedAt) {
           testUsersInitializedAt = adminUser.testUsersInitializedAt;
-          
+
           // Calculate if initialization happened recently (within the last 10 minutes)
           const initTime = new Date(adminUser.testUsersInitializedAt);
           const currentTime = new Date();
           const timeDiffMinutes = (currentTime - initTime) / (1000 * 60);
-          
+
           testUsersInitialized = timeDiffMinutes < 10; // Flag as true if init was less than 10 minutes ago
           console.log(`Test user initialization status: ${testUsersInitialized ? 'RECENT' : 'OLD'} (${Math.round(timeDiffMinutes)} minutes ago)`);
         }
@@ -795,24 +828,24 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       // Also create a test ID for training tests with intelligibility
       testId = `training_intel_${stimulusId}`;
     }
-    
+
     // Special handling for test completion
     // This is true when the frontend indicates this is the last response of a test type
     if (isTestCompleted) {
       console.log(`*** MARKING TEST TYPE ${testType} AS COMPLETED FOR PHASE ${phase} ***`);
       // Also mark the entire test type as completed in addition to the individual stimulus
       user.markTestCompleted(phase, testType.toUpperCase(), true);
-      
+
       // For backward compatibility, also mark it with the special key format
       user.markTestCompleted(phase, `${phase}_${testType}`, true);
       user.markTestCompleted(phase, testType, true); // Simple key for backward compatibility
-      
+
       // Additional key for the combined format
       const combinedKey = `${phase}_${testType}`;
       user.completedTests.set(combinedKey, true);
-      
+
       console.log(`Added test completion markers to user record for ${phase}_${testType}`);
-      
+
       // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
       // This ensures the pretestDate is set when users start the pretest phase
       if (phase === 'pretest' && !user.pretestDate) {
@@ -821,7 +854,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
         console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} ***`);
         user.pretestDate = easternDate;
       }
-      
+
       // Immediately save the user to ensure completion state is persisted
       await user.save();
       console.log(`User record saved with updated test completion status`);
@@ -838,7 +871,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       trainingDay: phase === 'training' ? trainingDay : undefined,
       rating: testType === 'effort' ? rating : undefined
     });
-    
+
     console.log('Creating new response:', {
       phase,
       testType,
@@ -879,14 +912,14 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
       if (posttestCompleted) {
         console.log(`User ${user.userId} has completed posttest1`);
-        
+
         // Mark posttest1 as completed 
         user.markTestCompleted('posttest1', 'COMPLETED', true);
-        
+
         // Set phase to posttest2 but don't auto-advance
         // The frontend will still check date requirements before allowing access
         user.currentPhase = 'posttest2';
-        
+
         // Don't mark the study as fully completed yet - this happens after posttest2
       }
     } else if (phase === 'posttest2') {
@@ -895,10 +928,10 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
       if (posttest2Completed) {
         console.log(`User ${user.userId} has completed posttest2 and the entire study`);
-        
+
         // Mark posttest2 as completed
         user.markTestCompleted('posttest2', 'COMPLETED', true);
-        
+
         // Mark the entire study as completed
         user.completed = true;
         user.currentPhase = 'completed';
@@ -1165,7 +1198,7 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
 app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
   try {
     console.log('Processing responses export request');
-    
+
     // Fetch all responses with user information
     const responses = await Response.aggregate([
       {
@@ -1232,7 +1265,7 @@ app.get('/api/admin/export/responses', authenticateAdmin, async (req, res) => {
 app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
   try {
     console.log('Processing users export request');
-    
+
     const users = await User.find({}, {
       password: 0,
       _id: 0
@@ -1270,7 +1303,7 @@ app.get('/api/admin/export/users', authenticateAdmin, async (req, res) => {
 app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
   try {
     console.log('Processing all data export request (ZIP)');
-    
+
     // Fetch all users and responses
     const [users, responses, demographics] = await Promise.all([
       User.find({}, { password: 0, __v: 0 }),
@@ -1284,11 +1317,11 @@ app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
     const usersCsv = json2csv(users, {
       fields: ['userId', 'email', 'speaker', 'currentPhase', 'trainingDay', 'completed', 'isActive', 'createdAt']
     });
-    
+
     const responsesCsv = json2csv(responses, {
       fields: ['userId', 'phase', 'trainingDay', 'stimulusId', 'response', 'rating', 'correct', 'timestamp']
     });
-    
+
     // Flatten demographics for CSV
     const flattenedDemographics = demographics.map(record => {
       const flatRecord = {
@@ -1308,12 +1341,12 @@ app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
         formCompletedBy: record.formCompletedBy,
         submitted: record.submitted
       };
-      
+
       // Add research data if available
       if (record.researchData) {
         flatRecord.hearingScreeningCompleted = record.researchData.hearingScreeningCompleted;
         flatRecord.researchNotes = record.researchData.notes;
-        
+
         // Add hearing thresholds
         if (record.researchData.hearingThresholds) {
           record.researchData.hearingThresholds.forEach(threshold => {
@@ -1322,10 +1355,10 @@ app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
           });
         }
       }
-      
+
       return flatRecord;
     });
-    
+
     const demographicsCsv = json2csv(flattenedDemographics);
 
     // Create a zip file containing all CSVs
@@ -1466,7 +1499,7 @@ app.get('/api/admin/demographics', authenticateToken, async (req, res) => {
 app.get('/api/admin/export/demographics', authenticateAdmin, async (req, res) => {
   try {
     console.log('Processing demographics export request');
-    
+
     const demographics = await Demographics.find({}).lean();
     console.log(`Found ${demographics.length} demographics records to export`);
 
@@ -1494,7 +1527,7 @@ app.get('/api/admin/export/demographics', authenticateAdmin, async (req, res) =>
       if (record.researchData) {
         flatRecord.hearingScreeningCompleted = record.researchData.hearingScreeningCompleted;
         flatRecord.researchNotes = record.researchData.notes;
-        
+
         // Add hearing thresholds if they exist
         if (record.researchData.hearingThresholds) {
           record.researchData.hearingThresholds.forEach(threshold => {
@@ -1539,11 +1572,11 @@ if (process.env.NODE_ENV !== 'test') {
 app.post('/api/update-pretest-date', authenticateToken, async (req, res) => {
   try {
     const user = await User.findOne({ userId: req.user.userId });
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     // Only set if not already set
     if (!user.pretestDate) {
       const { getCurrentDateInEastern } = require('./utils');
@@ -1551,15 +1584,15 @@ app.post('/api/update-pretest-date', authenticateToken, async (req, res) => {
       console.log(`Setting missing pretest date to ${easternDate} (Eastern Time) for user ${user.userId}`);
       user.pretestDate = easternDate;
       await user.save();
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: 'Pretest date set successfully',
         pretestDate: user.pretestDate
       });
     }
-    
-    return res.json({ 
-      success: true, 
+
+    return res.json({
+      success: true,
       message: 'Pretest date already set',
       pretestDate: user.pretestDate
     });

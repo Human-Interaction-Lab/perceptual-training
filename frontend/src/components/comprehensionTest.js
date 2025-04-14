@@ -139,7 +139,7 @@ const ComprehensionTest = ({
                     <ul className="text-sm text-gray-600 space-y-1">
                         <li className="flex items-start">
                             <span className="text-[#406368] mr-2">1.</span>
-                            Listen to the complete story first
+                            Listen to the complete story first (you can only play it once)
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#406368] mr-2">2.</span>

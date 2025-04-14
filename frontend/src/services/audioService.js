@@ -12,6 +12,58 @@ const BASE_URL = config.API_BASE_URL;
 
 // Centralized audio service for handling audio interactions with the backend
 const audioService = {
+    /**
+     * Play a practice audio file for volume adjustment
+     * @param {string} speakerId - The ID of the speaker
+     * @returns {Promise<boolean>} - True if playback was successful
+     */
+    async playPracticeAudio(speakerId = '01') {
+        try {
+            console.log(`Playing practice audio file using Box toolset`);
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+            
+            // Match the backend route structure: /audio/:phase/:testType/:version/:sentence
+            // Map practice to the expected parameters:
+            // - phase: 'practice'
+            // - testType: 'practice'
+            // - version: 'null' (following pattern of other routes)
+            // - sentence: '1' (using 1 as default)
+            const url = `${BASE_URL}/audio/practice/practice/null/1`;
+            console.log(`Requesting practice audio from: ${url}`);
+            
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch practice audio: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.url) {
+                throw new Error('Server response missing audio URL');
+            }
+            
+            console.log(`Playing practice audio from: ${BASE_URL}${data.url}`);
+            // Play the audio file directly using the URL from Box
+            await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+            
+            // Notify backend that file was played
+            if (data.filename) {
+                await this.notifyAudioPlayed(data.filename);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error playing practice audio:', error);
+            return false;
+        }
+    },
 
     /**
     * A method to map file number to actual file ID
