@@ -1187,6 +1187,82 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   }
 });
 
+// New route to create users via admin
+app.post('/api/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId, email, password, currentPhase, trainingDay, speaker, pretestDate } = req.body;
+
+    // Validation
+    if (!userId || !password || !email) {
+      return res.status(400).json({ error: 'User ID, password, and email are required' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    if (email && !email.includes('@')) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (trainingDay && (trainingDay < 1 || trainingDay > 4)) {
+      return res.status(400).json({ error: 'Training day must be between 1 and 4' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ $or: [{ userId }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User ID or email already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user with admin-provided values or defaults
+    const userData = {
+      userId,
+      email,
+      password: hashedPassword,
+      currentPhase: currentPhase || 'pretest',
+      trainingDay: trainingDay || 1,
+      speaker: speaker || 'OHSp01',
+      isActive: true,
+      completedTests: new Map()
+    };
+
+    // Add pretest date if provided
+    if (pretestDate) {
+      try {
+        userData.pretestDate = new Date(pretestDate);
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid pretest date format' });
+      }
+    }
+
+    const newUser = new User(userData);
+    await newUser.save();
+
+    // Return success without sending the password
+    const userResponse = { ...userData };
+    delete userResponse.password;
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: userResponse
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
 
 
 // 

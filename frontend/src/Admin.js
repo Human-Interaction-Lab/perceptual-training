@@ -8,6 +8,7 @@ const Admin = () => {
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   // New state for edited user data
@@ -17,6 +18,16 @@ const Admin = () => {
     pretestDate: '',
     currentPhase: '',
     speaker: ''
+  });
+  // State for new user creation
+  const [newUser, setNewUser] = useState({
+    userId: '',
+    email: '',
+    password: '',
+    speaker: 'OHSp01',
+    currentPhase: 'pretest',
+    trainingDay: 1,
+    pretestDate: ''
   });
 
   useEffect(() => {
@@ -179,6 +190,73 @@ const Admin = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleCreateUserChange = (e) => {
+    const { name, value } = e.target;
+    setNewUser(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleCreateUser = async () => {
+    try {
+      // Validate required fields
+      if (!newUser.userId || !newUser.email || !newUser.password) {
+        setModalMessage('User ID, email, and password are required');
+        return;
+      }
+
+      // Validate email format
+      if (!newUser.email.includes('@')) {
+        setModalMessage('Please enter a valid email address');
+        return;
+      }
+
+      // Validate password length
+      if (newUser.password.length < 8) {
+        setModalMessage('Password must be at least 8 characters');
+        return;
+      }
+
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(newUser)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setModalMessage('User created successfully');
+        // Reset form
+        setNewUser({
+          userId: '',
+          email: '',
+          password: '',
+          speaker: 'OHSp01',
+          currentPhase: 'pretest',
+          trainingDay: 1,
+          pretestDate: ''
+        });
+        
+        // Close modal after a delay
+        setTimeout(() => {
+          setShowCreateUserModal(false);
+          setModalMessage('');
+          fetchData(); // Refresh the user list
+        }, 2000);
+      } else {
+        setModalMessage(`Failed to create user: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      setModalMessage('Error creating user');
+    }
   };
 
   const ExportButtons = () => {
@@ -487,13 +565,166 @@ const Admin = () => {
     </div>
   );
 
+  const CreateUserModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4">Create New User</h2>
+
+        {modalMessage && (
+          <div className="mb-4 p-2 bg-[#f3ecda] text-[#406368] rounded">
+            {modalMessage}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Basic User Information */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              User ID *
+            </label>
+            <input
+              type="text"
+              name="userId"
+              value={newUser.userId}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+              placeholder="e.g., john_smith"
+            />
+            <p className="text-xs text-gray-500 mt-1">Required. Will be used for login.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email *
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={newUser.email}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Password *
+            </label>
+            <input
+              type="password"
+              name="password"
+              value={newUser.password}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+              placeholder="Minimum 8 characters"
+            />
+            <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters.</p>
+          </div>
+
+          {/* Additional Settings */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Speaker ID
+            </label>
+            <input
+              type="text"
+              name="speaker"
+              value={newUser.speaker}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+              placeholder="e.g., OHSp01"
+            />
+            <p className="text-xs text-gray-500 mt-1">Default: OHSp01</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Current Phase
+            </label>
+            <select
+              name="currentPhase"
+              value={newUser.currentPhase}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+            >
+              <option value="pretest">Pretest</option>
+              <option value="training">Training</option>
+              <option value="posttest1">Posttest 1</option>
+              <option value="posttest2">Posttest 2</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Training Day
+            </label>
+            <input
+              type="number"
+              name="trainingDay"
+              min="1"
+              max="4"
+              value={newUser.trainingDay}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Pretest Date
+            </label>
+            <input
+              type="date"
+              name="pretestDate"
+              value={newUser.pretestDate}
+              onChange={handleCreateUserChange}
+              className="mt-1 block w-full p-2 border rounded"
+            />
+            <p className="text-xs text-gray-500 mt-1">Leave blank to set when user starts pretest.</p>
+          </div>
+
+          <div className="flex space-x-2 pt-4">
+            <button
+              onClick={() => {
+                setShowCreateUserModal(false);
+                setModalMessage('');
+              }}
+              className="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateUser}
+              className="flex-1 bg-[#406368] text-white px-4 py-2 rounded hover:bg-[#6c8376]"
+            >
+              Create User
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return <div className="text-center p-4">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <button
+          onClick={() => setShowCreateUserModal(true)}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          Create User
+        </button>
+      </div>
 
       {/* Statistics Section */}
       {stats && (
@@ -613,6 +844,10 @@ const Admin = () => {
 
       {showUserModal && selectedUser && (
         <UserModal user={selectedUser} />
+      )}
+
+      {showCreateUserModal && (
+        <CreateUserModal />
       )}
 
       {error && (

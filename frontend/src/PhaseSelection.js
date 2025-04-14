@@ -276,21 +276,21 @@ const PhaseSelection = ({
     {
       id: 'intelligibility',
       title: 'Intelligibility',
-      description: 'Type the complete phrase you hear',
+      description: 'Type the complete phrase you hear (15 minutes)',
       type: 'intelligibility',
       order: 1  // Make intelligibility the first (priority 1)
     },
     {
       id: 'effort',
       title: 'Listening Effort',
-      description: 'Type the final word and rate your listening effort',
+      description: 'Type the final word and rate your listening effort (20 minutes)',
       type: 'effort',
       order: 2  // Keep effort as second (priority 2)
     },
     {
       id: 'comprehension',
       title: 'Comprehension',
-      description: 'Listen to stories and answer questions',
+      description: 'Listen to stories and answer questions (10 minutes)',
       type: 'comprehension',
       order: 3  // Make comprehension last (priority 3)
     }
@@ -329,10 +329,10 @@ const PhaseSelection = ({
       .sort((a, b) => a.order - b.order) // Explicitly sort by the order property
       .map(test => test.type);
   };
-  
+
   // CRITICAL FIX: Helper function to consistently check demographics completion
   const checkDemographicsCompleted = () => {
-    return isDemographicsCompleted || 
+    return isDemographicsCompleted ||
       Boolean(completedTests['demographics']) ||
       Boolean(completedTests['pretest_demographics']) ||
       localStorage.getItem('demographicsCompleted') === 'true';
@@ -743,8 +743,8 @@ const PhaseSelection = ({
 
         {/* Volume adjustment section */}
         <div className="mb-8 bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4 relative volume-adjustment-section">
-          <button 
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" 
+          <button
+            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
             onClick={() => document.querySelector('.volume-adjustment-section').style.display = 'none'}
             aria-label="Close volume adjustment"
           >
@@ -755,12 +755,12 @@ const PhaseSelection = ({
           </button>
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-[#406368] mb-2">Volume Adjustment</h3>
+              <h3 className="text-lg font-semibold text-[#406368] mb-2">Volume Testing</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Use this audio sample to adjust your headphone volume to a comfortable level before starting an activity.
+                Use this audio sample to adjust your headphone volume to a comfortable level.<br></br>You can change the volume at any point during any of the activities.
               </p>
             </div>
-            
+
             <div className="mt-4 md:mt-0">
               <Button
                 onClick={async () => {
@@ -813,7 +813,7 @@ const PhaseSelection = ({
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">Background Questionnaire</h2>
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
               <TestTypeCard
-                title="Demographics Questionnaire"
+                title="Background Questionnaire"
                 description="Required before starting any tests"
                 phase="demographics"
                 testType="demographics"
@@ -833,8 +833,7 @@ const PhaseSelection = ({
         {currentPhase === 'pretest' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">Initial Assessment</h2>
-            <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
-
+            <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
               {/* All test type cards */}
@@ -862,7 +861,7 @@ const PhaseSelection = ({
               <h2 className="text-xl font-semibold text-[#406368]">Great job completing all tests!</h2>
               <PartyPopper className="h-8 w-8 text-[#6c8376] ml-2" />
             </div>
-            <p className="text-lg text-[#6c8376]">Please return tomorrow to start the training.</p>
+            <p className="text-lg text-[#6c8376]">Please return any time tomorrow to start the training.</p>
           </div>
         )}
 
@@ -870,7 +869,7 @@ const PhaseSelection = ({
         {currentPhase === 'training' && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">Training Sessions</h2>
-            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
 
             <br></br>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -893,7 +892,7 @@ const PhaseSelection = ({
         {currentPhase === 'posttest1' && posttestAvailability.posttest1 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Week Follow-up Assessment</h2>
-            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
 
             {/* Debug info - can be removed in production */}
             <p className="text-xs text-gray-400 mt-1">
@@ -973,7 +972,7 @@ const PhaseSelection = ({
         {currentPhase === 'posttest2' && posttestAvailability.posttest2 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Month Follow-up Assessment</h2>
-            <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
+            <p>Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
 
             {/* Debug info - can be removed in production */}
             <p className="text-xs text-gray-400 mt-1">
@@ -998,7 +997,7 @@ const PhaseSelection = ({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
