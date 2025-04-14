@@ -97,7 +97,7 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
   if (phase === 'training') {
     // For training files: <speaker>_Trn_<day>_<sentence>.wav
     filename = `${speaker}_Trn_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
-  } else if (phase === 'practice' && testType === 'PRACTICE') {
+  } else if (testType === 'PRACTICE') {
     // Handle practice files
     filename = `${speaker}_Practice.wav`;
     console.log(`Using practice file pattern: ${filename}`);
@@ -361,7 +361,7 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
           // If maxFiles is provided, only preload that many (for faster initial load)
           const maxIntelligibilityFiles = maxFiles ? Math.min(maxFiles, 20) : 20;
           console.log(`Will preload up to ${maxIntelligibilityFiles} intelligibility files`);
-          
+
           // Get the randomized intelligibility file sequence for this user
           let randomizedFiles;
           try {
@@ -376,10 +376,10 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
             randomizedFiles = Array.from({ length: maxIntelligibilityFiles }, (_, i) => i + 1);
             console.log('Using fallback sequential numbers due to randomization error');
           }
-          
+
           // Limit to the max number if specified
           const sequenceToUse = randomizedFiles.slice(0, maxIntelligibilityFiles);
-          
+
           for (let i = 0; i < sequenceToUse.length; i++) {
             try {
               const sentence = sequenceToUse[i];
