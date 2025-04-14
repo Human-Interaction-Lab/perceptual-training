@@ -106,7 +106,8 @@ const demographicsSchema = new mongoose.Schema({
         enum: [
             'Face to face',
             'Phone (audio only)',
-            'Video chat'
+            'Video chat',
+            'Written or text (email, text message)'
         ]
     },
     formCompletedBy: {
@@ -117,8 +118,7 @@ const demographicsSchema = new mongoose.Schema({
     researchData: {
         hearingTestType: {
             type: String,
-            enum: ['Full Threshold Testing', 'Hearing Screened', 'Hearing Not Tested'],
-            required: true
+            enum: ['Full Threshold Testing', 'Hearing Screened', 'Hearing Not Tested']
         },
         hearingScreenResult: {
             type: String,

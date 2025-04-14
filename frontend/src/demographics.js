@@ -82,7 +82,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         const token = localStorage.getItem('token');
         // Get userId from somewhere - could be stored in localStorage during login
         const userId = localStorage.getItem('userId');
-        
+
         // Only try to fetch demographics if we have both token and userId
         if (!token || !userId) {
           console.warn('Missing token or userId, skipping demographics fetch');
@@ -90,7 +90,7 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         }
 
         console.log(`Checking for existing demographics for user: ${userId}`);
-        
+
         try {
           const response = await fetch(`${config.API_BASE_URL}/api/demographics/${userId}`, {
             headers: {
@@ -160,19 +160,22 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
       }
     }
 
-    if (!formData.researchData?.hearingTestType) {
-      newErrors.researchData = {
-        ...newErrors.researchData,
-        hearingTestType: 'Hearing test type is required'
-      };
-    }
+    // Only validate hearing test data if filled out by research personnel
+    if (isResearchPersonnel) {
+      if (!formData.researchData?.hearingTestType) {
+        newErrors.researchData = {
+          ...newErrors.researchData,
+          hearingTestType: 'Hearing test type is required'
+        };
+      }
 
-    if (formData.researchData?.hearingTestType === 'Hearing Screened' &&
-      !formData.researchData?.hearingScreenResult) {
-      newErrors.researchData = {
-        ...newErrors.researchData,
-        hearingScreenResult: 'Hearing screen result is required'
-      };
+      if (formData.researchData?.hearingTestType === 'Hearing Screened' &&
+        !formData.researchData?.hearingScreenResult) {
+        newErrors.researchData = {
+          ...newErrors.researchData,
+          hearingScreenResult: 'Hearing screen result is required'
+        };
+      }
     }
 
     setErrors(newErrors);
@@ -245,21 +248,21 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         // Handle case where demographics already exist
         if (response.status === 400 && data.error && data.error.includes("Demographics already exist")) {
           console.log("Demographics already exist, proceeding as if submission was successful");
-          
+
           // No preloading during demographics anymore - completely separate
           console.log("Completely separating demographics from pretest - no preloading here");
-          
+
           // Immediately proceed to the next step
           onSubmit();
           return;
         }
-        
+
         throw new Error(data.error || 'Failed to submit form');
       }
-      
+
       // No longer preload files at all during demographics submission
       console.log("Demographics submitted successfully - no longer preloading files here");
-      
+
       // Just proceed immediately
       onSubmit();
     } catch (error) {
@@ -450,7 +453,8 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                   options={[
                     'Face to face',
                     'Phone (audio only)',
-                    'Video chat'
+                    'Video chat',
+                    'Written or text (email, text message)'
                   ]}
                   error={errors.communicationType}
                 />
@@ -477,11 +481,13 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
                   error={errors.hearingAids}
                 />
 
-                <HearingAssessment
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
+                {isResearchPersonnel && (
+                  <HearingAssessment
+                    formData={formData}
+                    setFormData={setFormData}
+                    errors={errors}
+                  />
+                )}
               </div>
             </CardContent>
 
