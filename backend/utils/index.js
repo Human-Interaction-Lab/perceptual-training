@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const path = require('path');
-const { zonedTimeToUtc, utcToZonedTime, format } = require('date-fns-tz');
+const { zonedTimeToUtc, toZonedTime, format } = require('date-fns-tz');
 const { format: formatDate, parseISO } = require('date-fns');
 
 // Eastern timezone 
@@ -46,7 +46,7 @@ const getAudioPath = (phase, day, filename) => {
  * @returns {Date} The current date in Eastern Time
  */
 const getCurrentDateInEastern = () => {
-  return utcToZonedTime(new Date(), EASTERN_TIMEZONE);
+  return toZonedTime(new Date(), EASTERN_TIMEZONE);
 };
 
 /**
@@ -55,7 +55,7 @@ const getCurrentDateInEastern = () => {
  * @returns {Date} The date in Eastern Time
  */
 const toEasternTime = (date) => {
-  return utcToZonedTime(new Date(date), EASTERN_TIMEZONE);
+  return toZonedTime(new Date(date), EASTERN_TIMEZONE);
 };
 
 /**
