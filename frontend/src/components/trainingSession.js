@@ -949,7 +949,7 @@ const TrainingSession = ({
                 <div className="bg-white shadow-xl rounded-lg overflow-hidden">
                     {/* Header */}
                     <div className="bg-[#406368] text-white px-6 py-4">
-                        <h2 className="text-xl font-semibold">Day {trainingDay} Test: Speech Intelligibility</h2>
+                        <h2 className="text-xl font-semibold">Day {trainingDay} Activity: Speech Intelligibility</h2>
                     </div>
 
                     {/* Content */}

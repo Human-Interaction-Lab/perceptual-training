@@ -104,7 +104,7 @@ const ComprehensionTest = ({
         return (
             <Card className="shadow-lg">
                 <CardHeader className="bg-[#406368] text-white">
-                    <h2 className="text-xl font-semibold">Story Comprehension Test</h2>
+                    <h2 className="text-xl font-semibold">Story Comprehension Activity</h2>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
@@ -122,7 +122,7 @@ const ComprehensionTest = ({
                         onClick={handleStartTest}
                         className="w-full bg-[#406368] hover:bg-[#6c8376]"
                     >
-                        Start Comprehension Test
+                        Start Comprehension Activity
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </CardFooter>

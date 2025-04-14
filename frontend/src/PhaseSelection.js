@@ -102,8 +102,8 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
           ) : (
             <span>
               {isCompleted ? 'Completed' :
-                hasProgress ? 'Continue Test' :
-                  isAvailable ? 'Begin Test' : 'Locked'}
+                hasProgress ? 'Continue Activity' :
+                  isAvailable ? 'Begin Activity' : 'Locked'}
             </span>
           )}
           {isAvailable && !isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
@@ -756,7 +756,7 @@ const PhaseSelection = ({
         {/* Pretest Section WITHOUT Demographics Card */}
         {currentPhase === 'pretest' && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Pre-test Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Initial Assessment</h2>
             <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -816,7 +816,7 @@ const PhaseSelection = ({
         {/* Posttest1 Section - Only show if current phase is posttest1 AND the date requirement is met */}
         {currentPhase === 'posttest1' && posttestAvailability.posttest1 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Posttest #1 Assessment (1-week follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Week Follow-up Assessment</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}
@@ -896,7 +896,7 @@ const PhaseSelection = ({
         {/* Posttest2 Section - Only show if current phase is posttest2 AND the date requirement is met */}
         {currentPhase === 'posttest2' && posttestAvailability.posttest2 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Posttest #2 Assessment (1-month follow-up)</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Month Follow-up Assessment</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app.</p>
 
             {/* Debug info - can be removed in production */}
