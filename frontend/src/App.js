@@ -1538,7 +1538,7 @@ const App = () => {
             {/* Header */}
             <div className="bg-[#406368] text-white px-6 py-4">
               <h2 className="text-xl font-semibold">
-                {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test' : 'Post-test'}: {
+                {
                   currentTestType === 'intelligibility' ? 'Speech Intelligibility' :
                     currentTestType === 'effort' ? 'Listening Effort' :
                       'Story Comprehension'
@@ -1558,21 +1558,21 @@ const App = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
             <div className="bg-[#f3ecda] rounded-lg max-w-md w-full p-6 shadow-xl">
               <h3 className="text-xl font-semibold text-[#406368] mb-4">
-                {phase === 'pretest' || phase === 'intelligibility' ? 'Pre-test Complete' :
+                {phase === 'pretest' || phase === 'intelligibility' ? 'Initial Assessment Complete' :
                   phase === 'training' ? `Training Day ${trainingDay} Complete` :
-                    phase === 'posttest1' ? '1-Week Post-test Complete' :
-                      phase === 'posttest2' ? '1-Month Post-test Complete' :
-                        'Post-test Complete'}
+                    phase === 'posttest1' ? '1-Week Follow-up Complete' :
+                      phase === 'posttest2' ? '1-Month Follow-up Complete' :
+                        'Assessment Complete'}
               </h3>
               <p className="text-[#6e6e6d] mb-6">
                 {phase === 'pretest' || phase === 'intelligibility'
-                  ? "Excellent work! You've completed the pre-test. Return tomorrow to begin your training."
+                  ? "Excellent work! You've completed the initial assessment. Return tomorrow to begin your training."
                   : phase === 'training'
                     ? trainingDay < 4
                       ? `Great job! You've completed training day ${trainingDay}. Return tomorrow for day ${trainingDay + 1}.`
-                      : "Congratulations! You've completed all training sessions. Return tomorrow for your final assessment."
+                      : "Congratulations! You've completed all training sessions. Return tomorrow for your follow-up assessment."
                     : phase === 'posttest1'
-                      ? "Thank you for completing the 1-week post-test! Please return in 3 weeks to complete the 1-month post-test."
+                      ? "Thank you for completing the 1-week follow-up! Please return in 3 weeks to complete the 1-month follow-up."
                       : phase === 'posttest2'
                         ? "Congratulations! You've successfully completed all parts of the study. Thank you for your participation!"
                         : "Congratulations! You've successfully completed the study."}

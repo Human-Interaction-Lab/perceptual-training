@@ -131,7 +131,7 @@ const IntelligibilityTest = ({
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                        <li>1. Click the "Play Audio" button to hear the stimulus</li>
+                        <li>1. Click the "Play Audio" button to hear the phrase</li>
                         <li>2. Listen carefully to the entire phrase</li>
                         <li>3. Type exactly what you heard in the text box</li>
                         <li>4. Click "Submit Response" when you're ready</li>
@@ -150,7 +150,7 @@ const IntelligibilityTest = ({
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-gray-700">
-                            Stimulus {currentStimulus + 1} of {totalStimuli}
+                            Phrase {currentStimulus + 1} of {totalStimuli}
                         </span>
                         <span className="text-[#406368] font-medium">
                             {Math.round(progress)}% Complete
@@ -182,7 +182,7 @@ const IntelligibilityTest = ({
                         ) : (
                             <>
                                 <Volume2 className="h-6 w-6" />
-                                <span>Play Audio Stimulus</span>
+                                <span>Play Audio Phrase</span>
                             </>
                         )}
                     </Button>
