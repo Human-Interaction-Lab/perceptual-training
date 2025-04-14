@@ -202,7 +202,7 @@ const ListeningEffortTest = ({
                         ) : (
                             <>
                                 <Volume2 className="h-6 w-6" />
-                                <span>{audioPlayed ? "Audio Played" : "Play Audio Phrase"}</span>
+                                <span>{audioPlayed ? "Audio Played" : "Play Audio"}</span>
                             </>
                         )}
                     </Button>
