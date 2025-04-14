@@ -375,6 +375,9 @@ const App = () => {
         if (userId.startsWith('test_') && data.testUsersInitialized) {
           console.log('Recently initialized test user detected! Clearing all localStorage progress...');
 
+          // Only clear progress keys defined below but don't clear demographicsCompleted
+          // This way only the explicit UI tools will clear demographics completion
+
           // Clear any existing localStorage progress for test users
           const progressKeys = [
             // Training progress - both new format
@@ -428,6 +431,8 @@ const App = () => {
 
         // IMPROVED check for demographics completion from multiple sources
         const completedTestsObj = data.completedTests || {};
+        
+        // Check demographics completion from multiple sources
         const demoCompleted =
           completedTestsObj.demographics === true ||
           completedTestsObj.pretest_demographics === true ||
@@ -441,18 +446,16 @@ const App = () => {
           fromLocalStorage: localStorage.getItem('demographicsCompleted') === 'true',
           finalStatus: demoCompleted
         });
-
-        // CRITICAL FIX: Ensure demographics completion is properly set
-        // This is the flag that determines if we show the demographics card
+        
+        // Set the proper demographics status based on all sources
         setIsDemographicsCompleted(demoCompleted);
-
-        // IMPORTANT: Always save demographics completion to localStorage when it's true
-        // This provides a critical second source of truth for this important flag
+        
+        // Save to localStorage if completed
         if (demoCompleted) {
           localStorage.setItem('demographicsCompleted', 'true');
           console.log('Demographics completion status saved to localStorage');
         }
-
+        
         // Update completedTests to include demographics status if needed
         // This ensures we have both indicators of completion
         if (demoCompleted && (!completedTestsObj.demographics || !completedTestsObj.pretest_demographics)) {
@@ -463,6 +466,7 @@ const App = () => {
             pretest_demographics: true
           }));
         }
+        
         setPhase('selection');
       } else {
         setError(data.error || 'Login failed');
