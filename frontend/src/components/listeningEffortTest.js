@@ -147,7 +147,7 @@ const ListeningEffortTest = ({
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                        <li>1. Click "Play Audio" to hear the phrase</li>
+                        <li>1. Click "Play Audio" to hear the phrase (you can only play it once)</li>
                         <li>2. Type the final word you heard</li>
                         <li>3. Rate how much effort it took to understand the audio</li>
                         <li>4. Click "Submit Response" when you're ready</li>

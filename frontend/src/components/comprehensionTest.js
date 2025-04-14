@@ -109,7 +109,7 @@ const ComprehensionTest = ({
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium">Instructions</h3>
-                        <p>In this next task, you will hear two stories. After each story, you will answer multiple choice questions about the story. The story will begin as soon as you click to play the audio. Multiple choice questions will use information from all parts of the story.</p>
+                        <p>In this next task, you will hear two stories (you can only play each story once). After each story, you will answer multiple choice questions about the story. The story will begin as soon as you click to play the audio. Multiple choice questions will use information from all parts of the story.</p>
 
                         <div className="bg-[#f3ecda] p-4 rounded-lg border border-[#dad6d9] flex items-center space-x-2">
                             <Headphones className="h-5 w-5 text-[#406368]" />
