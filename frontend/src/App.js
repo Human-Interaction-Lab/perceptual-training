@@ -426,17 +426,19 @@ const App = () => {
         // Initialize story assignments
         initializeStoryAssignments(userId);
 
-        // Explicitly check for demographics completion from multiple sources
+        // IMPROVED check for demographics completion from multiple sources
         const completedTestsObj = data.completedTests || {};
         const demoCompleted =
           completedTestsObj.demographics === true ||
           completedTestsObj.pretest_demographics === true ||
-          data.isDemographicsCompleted === true;
+          data.isDemographicsCompleted === true ||
+          localStorage.getItem('demographicsCompleted') === 'true';
 
         // Log the demographic completion status for debugging
         console.log('Demographics completed status:', {
           fromData: data.isDemographicsCompleted,
           fromCompletedTests: completedTestsObj.demographics || completedTestsObj.pretest_demographics,
+          fromLocalStorage: localStorage.getItem('demographicsCompleted') === 'true',
           finalStatus: demoCompleted
         });
 
@@ -444,7 +446,8 @@ const App = () => {
         // This is the flag that determines if we show the demographics card
         setIsDemographicsCompleted(demoCompleted);
 
-        // IMPORTANT: Save demographics completion to localStorage so it persists across sessions
+        // IMPORTANT: Always save demographics completion to localStorage when it's true
+        // This provides a critical second source of truth for this important flag
         if (demoCompleted) {
           localStorage.setItem('demographicsCompleted', 'true');
           console.log('Demographics completion status saved to localStorage');

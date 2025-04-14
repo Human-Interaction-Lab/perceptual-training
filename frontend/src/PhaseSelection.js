@@ -329,6 +329,14 @@ const PhaseSelection = ({
       .sort((a, b) => a.order - b.order) // Explicitly sort by the order property
       .map(test => test.type);
   };
+  
+  // CRITICAL FIX: Helper function to consistently check demographics completion
+  const checkDemographicsCompleted = () => {
+    return isDemographicsCompleted || 
+      Boolean(completedTests['demographics']) ||
+      Boolean(completedTests['pretest_demographics']) ||
+      localStorage.getItem('demographicsCompleted') === 'true';
+  };
 
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading
   // This is to prevent any preloading from happening automatically when arriving at the selection page
@@ -360,15 +368,12 @@ const PhaseSelection = ({
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
-    // Check if demographics is completed from either state or completedTests map
-    const demoCompleted = isDemographicsCompleted ||
-      completedTests['demographics'] ||
-      completedTests['pretest_demographics'];
+    // Check if demographics is completed using our standardized helper
+    const demoCompleted = checkDemographicsCompleted();
 
     // Special handling for demographics - completely separate phase
     if (testType === 'demographics') {
-      // Demographics card is ALWAYS available if not completed
-      // This prevents it from being blocked by other conditions
+      // Demographics card should not be shown at all if completed
       return {
         isAvailable: !demoCompleted,
         isCompleted: demoCompleted,
@@ -380,7 +385,7 @@ const PhaseSelection = ({
     if (phase === 'training') {
       const inProgress = hasInProgressData(phase, testType);
       return {
-        isAvailable: currentPhase === 'training' && demoCompleted,
+        isAvailable: currentPhase === 'training' && checkDemographicsCompleted(),
         isCompleted: completedTests[`${phase}_${testType}`] || false,
         hasProgress: inProgress
       };
@@ -436,10 +441,11 @@ const PhaseSelection = ({
       // First test in pretest phase (after demographics)
       if (test.order === 1) {
         const inProgress = hasInProgressData(phase, test.type);
+        const isDemoComplete = checkDemographicsCompleted(); // Use consistent helper
         return {
           // Only available if demographics is completed and we're in pretest phase
           isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
-            demoCompleted &&
+            isDemoComplete &&
             !isTestCompleted,
           isCompleted: isTestCompleted,
           hasProgress: inProgress
@@ -455,7 +461,7 @@ const PhaseSelection = ({
 
       return {
         isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
-          demoCompleted &&
+          checkDemographicsCompleted() &&
           previousTestCompleted &&
           !isTestCompleted,
         isCompleted: isTestCompleted,
@@ -479,7 +485,7 @@ const PhaseSelection = ({
     if (test.order === 1) {
       return {
         isAvailable: phase === currentPhase &&
-          demoCompleted &&
+          checkDemographicsCompleted() &&
           !isTestCompleted,
         isCompleted: isTestCompleted,
         hasProgress: inProgress
@@ -494,7 +500,7 @@ const PhaseSelection = ({
 
     return {
       isAvailable: phase === currentPhase &&
-        demoCompleted &&
+        checkDemographicsCompleted() &&
         previousTestCompleted &&
         !isTestCompleted,
       isCompleted: isTestCompleted,
@@ -736,7 +742,17 @@ const PhaseSelection = ({
         </div>
 
         {/* Volume adjustment section */}
-        <div className="mb-8 bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4">
+        <div className="mb-8 bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4 relative volume-adjustment-section">
+          <button 
+            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700" 
+            onClick={() => document.querySelector('.volume-adjustment-section').style.display = 'none'}
+            aria-label="Close volume adjustment"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-[#406368] mb-2">Volume Adjustment</h3>
@@ -790,8 +806,9 @@ const PhaseSelection = ({
           </div>
         </div>
 
-        {/* Standalone Demographics card - separate from pretest section */}
-        {!isDemographicsCompleted && (
+        {/* Standalone Demographics card - CRITICAL FIX: completely hide when completed */}
+        {/* Use our standardized helper function to check demographics completion */}
+        {!checkDemographicsCompleted() && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4 text-[#406368]">Background Questionnaire</h2>
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
