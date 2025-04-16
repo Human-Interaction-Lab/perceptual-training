@@ -118,7 +118,7 @@ const demographicsSchema = new mongoose.Schema({
     researchData: {
         hearingTestType: {
             type: String,
-            enum: ['Full Threshold Testing', 'Hearing Screened', 'Hearing Not Tested']
+            enum: ['Full Threshold Testing', 'Hearing Screened', 'Hearing Not Tested', 'Hearing Not Tested (Wearing Hearing Aids)']
         },
         hearingScreenResult: {
             type: String,
