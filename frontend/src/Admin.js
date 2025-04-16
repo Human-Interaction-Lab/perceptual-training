@@ -165,6 +165,61 @@ This action CANNOT be undone!`)) {
     }
   };
   
+  // Function to clear user-specific localStorage data
+  const clearUserLocalStorage = (userId) => {
+    const progressKeys = [
+      // Demographics progress
+      `progress_${userId}_demographics_demographics`,
+      
+      // Pretest progress
+      `progress_${userId}_pretest_intelligibility`,
+      `progress_${userId}_pretest_effort`,
+      `progress_${userId}_pretest_comprehension`,
+      
+      // Training progress
+      `progress_${userId}_training_day1`,
+      `progress_${userId}_training_day2`,
+      `progress_${userId}_training_day3`,
+      `progress_${userId}_training_day4`,
+      
+      // Posttest1 progress
+      `progress_${userId}_posttest1_intelligibility`,
+      `progress_${userId}_posttest1_effort`,
+      `progress_${userId}_posttest1_comprehension`,
+      
+      // Posttest2 progress
+      `progress_${userId}_posttest2_intelligibility`,
+      `progress_${userId}_posttest2_effort`,
+      `progress_${userId}_posttest2_comprehension`,
+      
+      // Posttest3 progress
+      `progress_${userId}_posttest3_intelligibility`,
+      `progress_${userId}_posttest3_effort`,
+      `progress_${userId}_posttest3_comprehension`,
+      
+      // Any user-specific demographics data
+      `demographicsCompleted_${userId}`
+    ];
+    
+    let clearedCount = 0;
+    
+    // Clear each key if it exists
+    progressKeys.forEach(key => {
+      if (localStorage.getItem(key) !== null) {
+        localStorage.removeItem(key);
+        clearedCount++;
+      }
+    });
+    
+    // Clear global demographics flag if this was the current logged in user
+    if (localStorage.getItem('userId') === userId && localStorage.getItem('demographicsCompleted') !== null) {
+      localStorage.removeItem('demographicsCompleted');
+      clearedCount++;
+    }
+    
+    return clearedCount;
+  };
+
   // New function to handle resetting user progress
   const handleResetProgress = async (userId) => {
     // Double confirm this destructive action
@@ -173,6 +228,7 @@ This action CANNOT be undone!`)) {
 - Delete demographics data
 - Reset progress to the beginning
 - Clear completed tests
+- Clear browser localStorage data for this user
 
 This action cannot be undone.`)) {
       return;
@@ -181,6 +237,11 @@ This action cannot be undone.`)) {
     try {
       setModalMessage('Resetting user progress...');
       
+      // First, clear localStorage for this specific user
+      const clearedItemCount = clearUserLocalStorage(userId);
+      console.log(`Cleared ${clearedItemCount} localStorage items for user ${userId}`);
+      
+      // Then call the server API to reset progress in MongoDB
       const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}/reset-progress`, {
         method: 'POST',
         headers: {
@@ -189,7 +250,7 @@ This action cannot be undone.`)) {
       });
 
       if (response.ok) {
-        setModalMessage('User progress has been reset successfully');
+        setModalMessage(`User progress has been reset successfully. Cleared ${clearedItemCount} localStorage items.`);
         await fetchData(); // Refresh the user list
         
         setTimeout(() => {
@@ -620,11 +681,17 @@ This action cannot be undone.`)) {
                   in the app yet. It will:
                 </p>
                 <ul className="mt-2 text-sm text-yellow-800 list-disc pl-5">
-                  <li>Delete all response records</li>
-                  <li>Delete demographics data</li>
+                  <li>Delete all response records from the database</li>
+                  <li>Delete demographics data from the database</li>
                   <li>Reset progress to pretest phase</li>
                   <li>Clear all completed tests</li>
+                  <li>Clear localStorage progress data in this browser</li>
                 </ul>
+                <p className="mt-2 text-sm text-yellow-800">
+                  <strong>Note:</strong> The localStorage data is only cleared on this browser. If users 
+                  are accessing the app from different devices or browsers, they may need to clear their 
+                  localStorage there as well or log out and log back in.
+                </p>
                 <p className="mt-2 text-sm text-yellow-800 font-bold">
                   This cannot be undone!
                 </p>
