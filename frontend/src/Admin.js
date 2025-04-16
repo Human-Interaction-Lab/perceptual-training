@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from './config';
+import { Input } from './components/ui/input';
 
 const Admin = () => {
   const [users, setUsers] = useState([]);
@@ -80,7 +81,15 @@ const Admin = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm(`Are you sure you want to delete user ${userId}?`)) {
+    if (!window.confirm(`Are you sure you want to DELETE user ${userId}?
+
+This will:
+- Permanently delete the user account
+- Remove all response data
+- Remove demographics data
+- Delete all progress records
+
+This action CANNOT be undone!`)) {
       return;
     }
 
@@ -153,6 +162,47 @@ const Admin = () => {
     } catch (error) {
       console.error('Error updating user status:', error);
       alert('Error updating user status');
+    }
+  };
+  
+  // New function to handle resetting user progress
+  const handleResetProgress = async (userId) => {
+    // Double confirm this destructive action
+    if (!window.confirm(`Are you sure you want to reset ALL progress for user ${userId}? This will:
+- Delete all submitted responses
+- Delete demographics data
+- Reset progress to the beginning
+- Clear completed tests
+
+This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      setModalMessage('Resetting user progress...');
+      
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}/reset-progress`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+
+      if (response.ok) {
+        setModalMessage('User progress has been reset successfully');
+        await fetchData(); // Refresh the user list
+        
+        setTimeout(() => {
+          setModalMessage('');
+          setShowUserModal(false); // Close the modal after success
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setModalMessage(`Failed to reset user progress: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error resetting user progress:', error);
+      setModalMessage('Error resetting user progress');
     }
   };
 
@@ -407,7 +457,8 @@ const Admin = () => {
   const UserModal = ({ user }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">Manage User: {user.userId}</h2>
+        <h2 className="text-xl font-bold mb-4">Edit User: {user.userId}</h2>
+        <p className="text-sm text-gray-600 mb-4">You can update user details including email, speaker ID, and progress information.</p>
 
         {modalMessage && (
           <div className="mb-4 p-2 bg-[#f3ecda] text-[#406368] rounded">
@@ -423,39 +474,42 @@ const Admin = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Email
+                  Email Address <span className="text-xs text-blue-600">(editable)</span>
                 </label>
-                <input
+                <Input
                   type="email"
                   name="email"
                   value={editedUser.email}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  placeholder="Enter user's email address"
                 />
+                <p className="text-xs text-gray-500 mt-1">Change the email address and click "Update User Details" to save.</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Speaker ID
+                  Speaker ID <span className="text-xs text-blue-600">(editable)</span>
                 </label>
-                <input
+                <Input
                   type="text"
                   name="speaker"
                   value={editedUser.speaker}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  placeholder="Enter speaker ID"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Current Phase
+                  Current Phase <span className="text-xs text-blue-600">(editable)</span>
                 </label>
                 <select
                   name="currentPhase"
                   value={editedUser.currentPhase}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full p-2 border-2 border-blue-200 focus:border-blue-500 rounded"
                 >
                   <option value="pretest">Pretest</option>
                   <option value="training">Training</option>
@@ -468,37 +522,41 @@ const Admin = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Training Day
+                  Training Day <span className="text-xs text-blue-600">(editable)</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   name="trainingDay"
                   min="1"
                   max="4"
                   value={editedUser.trainingDay}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  placeholder="Enter training day (1-4)"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Pretest Date
+                  Pretest Date <span className="text-xs text-blue-600">(editable)</span>
                 </label>
-                <input
+                <Input
                   type="date"
                   name="pretestDate"
                   value={editedUser.pretestDate}
                   onChange={handleInputChange}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
                 />
               </div>
 
               <button
                 onClick={() => handleUpdateUser(user.userId)}
-                className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center justify-center"
               >
-                Update User Details
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+                Save User Details
               </button>
             </div>
           </div>
@@ -511,11 +569,11 @@ const Admin = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   New Password
                 </label>
-                <input
+                <Input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="mt-1 block w-full p-2 border rounded"
+                  className="mt-1 block w-full"
                   placeholder="Enter new password"
                 />
               </div>
@@ -552,6 +610,38 @@ const Admin = () => {
             </div>
           </div>
 
+          {/* Reset User Progress Section */}
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-medium mb-4">Reset User Progress</h3>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 p-4 rounded border border-yellow-300">
+                <p className="text-sm text-yellow-800">
+                  This action will reset the user to the beginning state as if they hadn't done anything
+                  in the app yet. It will:
+                </p>
+                <ul className="mt-2 text-sm text-yellow-800 list-disc pl-5">
+                  <li>Delete all response records</li>
+                  <li>Delete demographics data</li>
+                  <li>Reset progress to pretest phase</li>
+                  <li>Clear all completed tests</li>
+                </ul>
+                <p className="mt-2 text-sm text-yellow-800 font-bold">
+                  This cannot be undone!
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleResetProgress(user.userId)}
+                className="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex items-center justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                Reset User Progress
+              </button>
+            </div>
+          </div>
+
           <div className="flex space-x-2 pt-2">
             <button
               onClick={() => setShowUserModal(false)}
@@ -582,12 +672,12 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               User ID *
             </label>
-            <input
+            <Input
               type="text"
               name="userId"
               value={newUser.userId}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
               placeholder="e.g., john_smith"
             />
             <p className="text-xs text-gray-500 mt-1">Required. Will be used for login.</p>
@@ -597,12 +687,12 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               Email *
             </label>
-            <input
+            <Input
               type="email"
               name="email"
               value={newUser.email}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
               placeholder="user@example.com"
             />
           </div>
@@ -611,12 +701,12 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               Password *
             </label>
-            <input
+            <Input
               type="password"
               name="password"
               value={newUser.password}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
               placeholder="Minimum 8 characters"
             />
             <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters.</p>
@@ -627,12 +717,12 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               Speaker ID
             </label>
-            <input
+            <Input
               type="text"
               name="speaker"
               value={newUser.speaker}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
               placeholder="e.g., OHSp01"
             />
             <p className="text-xs text-gray-500 mt-1">Default: OHSp01</p>
@@ -660,14 +750,14 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               Training Day
             </label>
-            <input
+            <Input
               type="number"
               name="trainingDay"
               min="1"
               max="4"
               value={newUser.trainingDay}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
             />
           </div>
 
@@ -675,12 +765,12 @@ const Admin = () => {
             <label className="block text-sm font-medium text-gray-700">
               Pretest Date
             </label>
-            <input
+            <Input
               type="date"
               name="pretestDate"
               value={newUser.pretestDate}
               onChange={handleCreateUserChange}
-              className="mt-1 block w-full p-2 border rounded"
+              className="mt-1 block w-full"
             />
             <p className="text-xs text-gray-500 mt-1">Leave blank to set when user starts pretest.</p>
           </div>

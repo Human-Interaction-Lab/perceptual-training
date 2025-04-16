@@ -1187,6 +1187,50 @@ app.post('/api/admin/users/:userId/toggle-status', async (req, res) => {
   }
 });
 
+// Route to reset a user's progress
+app.post('/api/admin/users/:userId/reset-progress', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Find the user
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Reset progress fields
+    user.currentPhase = 'pretest';
+    user.trainingDay = 1;
+    user.pretestDate = null;
+    user.completed = false;
+    user.completedTests = new Map(); // Clear all completed tests
+
+    // Save the updated user
+    await user.save();
+
+    // Delete all responses for this user
+    await Response.deleteMany({ userId });
+
+    // Delete demographics data for this user
+    await Demographics.findOneAndDelete({ userId });
+
+    res.json({
+      message: 'User progress has been reset successfully',
+      user: {
+        userId: user.userId,
+        email: user.email,
+        currentPhase: user.currentPhase,
+        trainingDay: user.trainingDay,
+        pretestDate: user.pretestDate,
+        completed: user.completed
+      }
+    });
+  } catch (error) {
+    console.error('Error resetting user progress:', error);
+    res.status(500).json({ error: 'Failed to reset user progress' });
+  }
+});
+
 // New route to create users via admin
 app.post('/api/admin/users', authenticateAdmin, async (req, res) => {
   try {
