@@ -85,6 +85,7 @@ const HearingAssessment = ({ formData, setFormData, errors }) => {
           <option value="Full Threshold Testing">Full Threshold Testing</option>
           <option value="Hearing Screened">Hearing Screened</option>
           <option value="Hearing Not Tested">Hearing Not Tested</option>
+          <option value="Hearing Not Tested (Wearing Hearing Aids)">Hearing Not Tested (Wearing Hearing Aids)</option>
         </select>
         {errors?.researchData?.hearingTestType && (
           <p className="text-red-500 text-sm mt-1">{errors.researchData.hearingTestType}</p>
