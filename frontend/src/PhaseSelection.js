@@ -152,6 +152,10 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
 
   // Helper function to determine if a stage is the current one
   const isCurrentStage = (stageId) => {
+    // First check if demographics is not completed, force demographics to be the current stage
+    if (stageId === 'demographics' && !checkDemographicsCompleted()) return true;
+    
+    // Otherwise, proceed with normal stage checks
     if (stageId === 'demographics' && currentPhase === 'demographics') return true;
     if (stageId === 'pretest' && currentPhase === 'pretest') return true;
     if (stageId.startsWith('training') && currentPhase === 'training') {
