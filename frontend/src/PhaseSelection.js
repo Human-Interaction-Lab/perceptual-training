@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X } from "lucide-react";
 import { formatDate, getCurrentDateInEastern, toEasternTime, isToday, isSameDay } from './lib/utils';
 import audioService from './services/audioService';
 import config from './config';
@@ -114,6 +114,150 @@ const TestTypeCard = ({ title, description, testType, phase, status, onSelect, d
 };
 
 // TrainingDayCard component that mirrors the testing days
+// Study Process Diagram Component
+const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClose }) => {
+  const stages = [
+    { id: 'demographics', label: 'Background', icon: '📋' },
+    { id: 'pretest', label: 'Initial Activities', icon: '📝' },
+    { id: 'training1', label: 'Training Day 1', icon: '🎧' },
+    { id: 'training2', label: 'Training Day 2', icon: '🎧' },
+    { id: 'training3', label: 'Training Day 3', icon: '🎧' },
+    { id: 'training4', label: 'Training Day 4', icon: '🎧' },
+    { id: 'posttest1', label: 'Middle Activities', icon: '✏️' },
+    { id: 'posttest2', label: 'Final Activities', icon: '🎉' }
+  ];
+
+  // Helper function to determine if a stage is completed
+  const isStageCompleted = (stageId) => {
+    if (stageId === 'demographics') {
+      return Boolean(completedTests['demographics']) || localStorage.getItem('demographicsCompleted') === 'true';
+    } else if (stageId === 'pretest') {
+      return Boolean(completedTests['pretest_intelligibility']) &&
+        Boolean(completedTests['pretest_effort']) &&
+        Boolean(completedTests['pretest_comprehension']);
+    } else if (stageId.startsWith('training')) {
+      const day = stageId.charAt(stageId.length - 1);
+      return Boolean(completedTests[`training_day${day}`]);
+    } else if (stageId === 'posttest1') {
+      return Boolean(completedTests['posttest1_intelligibility']) &&
+        Boolean(completedTests['posttest1_effort']) &&
+        Boolean(completedTests['posttest1_comprehension']);
+    } else if (stageId === 'posttest2') {
+      return Boolean(completedTests['posttest2_intelligibility']) &&
+        Boolean(completedTests['posttest2_effort']) &&
+        Boolean(completedTests['posttest2_comprehension']);
+    }
+    return false;
+  };
+
+  // Helper function to determine if a stage is the current one
+  const isCurrentStage = (stageId) => {
+    if (stageId === 'demographics' && currentPhase === 'demographics') return true;
+    if (stageId === 'pretest' && currentPhase === 'pretest') return true;
+    if (stageId.startsWith('training') && currentPhase === 'training') {
+      const day = parseInt(stageId.charAt(stageId.length - 1));
+      return trainingDay === day;
+    }
+    if (stageId === 'posttest1' && currentPhase === 'posttest1') return true;
+    if (stageId === 'posttest2' && currentPhase === 'posttest2') return true;
+    return false;
+  };
+
+  return (
+    <div className="bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4 mb-6 relative">
+      <button
+        onClick={onClose}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+        aria-label="Close study progress diagram"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      <h3 className="text-lg font-semibold text-[#406368] mb-3">Study Progress</h3>
+
+      {/* Simplified list view for smaller screens */}
+      <div className="flex flex-col lg:hidden">
+        <div className="grid grid-cols-2 gap-1 text-xs">
+          {stages.map((stage, index) => (
+            <div key={stage.id} className={`px-2 py-1.5 mb-1 rounded ${
+              isStageCompleted(stage.id)
+                ? "bg-green-100 text-green-800 border-l-4 border-green-500"
+                : isCurrentStage(stage.id)
+                  ? "bg-[#d9f0f4] text-[#2d8c9e] font-medium border-l-4 border-[#2d8c9e]"
+                  : "bg-gray-100 text-gray-600 border-l-4 border-gray-300"
+            }`}>
+              <div className="flex items-center">
+                {isStageCompleted(stage.id) && <CheckCircle className="w-3 h-3 mr-1 text-green-600" />}
+                <span>{stage.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop view - horizontal timeline (only on large screens) */}
+      <div className="hidden lg:flex flex-wrap items-center justify-between relative">
+        {/* Background line connecting all items - centered vertically on the circle */}
+        <div className="absolute h-[2px] bg-gray-300" style={{ left: '40px', right: '40px', top: '24px' }}></div>
+
+        {stages.map((stage, index) => (
+          <div key={stage.id} className="flex flex-col items-center" style={{ width: `${100 / stages.length}%`, position: 'relative', zIndex: 1 }}>
+            <div
+              className={`flex items-center justify-center w-12 h-12 rounded-full mb-2 relative ${isStageCompleted(stage.id)
+                ? "bg-green-100 border-2 border-green-500"
+                : isCurrentStage(stage.id)
+                  ? "bg-[#2d8c9e] text-white border-2 border-[#2d8c9e] shadow-md"
+                  : "bg-white border-2 border-gray-300"
+                }`}
+            >
+              <span className="text-lg">{stage.icon}</span>
+              {isStageCompleted(stage.id) && (
+                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
+                  <CheckCircle className="text-white w-4 h-4" />
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-center font-medium">{stage.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Legend for timeline */}
+      {/* Legend for simplified view */}
+      <div className="lg:hidden">
+        <p className="text-xs text-gray-600 text-center mt-3">
+          <span className="inline-flex items-center mr-2">
+            <div className="w-2 h-2 bg-green-500 mr-1"></div>
+            <span>Completed</span>
+          </span>
+          <span className="inline-flex items-center">
+            <div className="w-2 h-2 bg-[#2d8c9e] mr-1"></div>
+            <span>Current</span>
+          </span>
+        </p>
+      </div>
+      
+      {/* Legend for desktop timeline */}
+      <div className="hidden lg:block">
+        <p className="text-xs text-gray-600 text-center mt-4">
+          <span className="inline-flex items-center mr-3">
+            <div className="w-3 h-3 rounded-full bg-green-100 border border-green-500 mr-1"></div>
+            <span>Completed</span>
+          </span>
+          <span className="inline-flex items-center mr-3">
+            <div className="w-3 h-3 rounded-full bg-[#2d8c9e] mr-1"></div>
+            <span>Current</span>
+          </span>
+          <span className="inline-flex items-center">
+            <div className="w-3 h-3 rounded-full bg-white border border-gray-300 mr-1"></div>
+            <span>Upcoming</span>
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Keep the original completed check - day is less than current day
   const isCompleted = day < currentDay;
@@ -271,6 +415,9 @@ const PhaseSelection = ({
   // Add state for practice audio playback
   const [isPlayingPractice, setIsPlayingPractice] = useState(false);
   const [practiceAudioError, setPracticeAudioError] = useState(false);
+
+  // Add state for showing/hiding the study process diagram
+  const [showStudyDiagram, setShowStudyDiagram] = useState(true);
 
   const testTypes = [
     {
@@ -740,6 +887,28 @@ const PhaseSelection = ({
             </p>
           )}
         </div>
+
+        {/* Study Process Diagram - only shown if showStudyDiagram is true */}
+        {showStudyDiagram && (
+          <StudyProcessDiagram
+            currentPhase={currentPhase}
+            completedTests={completedTests}
+            trainingDay={trainingDay}
+            onClose={() => setShowStudyDiagram(false)}
+          />
+        )}
+
+        {!showStudyDiagram && (
+          <div className="mb-4 text-center">
+            <Button
+              variant="outline"
+              className="text-xs"
+              onClick={() => setShowStudyDiagram(true)}
+            >
+              Show Study Timeline
+            </Button>
+          </div>
+        )}
 
         {/* Volume adjustment section */}
         <div className="mb-8 bg-[#f3ecda] border border-[#dad6d9] rounded-lg p-4 relative volume-adjustment-section">
