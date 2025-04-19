@@ -401,7 +401,8 @@ const TrainingSession = ({
             const safeIndex = Math.min(currentStimulusIndex, 19);
             
             // Get randomized file number from the appropriate training day sequence
-            const trainingFiles = getGroupForPhase('training_test', trainingDay, userId);
+            // Use 'training' phase with trainingDay parameter to get the correct segment
+            const trainingFiles = getGroupForPhase('training', trainingDay, userId);
             console.log(`Getting randomized file for day ${trainingDay}, index ${safeIndex}:`, 
                         `Full sequence (${trainingFiles.length}):`, trainingFiles);
             
@@ -535,10 +536,10 @@ const TrainingSession = ({
                 
                 // Get the actual file number using the same randomization approach as the submission
                 const { getGroupForPhase } = require('../utils/randomization');
-                const trainingFiles = getGroupForPhase('training_test', trainingDay, userId);
+                // Use 'training' phase with trainingDay parameter to get the correct segment
+                const trainingFiles = getGroupForPhase('training', trainingDay, userId);
                 
                 // Convert to proper file number using the randomized sequence
-                // Add 1 since audio service expects 1-based indexes
                 const actualFileNumber = trainingFiles[safeIndex];
                 
                 console.log(`Playing randomized training test audio: Using file #${actualFileNumber} for day ${trainingDay}, index ${safeIndex}`);
@@ -550,13 +551,15 @@ const TrainingSession = ({
                 });
 
                 // Race the audio playback against our timeout
-                // CRITICAL FIX: Pass the actual randomized file number instead of sequential index
+                // USE playRandomizedTestAudio instead which handles randomization correctly
                 const result = await Promise.race([
-                    audioService.playTestAudio(
-                        'training',
+                    // Use the standard playRandomizedTestAudio method - same as pretest/posttest
+                    audioService.playRandomizedTestAudio(
+                        'training', // Use 'training' as the phase for backend API
                         'intelligibility',
                         null,
-                        actualFileNumber  // Use the randomized file number directly
+                        safeIndex + 1, // Use 1-based sequential index, the method will do randomization internally
+                        userId
                     ),
                     timeoutPromise
                 ]);
@@ -578,7 +581,10 @@ const TrainingSession = ({
                     const audioElement = document.querySelector('audio');
                     if (audioElement && audioElement.src) {
                         console.log(`Test audio element source: ${audioElement.src}`);
-                        // No need to try to extract story number - these are intelligibility files
+                        // Check if it contains 'Int' which indicates intelligibility files
+                        if (audioElement.src.includes('Int')) {
+                            console.log('Confirmed intelligibility file is being used');
+                        }
                     }
                 }, 500); // Short delay to ensure audio element is created
 

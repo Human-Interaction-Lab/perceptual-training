@@ -344,14 +344,77 @@ const audioService = {
             // This ensures consistency between playback and response submission
             console.log(`Playing training test audio: Day ${day}, File #${fileNumber}`);
             
-            // Simply use the standard playTestAudio method with 'training' phase
-            // This ensures we use the same endpoint and parameters for both playing and submitting
-            return await this.playTestAudio(
-                'training',  // Use 'training' phase for consistency with backend
-                'intelligibility',
-                null,
-                fileNumber  // Use the actual file number directly
-            );
+            // Validate token exists
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No authentication token found');
+                throw new Error('Authentication required');
+            }
+            
+            // Directly make the API call for training intelligibility audio
+            // Using the direct /audio/:phase/:testType/:version/:sentence endpoint
+            // For training_test intelligibility, we use the phase 'training'
+            const apiUrl = `${BASE_URL}/audio/training/intelligibility/null/${fileNumber}`;
+            console.log(`Fetching training test audio from: ${apiUrl}`);
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.error(`Error response from server: ${response.status} ${response.statusText}`);
+                    
+                    // Try to read error details
+                    let errorMessage = `Failed to get audio file (${response.status})`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (parseError) {
+                        console.warn('Could not parse error response:', parseError);
+                    }
+                    
+                    // Special handling for 404 errors
+                    if (response.status === 404) {
+                        throw new Error('AUDIO_NOT_FOUND');
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !data.url) {
+                    throw new Error('Server response missing audio URL');
+                }
+                
+                // Play the audio file
+                console.log(`Playing training test audio from: ${BASE_URL}${data.url}`);
+                await this.playAudioFromUrl(`${BASE_URL}${data.url}`);
+                
+                // Notify backend that file was played
+                if (data.filename) {
+                    await this.notifyAudioPlayed(data.filename);
+                }
+                
+                return {
+                    success: true,
+                    fileNumber: fileNumber
+                };
+            } catch (error) {
+                // Try an alternative approach if the direct request fails
+                // Fall back to using regular playTestAudio with randomized file number
+                console.warn(`Direct call failed, trying standard playTestAudio as fallback: ${error.message}`);
+                
+                return await this.playTestAudio(
+                    'training',  // Use 'training' phase for consistency with backend
+                    'intelligibility',
+                    null,
+                    fileNumber  // Use the actual file number directly
+                );
+            }
         } catch (error) {
             console.error('Error playing training test audio:', error);
             throw error;

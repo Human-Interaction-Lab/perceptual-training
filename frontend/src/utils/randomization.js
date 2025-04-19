@@ -155,15 +155,22 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
         startIndex = 0;
         console.log(`Pretest using sequence segment starting at index ${startIndex}`);
     } else if (phase === 'training') {
-        // Regular training doesn't use intelligibility files
-        // Return unused segment at the end
-        startIndex = 140;
-        console.log(`Training phase using unused segment (index ${startIndex}+)`);
-    } else if (phase === 'training_test') {
-        // Each training_test day gets its own segment
+        // Check if this is for training test (intelligibility) which needs trainingDay
         if (trainingDay && trainingDay >= 1 && trainingDay <= 4) {
+            // Each training day gets its own segment for intelligibility test
             startIndex = 20 + (trainingDay - 1) * groupSize;
             console.log(`Training test for day ${trainingDay} using segment at index ${startIndex}`);
+        } else {
+            // Original behavior for regular training (not intelligibility test)
+            // Return unused segment at the end
+            startIndex = 140;
+            console.log(`Regular training phase using unused segment (index ${startIndex}+)`);
+        }
+    } else if (phase === 'training_test') {
+        // Keep backward compatibility with training_test phase name
+        if (trainingDay && trainingDay >= 1 && trainingDay <= 4) {
+            startIndex = 20 + (trainingDay - 1) * groupSize;
+            console.log(`Legacy training_test for day ${trainingDay} using segment at index ${startIndex}`);
         } else {
             console.warn(`Invalid training test day: ${trainingDay}. Using default segment.`);
             startIndex = 20; // Default to first training segment
