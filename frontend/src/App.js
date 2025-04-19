@@ -956,8 +956,15 @@ const App = () => {
   const handleComprehensionSubmit = async () => {
     if (!validateResponse()) return;
 
+    // Set submitting state to prevent double submissions
+    setIsSubmitting(true);
+
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+      
       const currentStory = COMPREHENSION_DATA[currentStoryId];
       const currentQuestion = currentStory.questions[questionIndex];
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
@@ -973,12 +980,16 @@ const App = () => {
       const isLastQuestion = questionIndex >= currentStory.questions.length - 1;
       const isTestCompleted = isLastStory && isLastQuestion;
       
-      // Log test completion status
-      if (isTestCompleted) {
-        console.log(`This is the last question of the last story - completing comprehension test`);
-      }
+      // Log test completion status and details
+      console.log(`Submitting comprehension question answer: story ${storyNum}, question ${questionNum}, ${isTestCompleted ? 'FINAL QUESTION' : 'more questions remain'}`);
 
-      await fetch(`${config.API_BASE_URL}/api/response`, {
+      // Create a timeout promise for the fetch operation
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), 10000);
+      });
+      
+      // Race the fetch against a timeout
+      const fetchPromise = fetch(`${config.API_BASE_URL}/api/response`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -993,6 +1004,15 @@ const App = () => {
           isTestCompleted: isTestCompleted  // Flag to tell backend this completes the entire test
         }),
       });
+      
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      // Check for response errors
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
+        throw new Error(`Server error: ${response.status} ${errorData.message || 'Unknown error'}`);
+      }
       
       // If this completes the whole comprehension test
       if (isTestCompleted) {
@@ -1021,64 +1041,112 @@ const App = () => {
       if (questionIndex < currentStory.questions.length - 1) {
         // Move to next question in current story
         setQuestionIndex(prevIndex => prevIndex + 1);
+        console.log(`Moving to next question in story: question ${questionIndex + 2}`);
       } else if (currentStoryIndex < assignedStories.length - 1) {
         // Move to the next assigned story
         setCurrentStoryIndex(prevIndex => prevIndex + 1);
         setQuestionIndex(0);
+        console.log(`Moving to next story: story ${currentStoryIndex + 2}, starting with question 1`);
 
         // Save the progress for the new story
-        const userId = localStorage.getItem('userId');
-        if (userId) {
-          const progressKey = `progress_${userId}_${phase}_comprehension`;
-          const progressData = {
-            questionIndex: 0,
-            currentStoryIndex: currentStoryIndex + 1,
-            timestamp: new Date().toISOString()
-          };
-          localStorage.setItem(progressKey, JSON.stringify(progressData));
+        try {
+          const userId = localStorage.getItem('userId');
+          if (userId) {
+            const progressKey = `progress_${userId}_${phase}_comprehension`;
+            const progressData = {
+              questionIndex: 0,
+              currentStoryIndex: currentStoryIndex + 1,
+              timestamp: new Date().toISOString(),
+              version: 2 // Version marker for future compatibility
+            };
+            localStorage.setItem(progressKey, JSON.stringify(progressData));
+            console.log(`Saved progress for next story: ${progressKey}`);
+          }
+        } catch (storageError) {
+          console.error('Error saving progress to localStorage:', storageError);
+          // Non-fatal error, continue
         }
       } else {
         // Complete the comprehension test
-        setCompletedTests(prev => ({
-          ...prev,
-          [`${phase}_comprehension`]: true
-        }));
+        console.log('Completing comprehension test - this was the final question of the final story');
+        
+        setCompletedTests(prev => {
+          const updated = {
+            ...prev,
+            [`${phase}_comprehension`]: true
+          };
+          console.log(`Marking comprehension test as completed in state:`, updated);
+          return updated;
+        });
+        
         setShowComplete(true);
 
         // Clear saved progress for completed comprehension test
-        const userId = localStorage.getItem('userId');
-        if (userId) {
-          const progressKey = `progress_${userId}_${phase}_comprehension`;
-          localStorage.removeItem(progressKey);
-          console.log(`Cleared saved progress for completed comprehension test: ${progressKey}`);
+        try {
+          const userId = localStorage.getItem('userId');
+          if (userId) {
+            const progressKey = `progress_${userId}_${phase}_comprehension`;
+            localStorage.removeItem(progressKey);
+            console.log(`Cleared saved progress for completed comprehension test: ${progressKey}`);
+          }
+        } catch (storageError) {
+          console.error('Error clearing localStorage:', storageError);
+          // Non-fatal error, continue
+        }
+
+        // Set a completion flag in sessionStorage as a backup mechanism
+        try {
+          sessionStorage.setItem(`test_completed_${phase}_comprehension`, 'true');
+        } catch (error) {
+          console.warn('Could not set session storage completion flag:', error);
         }
 
         // Update phase if needed
         if (phase === 'pretest') {
+          console.log('Pretest comprehension completed, transitioning to training phase');
           setCurrentPhase('training');
         } else if (phase === 'posttest1') {
           // When posttest1 is completed, show posttest2 if available
+          console.log('Posttest1 comprehension completed, transitioning to posttest2 phase');
           setCurrentPhase('posttest2');
         } else if (phase === 'posttest2') {
+          console.log('Posttest2 comprehension completed, marking all tests as completed');
           setCurrentPhase('completed');
         }
 
-        // Reset states after delay
+        // Reset states after delay - increased for comprehension test
+        const completionTimeout = 3000; // 3 seconds to show completion message
         setTimeout(() => {
           setPhase('selection');
           setShowComplete(false);
           setCurrentStoryIndex(0);
           setQuestionIndex(0);
-          setUserResponse('');
-        }, 2000);
+          setUserResponse(null);
+          console.log('Returned to selection screen after comprehension test completion');
+        }, completionTimeout);
       }
 
       // Reset user response for next question
       // For comprehension test, explicitly set to null to ensure consistent state
       setUserResponse(null);
     } catch (error) {
-      console.error('Error submitting response:', error);
-      alert('Failed to submit response. Please try again.');
+      console.error('Error submitting comprehension response:', error);
+      
+      // Determine if it's a network error
+      const isNetworkError = 
+        error.message.includes('network') || 
+        error.message.includes('timeout') ||
+        error.message.includes('offline') ||
+        error.message.includes('Failed to fetch');
+      
+      if (isNetworkError) {
+        alert('Network error: Please check your internet connection and try again.');
+      } else {
+        alert(`Failed to submit response: ${error.message}`);
+      }
+    } finally {
+      // Always reset submitting state when done
+      setIsSubmitting(false);
     }
   };
 
@@ -1086,6 +1154,12 @@ const App = () => {
   const validateResponse = () => {
     switch (currentTestType) {
       case 'intelligibility':
+        // For intelligibility test, allow "NA" responses for missing audio
+        if (userResponse.trim() === "NA") {
+          console.log('Special case: "NA" response allowed for missing audio');
+          return true;
+        }
+        
         if (!userResponse.trim()) {
           alert('Please enter the phrase you heard.');
           return false;
@@ -1093,10 +1167,24 @@ const App = () => {
         break;
 
       case 'effort':
+        // For effort test, specifically handle "NA" responses for missing audio files
+        if (userResponse.trim() === "NA") {
+          console.log('Special case: "NA" response for effort test with missing audio');
+          
+          // For "NA" responses, ensure rating is at least 1
+          if (rating === null || rating < 1) {
+            setRating(1);
+            console.log('Auto-setting minimum rating for "NA" response');
+          }
+          
+          return true;
+        }
+        
         if (!userResponse.trim()) {
           alert('Please enter the final word you heard.');
           return false;
         }
+        
         if (rating === null || rating < 1) {
           alert('Please rate your listening effort.');
           return false;
@@ -1115,38 +1203,63 @@ const App = () => {
         return true;
     }
 
+    console.log(`Validation passed for ${currentTestType} test, response: "${userResponse}", rating: ${rating}`);
     return true;
   };
 
 
   // Handle successful response submission
   const handleResponseSuccess = () => {
-    const isLastStimulus = (currentStimulus === 19 && (currentTestType === 'intelligibility' || currentTestType === 'comprehension')) || currentStimulus === 29;
+    // More explicit check for the last stimulus based on test type
+    const isLastStimulus = 
+      (currentTestType === 'intelligibility' && currentStimulus === 19) || 
+      (currentTestType === 'comprehension' && currentStimulus === 19) || 
+      (currentTestType === 'effort' && currentStimulus === 29);
+
+    // Log detailed information about the current position in the test
+    console.log(`Response submission: ${currentTestType} test, stimulus ${currentStimulus + 1}/${currentTestType === 'effort' ? 30 : 20}, isLast: ${isLastStimulus}`);
 
     if (isLastStimulus) {
       // Update completedTests for current test type
-      setCompletedTests(prev => ({
-        ...prev,
-        [`${phase}_${currentTestType}`]: true,
-        // Also add the non-prefixed version for backward compatibility
-        [currentTestType]: true
-      }));
+      setCompletedTests(prev => {
+        const updated = {
+          ...prev,
+          [`${phase}_${currentTestType}`]: true,
+          // Also add the non-prefixed version for backward compatibility
+          [currentTestType]: true
+        };
+        console.log(`Marking ${currentTestType} test as completed in state:`, updated);
+        return updated;
+      });
 
       // Show completion message
       setShowComplete(true);
 
       // Clear saved progress for completed test
-      const userId = localStorage.getItem('userId');
-      if (userId) {
-        const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
-        localStorage.removeItem(progressKey);
-        console.log(`Cleared saved progress for completed test: ${progressKey}`);
+      try {
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
+          localStorage.removeItem(progressKey);
+          console.log(`Cleared saved progress for completed test: ${progressKey}`);
+        }
+      } catch (error) {
+        console.error('Error clearing saved progress:', error);
+        // Non-fatal error, continue with completion flow
       }
 
       // Handle phase transitions and user progress
-      // Increase timeout for completion message to ensure it's visible
-      // Using a longer timeout to give users time to read the completion message
-      const completionTimeout = currentTestType === 'comprehension' ? 20000 : 2000;
+      // Adjust timeout based on test type
+      const completionTimeout = currentTestType === 'comprehension' ? 20000 : 3000; // Increased slightly for effort test
+      
+      console.log(`Test completed: ${phase} ${currentTestType}. Showing completion message for ${completionTimeout}ms`);
+      
+      // Set a completion flag in sessionStorage as a backup mechanism
+      try {
+        sessionStorage.setItem(`test_completed_${phase}_${currentTestType}`, 'true');
+      } catch (error) {
+        console.warn('Could not set session storage completion flag:', error);
+      }
       
       setTimeout(() => {
         // Update phase if needed based on test completion
@@ -1181,7 +1294,31 @@ const App = () => {
             }
             break;
           case 'effort':
-            // Keep same phase, allow comprehension test to be available
+            // Ensure the completion is properly tracked for effort test
+            console.log(`${phase} effort test completed, transitioning to comprehension test availability`);
+            
+            // For effort tests specifically, we'll make an additional API call to ensure completion is registered
+            try {
+              const token = localStorage.getItem('token');
+              if (token) {
+                console.log('Making backup API call to ensure effort test is marked as completed');
+                fetch(`${config.API_BASE_URL}/api/test-completed`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    phase,
+                    testType: 'effort',
+                    completed: true
+                  }),
+                }).catch(error => console.warn('Backup completion call failed:', error));
+              }
+            } catch (error) {
+              console.warn('Error in backup completion call:', error);
+              // Non-fatal, continue
+            }
             break;
           case 'comprehension':
             // Store the completion status and show message,
@@ -1219,29 +1356,37 @@ const App = () => {
             break;
         }
 
-        // Reset states
+        // Reset states for next activity
         setPhase('selection');
         setShowComplete(false);
         setCurrentStimulus(0);
-        // For comprehension test specifically, use null to ensure proper button disabling
+        
+        // Reset response based on test type
         if (currentTestType === 'comprehension') {
-          setUserResponse(null);
+          setUserResponse(null); // Multiple choice uses null 
         } else {
-          setUserResponse('');
+          setUserResponse(''); // Text input types use empty string
         }
+        
+        // Always reset rating for effort tests
         setRating(null);
         
         console.log(`Returning to selection screen after completion of ${phase} ${currentTestType}`);
       }, completionTimeout);
     } else {
-      // Just move to next stimulus
-      setCurrentStimulus(prev => prev + 1);
-      // For comprehension test specifically, use null to ensure proper button disabling
+      // Move to next stimulus
+      const nextStimulus = currentStimulus + 1;
+      console.log(`Moving to next stimulus: ${nextStimulus + 1}`);
+      setCurrentStimulus(nextStimulus);
+      
+      // Reset responses based on test type
       if (currentTestType === 'comprehension') {
         setUserResponse(null);
       } else {
         setUserResponse('');
       }
+      
+      // Always reset rating for effort tests
       setRating(null);
     }
   };

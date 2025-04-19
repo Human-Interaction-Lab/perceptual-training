@@ -1,9 +1,10 @@
 // Modified ComprehensionTest.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardFooter } from "./ui/card";
 import { Volume2, Send, BookOpen, AlertCircle, ArrowRight, Headphones } from 'lucide-react';
+import audioService from '../services/audioService';
 
 const ComprehensionTest = ({
     question,
@@ -24,6 +25,30 @@ const ComprehensionTest = ({
     const [showQuestions, setShowQuestions] = useState(false);
     const [showInstructions, setShowInstructions] = useState(true);
     const [allQuestionsAnswered, setAllQuestionsAnswered] = useState(false);
+    const timeoutRef = useRef(null);
+    const isPlayingRef = useRef(false); // For avoiding race conditions
+    
+    // Proper cleanup on component unmount
+    useEffect(() => {
+        return () => {
+            cleanupAudioResources();
+        };
+    }, []);
+    
+    // Central cleanup function for audio resources
+    const cleanupAudioResources = () => {
+        // Clear any pending timeouts
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        
+        // Cleanup any audio elements
+        audioService.dispose();
+        
+        // Reset internal state
+        isPlayingRef.current = false;
+    };
 
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
@@ -53,6 +78,9 @@ const ComprehensionTest = ({
         setAudioError(false);
         setShowQuestions(false);
         setAllQuestionsAnswered(false);
+        
+        // Ensure cleanup when story changes
+        cleanupAudioResources();
     }, [storyId]);
 
     // Check if a response has been selected
@@ -67,27 +95,78 @@ const ComprehensionTest = ({
     const storyNumber = currentStoryIndex !== undefined ? currentStoryIndex + 1 : parseInt(storyId.replace('Comp_', ''));
 
     const handlePlayStoryAudio = async () => {
-        if (isPlayingStory) return;
-
+        // Prevent concurrent calls
+        if (isPlayingRef.current) {
+            console.log('Story audio already playing, ignoring additional play request');
+            return;
+        }
+        
         setIsPlayingStory(true);
+        isPlayingRef.current = true;
         setAudioError(false);
         setShowQuestions(false);
 
+        // Clean up any previous resources
+        cleanupAudioResources();
+
+        // Add a timeout for the entire operation
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutRef.current = setTimeout(() => {
+                reject(new Error('Audio playback timed out'));
+            }, 20000); // Longer timeout for stories which have multiple clips
+        });
+
         try {
             console.log(`Playing full story audio for ${storyId}`);
-            await onPlayAudio(storyId);
+            
+            // Race the story playback against our timeout
+            await Promise.race([
+                onPlayAudio(storyId),
+                timeoutPromise
+            ]);
+            
+            // Clear timeout if successful
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            
             setStoryAudioPlayed(true);
+            console.log('Story audio played successfully');
         } catch (error) {
             console.error("Error playing story audio:", error);
-            if (error.message === 'AUDIO_NOT_FOUND') {
+            
+            // Clear timeout on error
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            
+            // Handle the audio error case
+            if (error.message === 'AUDIO_NOT_FOUND' ||
+                error.message.includes('not found') ||
+                error.message.includes('404') ||
+                error.message.includes('timed out')) {
+                
                 setAudioError(true);
                 setStoryAudioPlayed(true);
+                
+                // Auto-select the first answer option to allow proceeding
                 if (userResponse === null) {
                     onResponseChange(0);
+                    console.log('Auto-selected first answer option due to audio error');
                 }
+                
+                // Show questions immediately when audio fails
+                setShowQuestions(true);
+                
+                // Show user message about audio failure
+                alert('Story audio could not be played. You can proceed with the questions by selecting any answer option.');
             }
         } finally {
             setIsPlayingStory(false);
+            isPlayingRef.current = false;
+            audioService.dispose(); // Ensure cleanup
         }
     };
 
@@ -272,7 +351,12 @@ const ComprehensionTest = ({
 
                         <Button
                             onClick={handleSubmit}
-                            disabled={!allQuestionsAnswered || isSubmitting}
+                            disabled={
+                                // Normal case: require an answer
+                                (!allQuestionsAnswered || isSubmitting) && 
+                                // But enable if there's an audio error and any answer is selected
+                                !(audioError && userResponse !== null)
+                            }
                             className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                      disabled:opacity-50 disabled:cursor-not-allowed"
                         >

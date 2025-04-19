@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -18,6 +18,8 @@ const IntelligibilityTest = ({
     const [audioError, setAudioError] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
+    const timeoutRef = useRef(null);
+    const isPlayingRef = useRef(false); // For avoiding race conditions
 
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
 
@@ -25,40 +27,87 @@ const IntelligibilityTest = ({
     useEffect(() => {
         setAudioPlayed(false);
         setAudioError(false);
+        
+        // Ensure cleanup when stimulus changes
+        return () => {
+            cleanupAudioResources();
+        };
     }, [currentStimulus]);
+    
+    // Proper cleanup on component unmount
+    useEffect(() => {
+        return () => {
+            cleanupAudioResources();
+        };
+    }, []);
+    
+    // Central cleanup function for audio resources
+    const cleanupAudioResources = () => {
+        // Clear any pending timeouts
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        
+        // Cleanup any audio elements
+        audioService.dispose();
+        
+        // Reset internal state
+        isPlayingRef.current = false;
+    };
 
     const handlePlayAudio = async () => {
+        // Prevent concurrent calls
+        if (isPlayingRef.current) {
+            console.log('Audio already playing, ignoring additional play request');
+            return;
+        }
+        
         setIsPlaying(true);
+        isPlayingRef.current = true;
         setAudioError(false);
 
         // Reset in case of retry
         setAudioPlayed(false);
 
+        // Clean up any previous resources
+        cleanupAudioResources();
+
         // Try up to 3 times to play the audio - increased retry attempts
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-                console.log(`Attempt ${attempt} to play audio...`);
+                console.log(`Attempt ${attempt} to play intelligibility audio...`);
 
-                // Add a timeout for the entire operation - reduced to fail faster
+                // Add a timeout for the entire operation - increased to 15 seconds
                 const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Audio playback timed out')), 10000);
+                    timeoutRef.current = setTimeout(() => {
+                        reject(new Error('Audio playback timed out'));
+                    }, 15000); // Increased timeout for slower networks
                 });
 
                 // Important: Don't wait for preloading
                 console.log("Attempting to play audio directly with randomization");
 
-                // Just use the direct play function with randomization 
-                await Promise.race([
-                    // Use the provided onPlayAudio directly from App.js
-                    onPlayAudio(),
-                    timeoutPromise
-                ]);
+                // Race the audio playback against our timeout
+                await Promise.race([onPlayAudio(), timeoutPromise]);
 
-                console.log('Audio playback completed successfully!');
+                // Clear the timeout if audio played successfully
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                }
+
+                console.log('Intelligibility audio played successfully!');
                 setAudioPlayed(true);
                 break; // Success! Exit the retry loop
             } catch (error) {
                 console.error(`Attempt ${attempt} failed:`, error);
+
+                // Clear the timeout if it exists
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                }
 
                 // If we have a timeout or not found error, handle immediately
                 if (error.message === 'AUDIO_NOT_FOUND' ||
@@ -95,14 +144,19 @@ const IntelligibilityTest = ({
 
                 // If this wasn't the last attempt, wait a bit before retrying
                 if (attempt < 3) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    console.log(`Waiting before retry attempt ${attempt + 1}...`);
+                    try {
+                        await new Promise(r => setTimeout(r, 1000));
+                        console.log(`Waiting before retry attempt ${attempt + 1}...`);
+                    } catch (timeoutError) {
+                        console.error('Error in retry delay:', timeoutError);
+                    }
                 }
             }
         }
 
         // Always reset the playing state when done with all attempts
         setIsPlaying(false);
+        isPlayingRef.current = false;
 
         // Ensure we clean up any hanging audio
         audioService.dispose();
@@ -220,7 +274,12 @@ const IntelligibilityTest = ({
 
                     <Button
                         onClick={onSubmit}
-                        disabled={!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting}
+                        disabled={
+                            // Standard validation: require response and audio played
+                            (!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting) && 
+                            // Special exception for "NA" with audio errors
+                            !(userResponse.trim() === "NA" && audioError)
+                        }
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >

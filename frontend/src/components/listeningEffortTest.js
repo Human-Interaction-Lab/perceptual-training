@@ -342,7 +342,13 @@ const ListeningEffortTest = ({
 
                     <Button
                         onClick={onSubmit}
-                        disabled={!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting}
+                        disabled={
+                            // Standard validation: require response and rating
+                            // But make an exception for "NA" responses due to missing audio
+                            (!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting) && 
+                            // Special exception for "NA" with audio errors
+                            !(userResponse.trim() === "NA" && audioError)
+                        }
                         className="w-full h-12 mt-4 flex items-center justify-center space-x-2 bg-[#406368] hover:bg-[#6c8376]
                                  disabled:opacity-50 disabled:cursor-not-allowed"
                     >
