@@ -47,14 +47,56 @@ class ErrorBoundary extends React.Component {
     
     // Attempt to recover by clearing localStorage for this session
     try {
+      const userId = localStorage.getItem('userId');
+      const token = localStorage.getItem('token');
+      
+      // Keep track of critical auth data
+      const authData = {
+        userId,
+        token,
+        demographicsCompleted: localStorage.getItem('demographicsCompleted'),
+        pretestDate: sessionStorage.getItem('pretestDate')
+      };
+      
       // Only clear progress data to avoid forcing re-login
+      // Safer approach: iterate through a copy of keys
+      const progressKeys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('progress_')) {
-          localStorage.removeItem(key);
+          progressKeys.push(key);
         }
       }
-      console.log('Cleared progress data to recover from error');
+      
+      // Now remove the identified keys
+      progressKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (removeError) {
+          console.warn(`Failed to remove ${key}:`, removeError);
+        }
+      });
+      
+      console.log(`Cleared ${progressKeys.length} progress data keys to recover from error`);
+      
+      // Restore critical auth data if it was removed
+      if (userId && !localStorage.getItem('userId')) {
+        localStorage.setItem('userId', userId);
+      }
+      if (token && !localStorage.getItem('token')) {
+        localStorage.setItem('token', token);
+      }
+      if (authData.demographicsCompleted && !localStorage.getItem('demographicsCompleted')) {
+        localStorage.setItem('demographicsCompleted', authData.demographicsCompleted);
+      }
+      if (authData.pretestDate) {
+        sessionStorage.setItem('pretestDate', authData.pretestDate);
+      }
+      
+      // Also ensure the user-specific demographics flag is preserved
+      if (userId && authData.demographicsCompleted) {
+        localStorage.setItem(`demographicsCompleted_${userId}`, 'true');
+      }
     } catch (e) {
       console.error('Failed to clear localStorage during recovery:', e);
     }
@@ -152,11 +194,29 @@ const App = () => {
       if (userId && phase !== 'selection' && phase !== 'auth') {
         const savedProgressKey = `progress_${userId}_${phase}_${currentTestType || ''}`;
         let savedProgress = null;
+        let progressSource = 'localStorage';
         
+        // First try to get from localStorage
         try {
           savedProgress = localStorage.getItem(savedProgressKey);
         } catch (storageError) {
           console.error('Error accessing localStorage:', storageError);
+        }
+        
+        // If not found or error occurred, try to get from sessionStorage backup
+        if (!savedProgress) {
+          try {
+            const backupKey = `backup_${savedProgressKey}`;
+            const backupProgress = sessionStorage.getItem(backupKey);
+            
+            if (backupProgress) {
+              console.log(`Found backup progress in sessionStorage: ${backupKey}`);
+              savedProgress = backupProgress;
+              progressSource = 'sessionStorage';
+            }
+          } catch (sessionError) {
+            console.error('Error accessing sessionStorage backup:', sessionError);
+          }
         }
 
         if (savedProgress) {
@@ -175,7 +235,7 @@ const App = () => {
             );
             
             if (isValidProgress) {
-              console.log(`Resuming valid saved progress for ${phase} (${currentTestType}):`, progress);
+              console.log(`Resuming valid saved progress for ${phase} (${currentTestType}) from ${progressSource}:`, progress);
 
               // Safely restore state from saved progress with defaults
               setCurrentStimulus(typeof progress.stimulus === 'number' ? progress.stimulus : 0);
@@ -204,26 +264,39 @@ const App = () => {
               if (typeof progress.currentStoryIndex === 'number' && progress.currentStoryIndex >= 0) {
                 setCurrentStoryIndex(progress.currentStoryIndex);
               }
+              
+              // If we loaded from sessionStorage backup, restore to localStorage
+              if (progressSource === 'sessionStorage') {
+                try {
+                  localStorage.setItem(savedProgressKey, savedProgress);
+                  console.log(`Restored progress from sessionStorage backup to localStorage`);
+                } catch (restoreError) {
+                  console.warn('Could not restore progress to localStorage:', restoreError);
+                  // This is not critical - we can continue with the backup
+                }
+              }
 
               // Don't reset other states when resuming
               return;
             } else {
-              console.warn('Invalid progress data format, ignoring:', progress);
+              console.warn(`Invalid progress data format from ${progressSource}, ignoring:`, progress);
               
-              // Remove invalid data
+              // Remove invalid data from both storage types
               try {
                 localStorage.removeItem(savedProgressKey);
+                sessionStorage.removeItem(`backup_${savedProgressKey}`);
                 console.log(`Removed invalid progress data for key: ${savedProgressKey}`);
               } catch (removeError) {
                 console.error('Error removing invalid progress data:', removeError);
               }
             }
           } catch (parseError) {
-            console.error('Error parsing saved progress:', parseError);
+            console.error(`Error parsing saved progress from ${progressSource}:`, parseError);
             
-            // Try to remove corrupted data
+            // Try to remove corrupted data from both storage types
             try {
               localStorage.removeItem(savedProgressKey);
+              sessionStorage.removeItem(`backup_${savedProgressKey}`);
               console.log(`Removed corrupted progress data for key: ${savedProgressKey}`);
             } catch (removeError) {
               console.error('Error removing corrupted progress data:', removeError);
@@ -335,31 +408,114 @@ const App = () => {
             const serializedData = JSON.stringify(progressData);
             localStorage.setItem(progressKey, serializedData);
             console.log(`Successfully saved ${serializedData.length} bytes to localStorage`);
+            
+            // Also save this progress data as a fallback in sessionStorage
+            // This provides a backup if localStorage gets corrupted or cleared
+            try {
+              sessionStorage.setItem(`backup_${progressKey}`, serializedData);
+            } catch (sessionError) {
+              console.warn('Could not create sessionStorage backup:', sessionError);
+            }
           } catch (storageError) {
             console.error('Failed to save progress to localStorage:', storageError);
             
-            // If we hit quota, try cleaning up old progress data
+            // If we hit quota, try cleaning up old progress data, but be selective
             if (storageError.name === 'QuotaExceededError' || 
                 storageError.code === 22 || // Chrome's storage full error code
                 storageError.message.includes('storage') || 
                 storageError.message.includes('quota')) {
               console.warn('Storage quota exceeded, cleaning up old data...');
               
-              // Find and remove old progress entries
+              // Find and remove old progress entries - but be smarter about it
               try {
+                // Get the current user ID so we don't delete their current progress
+                const currentUserId = userId; // Use the userId from parent scope
+                
+                // 1. First collect all progress keys
+                const allProgressKeys = [];
                 for (let i = 0; i < localStorage.length; i++) {
                   const key = localStorage.key(i);
                   if (key && key.startsWith('progress_') && key !== progressKey) {
-                    localStorage.removeItem(key);
-                    console.log(`Removed old progress key: ${key}`);
+                    allProgressKeys.push(key);
                   }
                 }
                 
-                // Try saving again after cleanup
-                localStorage.setItem(progressKey, JSON.stringify(progressData));
-                console.log('Successfully saved progress after cleanup');
+                // 2. Prioritize which keys to remove
+                // First try removing keys from other users
+                let removed = 0;
+                for (const key of allProgressKeys) {
+                  if (!key.includes(currentUserId)) {
+                    localStorage.removeItem(key);
+                    removed++;
+                    console.log(`Removed other user's progress key: ${key}`);
+                  }
+                  
+                  // If we've removed 5 items, try saving again
+                  if (removed >= 5) {
+                    try {
+                      // Re-stringify the data to make sure we have it
+                      const dataToSave = JSON.stringify(progressData);
+                      localStorage.setItem(progressKey, dataToSave);
+                      console.log('Successfully saved progress after cleanup');
+                      return; // Success, we're done
+                    } catch (retryError) {
+                      console.log('Still need to remove more data...');
+                      // Continue with removal
+                    }
+                  }
+                }
+                
+                // If we get here, we need to remove some of the current user's data too
+                // First, try saving to sessionStorage as a backup
+                try {
+                  // Re-stringify the data to make sure we have it
+                  const dataToSave = JSON.stringify(progressData);
+                  sessionStorage.setItem(`backup_${progressKey}`, dataToSave);
+                  console.log('Saved progress to sessionStorage as fallback');
+                } catch (sessionError) {
+                  console.warn('Could not create sessionStorage backup:', sessionError);
+                }
+                
+                // Then continue with cleanup of user's own data if needed
+                const phaseOrder = ['pretest', 'training', 'posttest1', 'posttest2', 'posttest3'];
+                const currentPhaseIndex = phaseOrder.indexOf(currentPhase);
+                
+                // Find completed phases that we can safely remove
+                for (const phase of phaseOrder) {
+                  // Only remove data from phases that are completed
+                  const phaseIndex = phaseOrder.indexOf(phase);
+                  if (phaseIndex < currentPhaseIndex) {
+                    for (const key of allProgressKeys) {
+                      if (key.includes(currentUserId) && key.includes(phase)) {
+                        localStorage.removeItem(key);
+                        removed++;
+                        console.log(`Removed completed phase progress: ${key}`);
+                      }
+                    }
+                  }
+                }
+                
+                // Final attempt to save
+                try {
+                  // Re-stringify the data to make sure we have it
+                  const dataToSave = JSON.stringify(progressData);
+                  localStorage.setItem(progressKey, dataToSave);
+                  console.log('Successfully saved progress after targeted cleanup');
+                } catch (finalError) {
+                  console.error('Still unable to save after extensive cleanup:', finalError);
+                }
               } catch (cleanupError) {
-                console.error('Still unable to save after cleanup:', cleanupError);
+                console.error('Error during storage cleanup:', cleanupError);
+              }
+            } else {
+              // Not a quota error, try session storage as fallback
+              try {
+                // Re-stringify the data to make sure we have it
+                const dataToSave = JSON.stringify(progressData);
+                sessionStorage.setItem(`backup_${progressKey}`, dataToSave);
+                console.log('Saved progress to sessionStorage as fallback after other error');
+              } catch (sessionError) {
+                console.error('All storage attempts failed:', sessionError);
               }
             }
           }
