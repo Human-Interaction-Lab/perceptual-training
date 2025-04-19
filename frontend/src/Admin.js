@@ -924,7 +924,7 @@ This action cannot be undone.`)) {
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Progress
+                Progress & Dates
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -947,7 +947,10 @@ This action cannot be undone.`)) {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
                       Phase: {user.currentPhase}<br />
-                      Day: {user.trainingDay}
+                      Day: {user.trainingDay}<br />
+                      {user.pretestDate && (
+                        <>Pretest: {new Date(user.pretestDate).toLocaleDateString()}</>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

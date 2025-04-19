@@ -1269,27 +1269,69 @@ const App = () => {
             // CRITICAL FIX: If we're in pretest, make sure the pretest date is set
             if (phase === 'pretest') {
               try {
-                // Call the API to ensure pretest date is set
+                console.log('Setting pretest date after intelligibility test completion');
+                
+                // Call the API to ensure pretest date is set with proper awaiting
                 const token = localStorage.getItem('token');
-                fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+                if (!token) {
+                  throw new Error('No auth token available');
+                }
+                
+                // Create a timeout promise for the fetch operation
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('Setting pretest date timed out')), 10000);
+                });
+                
+                // Create the fetch promise
+                const fetchPromise = fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                   }
-                })
-                .then(response => response.json())
-                .then(data => {
-                  console.log('Pretest date status:', data.message);
-                  // Update pretestDate in frontend state if returned
-                  if (data.pretestDate && !pretestDate) {
-                    // Using imported toEasternTime function
-                    setPretestDate(toEasternTime(data.pretestDate));
-                  }
-                })
-                .catch(err => console.error('Error updating pretest date:', err));
+                });
+                
+                // Race the fetch against the timeout
+                Promise.race([fetchPromise, timeoutPromise])
+                  .then(response => {
+                    if (!response.ok) {
+                      throw new Error(`Server error: ${response.status}`);
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                    console.log('Pretest date successfully set:', data.message);
+                    // Update pretestDate in frontend state
+                    if (data.pretestDate) {
+                      // Using imported toEasternTime function
+                      const formattedDate = toEasternTime(data.pretestDate);
+                      console.log(`Setting pretestDate state to: ${formattedDate}`);
+                      setPretestDate(formattedDate);
+                      
+                      // Also store in sessionStorage as backup
+                      try {
+                        sessionStorage.setItem('pretestDate', formattedDate);
+                      } catch (sessionError) {
+                        console.warn('Could not save pretestDate to sessionStorage:', sessionError);
+                      }
+                    }
+                  })
+                  .catch(err => {
+                    console.error('Error updating pretest date:', err);
+                    // If there's an error, try once more after a short delay
+                    setTimeout(() => {
+                      console.log('Retrying pretest date setting...');
+                      fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        }
+                      }).catch(retryErr => console.error('Retry failed:', retryErr));
+                    }, 3000);
+                  });
               } catch (error) {
-                console.error('Error ensuring pretest date:', error);
+                console.error('Error in pretest date setting logic:', error);
               }
             }
             break;

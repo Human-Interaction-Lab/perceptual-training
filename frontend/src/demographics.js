@@ -280,6 +280,60 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         throw new Error(data.error || 'Failed to submit form');
       }
 
+      // Save completion status in localStorage
+      localStorage.setItem('demographicsCompleted', 'true');
+      localStorage.setItem(`demographicsCompleted_${localStorage.getItem('userId')}`, 'true');
+      
+      // CRITICAL FIX: Ensure pretest date is set when demographics is completed
+      console.log('Demographics completed - ensuring pretest date is set');
+      try {
+        // Call the API to ensure pretest date is set with a proper timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Setting pretest date timed out')), 10000);
+        });
+        
+        // Create the fetch promise
+        const fetchPromise = fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+        
+        // Race the fetch against the timeout
+        const pretestDateResponse = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (!pretestDateResponse.ok) {
+          throw new Error(`Server error: ${pretestDateResponse.status}`);
+        }
+        
+        const pretestData = await pretestDateResponse.json();
+        console.log('Pretest date successfully set:', pretestData.message);
+        
+        // Also store in sessionStorage as backup
+        if (pretestData.pretestDate) {
+          try {
+            sessionStorage.setItem('pretestDate', pretestData.pretestDate);
+          } catch (sessionError) {
+            console.warn('Could not save pretestDate to sessionStorage:', sessionError);
+          }
+        }
+      } catch (pretestDateError) {
+        console.error('Error updating pretest date after demographics:', pretestDateError);
+        // Try once more after a short delay
+        setTimeout(() => {
+          console.log('Retrying pretest date setting...');
+          fetch(`${config.API_BASE_URL}/api/update-pretest-date`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            }
+          }).catch(retryErr => console.error('Retry failed:', retryErr));
+        }, 3000);
+      }
+
       // No longer preload files at all during demographics submission
       console.log("Demographics submitted successfully - no longer preloading files here");
 
