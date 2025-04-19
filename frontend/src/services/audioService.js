@@ -90,12 +90,36 @@ const audioService = {
                         userId = this.extractUserIdFromToken();
                     }
                     
-                    // Get the randomized sequence for this phase
-                    const randomizedFiles = getGroupForPhase(phase, null, userId);
+                    // Special handling for training phase + intelligibility test
+                    let trainingDay = null;
+                    
+                    // If this is the training phase, we need to extract the training day from the URL or parameters
+                    if (phase === 'training') {
+                        // Check if there's a trainingDay in scope (from outer function parameters)
+                        if (typeof window !== 'undefined' && window.currentTrainingDay) {
+                            trainingDay = window.currentTrainingDay;
+                            console.log(`Using training day from window: ${trainingDay}`);
+                        } else {
+                            // Try to extract from localStorage as fallback
+                            const user = JSON.parse(localStorage.getItem('user') || '{}');
+                            trainingDay = user.trainingDay || 1;
+                            console.log(`Using training day from localStorage: ${trainingDay}`);
+                        }
+                    }
+                    
+                    // Get the randomized sequence for this phase, passing trainingDay if applicable
+                    console.log(`Getting randomized files for phase=${phase}, trainingDay=${trainingDay}, userId=${userId}`);
+                    const randomizedFiles = getGroupForPhase(phase, trainingDay, userId);
                     
                     // Map the sequential index (sentence) to the randomized file number
                     // Note: sentence is 1-indexed, array is 0-indexed
-                    fileNumber = randomizedFiles[sentence - 1];
+                    if (randomizedFiles && randomizedFiles.length > 0 && (sentence - 1) < randomizedFiles.length) {
+                        fileNumber = randomizedFiles[sentence - 1];
+                    } else {
+                        console.error(`ERROR: Cannot get randomized file for index ${sentence - 1} from array of length ${randomizedFiles?.length || 0}`);
+                        // Use a safe fallback
+                        fileNumber = Math.min(sentence, 60); // Fallback to sequential up to 60
+                    }
                     
                     console.log(`RANDOMIZATION: Using file number ${fileNumber} instead of sequential ${sentence}`);
                 } catch (randError) {
@@ -161,11 +185,32 @@ const audioService = {
                     const { getGroupForPhase } = require('../utils/randomization');
                     const userId = this.extractUserIdFromToken();
                     
-                    // Get the randomized sequence for the current phase
-                    const randomizedFiles = getGroupForPhase(phase, null, userId);
+                    // Special handling for training phase to get training day
+                    let trainingDay = null;
+                    if (phase === 'training') {
+                        // Try to get training day from various sources
+                        if (typeof window !== 'undefined' && window.currentTrainingDay) {
+                            trainingDay = window.currentTrainingDay;
+                        } else {
+                            // Try to extract from localStorage as fallback
+                            const user = JSON.parse(localStorage.getItem('user') || '{}');
+                            trainingDay = user.trainingDay || 1;
+                        }
+                        console.log(`Fallback using training day: ${trainingDay}`);
+                    }
                     
-                    // Map the sequential index (sentence) to the randomized file number
-                    const randomizedFileNumber = randomizedFiles[sentence - 1];
+                    // Get the randomized sequence for the current phase WITH training day if applicable
+                    const randomizedFiles = getGroupForPhase(phase, trainingDay, userId);
+                    console.log(`Fallback received randomized files:`, randomizedFiles ? randomizedFiles.slice(0, 5) : 'null');
+                    
+                    // Map the sequential index (sentence) to the randomized file number with safety checks
+                    let randomizedFileNumber;
+                    if (randomizedFiles && randomizedFiles.length > 0 && (sentence - 1) < randomizedFiles.length) {
+                        randomizedFileNumber = randomizedFiles[sentence - 1];
+                    } else {
+                        console.error(`ERROR in fallback: Cannot get file for index ${sentence - 1} from array of length ${randomizedFiles?.length || 0}`);
+                        randomizedFileNumber = Math.min(sentence, 60); // Safe fallback
+                    }
                     
                     console.log(`Using randomized file number: ${randomizedFileNumber} instead of sequential number: ${sentence}`);
                     

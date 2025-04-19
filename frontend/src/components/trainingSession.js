@@ -400,13 +400,40 @@ const TrainingSession = ({
             // Cap at 19 to stay within the allocated segment size
             const safeIndex = Math.min(currentStimulusIndex, 19);
             
+            // Store training day in window for other services to access
+            if (typeof window !== 'undefined') {
+                window.currentTrainingDay = trainingDay;
+                console.log(`Set current training day in window (submit): ${trainingDay}`);
+            }
+            
             // Get randomized file number from the appropriate training day sequence
             // Use 'training' phase with trainingDay parameter to get the correct segment
             const trainingFiles = getGroupForPhase('training', trainingDay, userId);
             console.log(`Getting randomized file for day ${trainingDay}, index ${safeIndex}:`, 
                         `Full sequence (${trainingFiles.length}):`, trainingFiles);
             
+            // Safety checks for index and array bounds
+            if (!trainingFiles || trainingFiles.length === 0) {
+                console.error(`No randomized files returned for training day ${trainingDay}`);
+                alert('Error retrieving audio files. Please try again or contact support.');
+                return;
+            }
+            
+            // Ensure index is valid
+            if (safeIndex >= trainingFiles.length) {
+                console.error(`Index ${safeIndex} out of bounds for array of length ${trainingFiles.length}`);
+                alert('Invalid audio file selection. Please try again or contact support.');
+                return;
+            }
+            
             const actualFileNumber = trainingFiles[safeIndex];
+            
+            // Verify file number is reasonable
+            if (actualFileNumber < 1 || actualFileNumber > 160) {
+                console.error(`Invalid file number ${actualFileNumber} - should be between 1 and 160`);
+                alert('Invalid audio file number. Please try again or contact support.');
+                return;
+            }
             console.log(`Using randomized file number ${actualFileNumber} for index ${safeIndex} (day ${trainingDay})`);
 
             // Int01, Int02, etc. format for the actual stimulus ID
@@ -553,14 +580,48 @@ const TrainingSession = ({
                 // Race the audio playback against our timeout
                 // USE playRandomizedTestAudio instead which handles randomization correctly
                 const result = await Promise.race([
-                    // Use the standard playRandomizedTestAudio method - same as pretest/posttest
-                    audioService.playRandomizedTestAudio(
-                        'training', // Use 'training' as the phase for backend API
-                        'intelligibility',
-                        null,
-                        safeIndex + 1, // Use 1-based sequential index, the method will do randomization internally
-                        userId
-                    ),
+                    // Custom wrapper for training test audio that ensures trainingDay is passed properly
+                    (async () => {
+                        console.log(`Creating custom training test audio request for day ${trainingDay}`);
+                        
+                        // Store training day in window for other services to access
+                        if (typeof window !== 'undefined') {
+                            window.currentTrainingDay = trainingDay;
+                            console.log(`Set current training day in window: ${trainingDay}`);
+                        }
+                        
+                        // First, get the randomized file directly using getGroupForPhase
+                        const { getGroupForPhase } = require('../utils/randomization');
+                        const randomizedFiles = getGroupForPhase('training', trainingDay, userId);
+                        
+                        if (!randomizedFiles || randomizedFiles.length === 0) {
+                            throw new Error(`No randomized files returned for training day ${trainingDay}`);
+                        }
+                        
+                        // Get the actual file number for this index and ensure it's valid
+                        if (safeIndex >= randomizedFiles.length) {
+                            console.error(`Index ${safeIndex} out of bounds for randomized files array of length ${randomizedFiles.length}`);
+                            throw new Error(`Invalid file index: ${safeIndex} exceeds available files`);
+                        }
+                        
+                        const actualFileNumber = randomizedFiles[safeIndex];
+                        
+                        // Verify file number is in a reasonable range
+                        if (actualFileNumber < 1 || actualFileNumber > 160) {
+                            console.error(`Invalid file number ${actualFileNumber} - should be between 1 and 160`);
+                            throw new Error(`Invalid file number: ${actualFileNumber}`);
+                        }
+                        
+                        console.log(`Directly using file number ${actualFileNumber} from day ${trainingDay} sequence`);
+                        
+                        // Use the standard playTestAudio which directly accesses the backend API
+                        return await audioService.playTestAudio(
+                            'training',
+                            'intelligibility',
+                            null,
+                            actualFileNumber // Use pre-randomized file number
+                        );
+                    })(),
                     timeoutPromise
                 ]);
 

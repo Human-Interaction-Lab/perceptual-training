@@ -160,6 +160,13 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
             // Each training day gets its own segment for intelligibility test
             startIndex = 20 + (trainingDay - 1) * groupSize;
             console.log(`Training test for day ${trainingDay} using segment at index ${startIndex}`);
+            // Add additional logging to help diagnose issues
+            if (startIndex < 0 || startIndex >= fullSequence.length) {
+                console.error(`CRITICAL ERROR: Invalid segment index ${startIndex} for training day ${trainingDay}`);
+                // Fall back to a safe segment if needed
+                startIndex = Math.min(Math.max(0, startIndex), fullSequence.length - groupSize);
+                console.log(`FALLBACK: Using segment index ${startIndex} instead`);
+            }
         } else {
             // Original behavior for regular training (not intelligibility test)
             // Return unused segment at the end
@@ -191,6 +198,15 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     // Extract the group from the sequence
     const group = fullSequence.slice(startIndex, startIndex + groupSize);
     console.log(`Extracted ${group.length} intelligibility files starting from index ${startIndex}`);
+
+    // Add some additional validation logs
+    if (group.length === 0) {
+        console.error(`ERROR: No files extracted for phase ${phase}, day ${trainingDay}, startIndex ${startIndex}`);
+    }
+    
+    // Log the full group and parameters for debugging
+    console.log(`Full group for ${phase}${trainingDay ? ', day ' + trainingDay : ''}: ${group.join(', ')}`);
+    console.log(`Randomization parameters: startIndex=${startIndex}, groupSize=${groupSize}, fullSequenceLength=${fullSequence.length}`);
 
     // Log a few sample files for verification
     if (group.length > 0) {
