@@ -776,6 +776,21 @@ const App = () => {
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userId', userId);
+        
+        // Store full user data for easier access throughout the app
+        // This will include the speaker attribute from the backend
+        localStorage.setItem('user', JSON.stringify({
+          userId: userId,
+          currentPhase: data.currentPhase,
+          trainingDay: data.trainingDay,
+          pretestDate: data.pretestDate,
+          speaker: data.speaker || 'OHSp01', // Default to OHSp01 if not provided
+          canProceedToday: data.canProceedToday
+        }));
+        
+        // Log the speaker for debugging
+        console.log(`User login complete. Speaker: ${data.speaker || 'OHSp01'}`);
+        
         setUserId(userId); // Ensure this is also set in component state
         setCurrentPhase(data.currentPhase);
         setTrainingDay(data.trainingDay);

@@ -214,9 +214,36 @@ const audioService = {
                     
                     console.log(`Using randomized file number: ${randomizedFileNumber} instead of sequential number: ${sentence}`);
                     
-                    // Try direct access to the randomized file pattern
-                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
-                    console.log(`Trying direct file access with randomized number: ${directUrl}`);
+                    // Instead of hardcoding a direct URL, use the API
+                    // The backend handles speaker selection based on the user
+                    const apiUrl = `${BASE_URL}/audio/pretest/intelligibility/null/${randomizedFileNumber}`;
+                    console.log(`Using proper API endpoint instead of hardcoded speaker: ${apiUrl}`);
+                    
+                    let directUrl = '';
+                    try {
+                        // Get the URL via API response instead
+                        const apiResponse = await fetch(apiUrl, {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
+                        
+                        if (!apiResponse.ok) {
+                            throw new Error(`API request failed: ${apiResponse.status}`);
+                        }
+                        
+                        const apiData = await apiResponse.json();
+                        if (!apiData.url) {
+                            throw new Error('No URL in API response');
+                        }
+                        
+                        directUrl = `${BASE_URL}${apiData.url}`;
+                    } catch (apiError) {
+                        console.warn('API approach failed:', apiError);
+                        throw apiError;
+                    }
+                    
+                    console.log(`Got audio file URL: ${directUrl}`);
                     
                     try {
                         // This will fail if the file doesn't exist, which is fine
@@ -627,12 +654,27 @@ const audioService = {
      * @param {string} testType - 'intelligibility', 'effort', or 'comprehension'
      * @param {number|string} version - Version/story number for comprehension tests
      * @param {number|string} sentence - Sentence number
+     * @param {object} options - Optional parameters (actualPhase, etc.)
      * @returns {Promise<void>}
      */
-    async playTestAudio(phase, testType, version, sentence) {
-        console.log('playTestAudio called with:', { phase, testType, version, sentence });
-
+    async playTestAudio(phase, testType, version, sentence, options = {}) {
+        console.log('playTestAudio called with:', { phase, testType, version, sentence, options });
+        
+        // Special handling for training intelligibility tests
+        // The backend doesn't have a direct route for this, so we use pretest route
+        const actualPhase = options?.actualPhase || phase;
+        
         try {
+            // SPECIAL CASE: If this is actually for training intelligibility but using pretest route
+            if (actualPhase === 'training' && phase === 'pretest' && testType === 'intelligibility') {
+                console.log('Special case: Training intelligibility test using pretest route as workaround');
+                
+                // Store this info for logging/debugging
+                if (typeof window !== 'undefined') {
+                    window.isTrainingIntelligibilityTest = true;
+                }
+            }
+            
             // Normalize phase name to ensure consistency
             const normalizedPhase = phase.startsWith('posttest') ? phase : phase;
             
@@ -643,7 +685,7 @@ const audioService = {
                 throw new Error('Authentication required');
             }
             
-            // Construct URL
+            // Construct URL - pretest and posttest use standard route
             const url = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`;
             console.log(`Requesting audio file from: ${url}`);
 
@@ -964,16 +1006,16 @@ const audioService = {
                 }
             };
 
-            audio.onerror = (event) => {
+            audio.onerror = async (event) => {
                 const errorMessage = `Audio error: ${audio.error ? audio.error.code : 'unknown error'}`;
                 console.error(errorMessage, event);
                 cleanup();
                 
                 // Only attempt fallback if we haven't settled the promise yet
                 if (!isSettled) {
-                    // This is a new fallback: Try hacking the URL to see if it's an intelligibility file
-                    // that we can access directly
-                    if (url.includes('/audio/') && !url.includes('Grace Norman_Int')) {
+                    // This is a new fallback: Try a different API endpoint if the standard one fails
+                    // Let the backend handle speaker selection based on the user
+                    if (url.includes('/audio/')) {
                         // Try to extract the phase and sentence number from the URL
                         const phaseMatch = url.match(/\/audio\/([^\/]+)/);
                         const numberMatch = url.match(/\/(\d+)$/);
@@ -994,12 +1036,20 @@ const audioService = {
                                 const randomizedFileNumber = randomizedFiles[sequentialNum - 1];
                                 console.log(`Fallback: Using randomized file ${randomizedFileNumber} instead of sequential ${sequentialNum}`);
                                 
-                                // Construct a direct file URL using randomized number
-                                const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
-                                console.log(`Original audio URL failed, trying randomized fallback URL: ${directUrl}`);
+                                // Use direct approach without async/await in event handlers
+                                const apiUrl = `${BASE_URL}/audio/pretest/intelligibility/null/${randomizedFileNumber}`;
+                                console.log(`Original audio URL failed, using direct URL: ${apiUrl}`);
                                 
-                                // Create a new audio element for the fallback
-                                const fallbackAudio = new Audio(directUrl);
+                                // Create a new audio element with direct URL
+                                // This avoids using async/await in event handlers
+                                const fallbackAudio = new Audio();
+                                
+                                // Configure before setting source
+                                fallbackAudio.crossOrigin = "anonymous";
+                                fallbackAudio.preload = "auto";
+                                
+                                // Add the src last - this triggers loading
+                                fallbackAudio.src = apiUrl;
                                 
                                 // Clean up function for fallback
                                 let fallbackCleaned = false;
@@ -1046,11 +1096,19 @@ const audioService = {
                                 
                                 // Only try the sequential fallback if we haven't settled yet
                                 if (!isSettled) {
-                                    // Fall back to sequential as last resort
-                                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sequentialNum).padStart(2, '0')}.wav`;
-                                    console.log(`Randomization failed, using sequential fallback: ${directUrl}`);
+                                    // Try direct approach without async/await
+                                    console.log(`Last resort: trying direct approach with sequential number ${sequentialNum}`);
                                     
-                                    const seqFallbackAudio = new Audio(directUrl);
+                                    // Use a simple direct approach without async/await
+                                    // This avoids issues with scope and async in event handlers
+                                    const directUrl = `${BASE_URL}/audio/pretest/intelligibility/null/${sequentialNum}`;
+                                    console.log(`Using direct API endpoint: ${directUrl}`);
+                                    
+                                    const seqFallbackAudio = new Audio();
+                                    
+                                    // Configure audio element
+                                    seqFallbackAudio.crossOrigin = "anonymous";
+                                    seqFallbackAudio.preload = "auto";
                                     
                                     // Clean up function for sequential fallback
                                     let seqFallbackCleaned = false;
@@ -1068,6 +1126,16 @@ const audioService = {
                                             }
                                         }
                                     };
+                                    
+                                    // Set up error handler before setting source
+                                    seqFallbackAudio.onerror = () => {
+                                        console.error('Final fallback audio also failed');
+                                        cleanupSeqFallback();
+                                        safeReject(new Error('All audio playback methods failed'));
+                                    };
+                                    
+                                    // Set the source last - this triggers loading
+                                    seqFallbackAudio.src = directUrl;
                                     
                                     seqFallbackAudio.onended = () => {
                                         console.log('Sequential fallback audio playback completed');

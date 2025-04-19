@@ -614,13 +614,68 @@ const TrainingSession = ({
                         
                         console.log(`Directly using file number ${actualFileNumber} from day ${trainingDay} sequence`);
                         
-                        // Use the standard playTestAudio which directly accesses the backend API
-                        return await audioService.playTestAudio(
-                            'training',
-                            'intelligibility',
-                            null,
-                            actualFileNumber // Use pre-randomized file number
-                        );
+                        // Since backend has two separate routes, we need to pick one that works
+                        // The pretest route accepts intelligibility files but rejects 'training' phase
+                        // The training route requires the 'day' parameter which doesn't work for int files
+                        
+                        // WORKAROUND: Use pretest phase to access intelligibility files
+                        console.log(`Using pretest phase as workaround to access intelligibility file #${actualFileNumber}`);
+                        
+                        // Handle 404s gracefully with fallback
+                        try {
+                            return await audioService.playTestAudio(
+                                'pretest', // Use 'pretest' which works with the backend route
+                                'intelligibility',
+                                null,
+                                actualFileNumber, // Use pre-randomized file number
+                                // We're still correctly randomizing based on training phase+day on the frontend
+                                // This is just to make the backend API work
+                                {actualPhase: 'training'}
+                            );
+                        } catch (error) {
+                            if (error.message === 'AUDIO_NOT_FOUND' || error.message.includes('not found') || error.message.includes('404')) {
+                                console.warn(`File #${actualFileNumber} not found, trying fallback with sequential file`);
+                                
+                                // Instead of hardcoding a direct URL, 
+                                // try another approach with the backend API
+                                // This time request the file through a different endpoint
+                                console.log(`Attempting to access file through backend API...`);
+                                
+                                // The backend knows the correct speaker for this user
+                                const token = localStorage.getItem('token');
+                                if (!token) {
+                                    throw new Error('No authentication token found');
+                                }
+                                
+                                // Try using the pretest phase as another approach
+                                const backupUrl = `${config.API_BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`;
+                                console.log(`Trying backup API endpoint: ${backupUrl}`);
+                                
+                                const response = await fetch(backupUrl, {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`
+                                    }
+                                });
+                                
+                                if (!response.ok) {
+                                    console.error(`Backup API request failed: ${response.status}`);
+                                    throw new Error('All file access methods failed');
+                                }
+                                
+                                const data = await response.json();
+                                if (!data.url) {
+                                    throw new Error('No URL in backup API response');
+                                }
+                                
+                                console.log(`Got file URL from backup API: ${data.url}`);
+                                // Use audio service's direct playback method
+                                await audioService.playAudioFromUrl(`${config.API_BASE_URL}${data.url}`);
+                                return true; // Consider it successful
+                            }
+                            
+                            // For other errors, let them propagate
+                            throw error;
+                        }
                     })(),
                     timeoutPromise
                 ]);
