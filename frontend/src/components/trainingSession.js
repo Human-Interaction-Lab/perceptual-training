@@ -467,7 +467,8 @@ const TrainingSession = ({
                 stimulusId: actualStimulusId, // Use the actual stimulus ID format (Int01, Int02, etc.)
                 response: userResponse,
                 trainingDay: trainingDay, // Add the required trainingDay field
-                currentTestType: 'intelligibility' // Add this field which may be expected by backend
+                currentTestType: 'intelligibility', // Add this field which may be expected by backend
+                randomizedFileNumber: fileNumberToUse // Explicitly include the randomized file number for clarity
             };
 
             console.log('Submitting test response with data:', requestBody);

@@ -319,6 +319,7 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
 
     // Check if file exists in Box - use appropriate pattern based on test type
     let pattern;
+    let randomizedFileNumber = null; // Initialize for scope so it's available outside the if blocks
     const testTypeUpper = testType.toUpperCase();
 
     if (testTypeUpper === "COMPREHENSION") {
@@ -362,7 +363,6 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
 
         // IMPORTANT: If sentence is already a randomized file number, we should use it directly
         // instead of trying to look it up in the randomized sequence
-        let randomizedFileNumber;
 
         // CRITICAL: For training intelligibility test, pay special attention 
         if (phase === 'training' && testType.toUpperCase() === 'INTELLIGIBILITY') {
@@ -408,6 +408,8 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         // Fallback to using the sequential number if randomization fails
         pattern = `Int${String(sentence).padStart(2, '0')}`;
         console.log(`FALLBACK: Using sequential intelligibility file pattern: ${pattern}`);
+        // Set the randomized file number to the sentence in the fallback case
+        randomizedFileNumber = parseInt(sentence);
       }
     } else { // EFFORT
       pattern = `EFF${String(sentence).padStart(2, '0')}`;
@@ -420,6 +422,12 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
       });
     }
 
+    // Special case for intelligibility tests - use the randomized file number if it's set
+    const actualSentence = (testTypeUpper === "INTELLIGIBILITY" && randomizedFileNumber !== null) 
+                           ? randomizedFileNumber : sentenceNum;
+    
+    console.log(`Using ${testType.toUpperCase() === 'INTELLIGIBILITY' ? 'randomized' : 'sequential'} file number: ${actualSentence}`);
+    
     // Stream and save the file from Box
     const fileInfo = await tempFileService.streamAndSaveFile(
       userId,
@@ -427,7 +435,7 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
       phase,
       safeTestType,  // Use the safe string version
       versionNum,
-      sentenceNum
+      actualSentence  // Use the randomized file number for intelligibility tests
     );
 
     // Return the URL to the temporary file

@@ -196,9 +196,18 @@ class BoxService {
   }
 
   // Get training file
-  async getTrainingFile(speaker, day, sentence) {
-    const filename = `${speaker}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
-    console.log(`Getting training file: ${filename}`);
+  async getTrainingFile(speaker, day, sentence, testType = null) {
+    let filename;
+    
+    // SPECIAL CASE: For training intelligibility, use Int pattern
+    if (testType === 'INTELLIGIBILITY') {
+      filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+      console.log(`Getting training intelligibility file: ${filename}`);
+    } else {
+      // Regular training file
+      filename = `${speaker}_Trn_${String(day).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
+      console.log(`Getting training file: ${filename}`);
+    }
 
     return this.getFileStream(speaker, filename);
   }
@@ -211,6 +220,7 @@ class BoxService {
         : `${speaker}_${filenameOrPattern}.wav`;
 
       console.log(`Checking if file exists: ${filename}`);
+      console.log(`Using pattern: ${filenameOrPattern}`);
 
       const files = await this.listUserFiles(speaker);
       const exists = files.includes(filename);

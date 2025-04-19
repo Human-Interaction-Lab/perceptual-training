@@ -94,8 +94,13 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
   // Generate filename based on parameters
   let filename;
 
-  if (phase === 'training') {
-    // For training files: <speaker>_Trn_<day>_<sentence>.wav
+  // SPECIAL CASE: Handle training intelligibility files differently
+  if (phase === 'training' && testType === 'INTELLIGIBILITY') {
+    // For training intelligibility files, use Int pattern not Trn pattern
+    filename = `${speaker}_Int${String(sentence).padStart(2, '0')}.wav`;
+    console.log(`Using intelligibility file pattern for training phase: ${filename}`);
+  } else if (phase === 'training') {
+    // For regular training files: <speaker>_Trn_<day>_<sentence>.wav
     filename = `${speaker}_Trn_${String(version).padStart(2, '0')}_${String(sentence).padStart(2, '0')}.wav`;
   } else if (testType === 'PRACTICE') {
     // Handle practice files
@@ -151,7 +156,8 @@ const streamAndSaveFile = async (userId, speaker, phase, testType, version, sent
   let fileStream;
 
   if (phase === 'training') {
-    fileStream = await boxService.getTrainingFile(speaker, version, sentence);
+    // Pass testType for special handling of training intelligibility files
+    fileStream = await boxService.getTrainingFile(speaker, version, sentence, testType);
   } else {
     fileStream = await boxService.getTestFile(speaker, testType, version, sentence);
   }
@@ -368,7 +374,14 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
             // Import the randomization utils if needed
             const randomizationPath = path.join(__dirname, '..', 'frontend', 'src', 'utils', 'randomization.js');
             const randomization = require(randomizationPath);
-            randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+            // For training intelligibility, make sure to pass training day to get the right segment
+            if (phase === 'training') {
+              // For training phase, we need to pass the training day
+              randomizedFiles = randomization.getGroupForPhase(phase, trainingDay, userId);
+              console.log(`Using training day ${trainingDay} for randomization`);
+            } else {
+              randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+            }
             console.log(`Loaded randomized intelligibility sequence for user ${userId}: ${randomizedFiles.slice(0, 5)}...`);
           } catch (randomizationError) {
             console.error('Error getting randomized sequence:', randomizationError);
@@ -409,6 +422,7 @@ const preloadPhaseFiles = async (userId, speaker, phase, trainingDay = null, act
 
               if (exists) {
                 // Pass the randomized file number as the sentence parameter
+                // Also specify the correct test type, especially important for training phase
                 const fileInfo = await streamAndSaveFile(
                   userId,
                   speaker,
