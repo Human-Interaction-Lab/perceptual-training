@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
-import { ArrowRight, Headphones, Volume2, Loader } from 'lucide-react';
+import { ArrowRight, Headphones, Volume2, Loader, AlertCircle } from 'lucide-react';
 import IntelligibilityTest from './intelligibilityTest';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI, TRAINING_DAY_TO_STORY, STORY_METADATA } from './trainingData';
 import audioService from '../services/audioService';
@@ -283,6 +283,18 @@ const TrainingSession = ({
                     setAudioPlayed(true);
                 } catch (error) {
                     console.error('Error auto-playing audio:', error);
+                    
+                    // Check for specific audio not found errors
+                    if (error.message === 'AUDIO_NOT_FOUND' ||
+                        error.message.includes('not found') ||
+                        error.message.includes('404')) {
+                        
+                        console.log('Audio file not found. Setting audio as played to allow continuing.');
+                        // Set audio as played so user can continue
+                        setAudioPlayed(true);
+                        // Show an alert to inform the user
+                        alert('Audio file could not be found. You can proceed to the next phrase by clicking Next.');
+                    }
                 } finally {
                     setAudioPlaying(false);
                 }
@@ -890,15 +902,22 @@ const TrainingSession = ({
                         <div
                             className={`w-full h-16 rounded-md flex items-center justify-center space-x-3 ${audioPlaying
                                 ? "bg-[#f3ecda]"
-                                : audioPlayed
-                                    ? "bg-[#f3ecda] bg-opacity-70"
-                                    : "bg-[#dad6d9] bg-opacity-30"
+                                : audioPlayed && !audioStoryNumber
+                                    ? "bg-red-100" // Error state when audio played = true but no story (audio not found)
+                                    : audioPlayed
+                                      ? "bg-[#f3ecda] bg-opacity-70"
+                                      : "bg-[#dad6d9] bg-opacity-30"
                                 }`}
                         >
                             {audioPlaying ? (
                                 <>
                                     <Loader className="h-6 w-6 text-[#406368] animate-spin" />
                                     <span className="text-[#406368] font-medium">Audio Playing...</span>
+                                </>
+                            ) : audioPlayed && !audioStoryNumber ? (
+                                <>
+                                    <AlertCircle className="h-6 w-6 text-red-500" />
+                                    <span className="text-red-500 font-medium">Audio Not Available - Click Next to Continue</span>
                                 </>
                             ) : audioPlayed ? (
                                 <>
@@ -915,9 +934,13 @@ const TrainingSession = ({
                     </div>
 
                     {showText && (
-                        <div className="mt-6 p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+                        <div className={`mt-6 p-6 ${audioPlayed && !audioStoryNumber 
+                            ? "bg-red-50 border-red-200" 
+                            : "bg-[#f3ecda] border-[#dad6d9]"} rounded-lg border`}>
                             <p className="text-lg text-center font-medium text-gray-800">
-                                {loadingText ? (
+                                {audioPlayed && !audioStoryNumber ? (
+                                    <span className="text-red-500 italic">Audio file not available. Please click Next to continue.</span>
+                                ) : loadingText ? (
                                     <span className="text-gray-500 italic">{displayText}</span>
                                 ) : (
                                     `"${displayText}"`
@@ -930,7 +953,9 @@ const TrainingSession = ({
                     <Button
                         onClick={handleNext}
                         disabled={!audioPlayed || audioPlaying}
-                        className="w-full bg-[#406368] hover:bg-[#6c8376] disabled:bg-[#6e6e6d]"
+                        className={`w-full ${audioPlayed && !audioStoryNumber 
+                            ? "bg-red-500 hover:bg-red-600" // Highlight the button for audio not found cases
+                            : "bg-[#406368] hover:bg-[#6c8376]"} disabled:bg-[#6e6e6d]`}
                     >
                         Next
                         <ArrowRight className="ml-2 h-4 w-4" />
