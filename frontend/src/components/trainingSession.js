@@ -434,10 +434,31 @@ const TrainingSession = ({
                 alert('Invalid audio file number. Please try again or contact support.');
                 return;
             }
-            console.log(`Using randomized file number ${actualFileNumber} for index ${safeIndex} (day ${trainingDay})`);
+            
+            // CRITICAL: Check if we have a stored file number from playback and ensure consistency
+            let fileNumberToUse = actualFileNumber;
+            
+            // If we have stored a file number in the window object during playback, use that instead
+            // This ensures we're consistently using the same file number for playback and response
+            if (typeof window !== 'undefined' && window.lastRandomizedFileNumber) {
+                const storedFileNumber = window.lastRandomizedFileNumber;
+                console.log(`Found stored randomized file number: ${storedFileNumber} - comparing with calculated: ${actualFileNumber}`);
+                
+                if (storedFileNumber !== actualFileNumber) {
+                    console.warn(`CRITICAL: Inconsistency detected - using stored file number ${storedFileNumber} instead of calculated ${actualFileNumber}`);
+                    fileNumberToUse = storedFileNumber;
+                } else {
+                    console.log(`CONSISTENCY CONFIRMED: Playback and response using same file number: ${actualFileNumber}`);
+                }
+            } else {
+                console.log(`No stored file number found - using calculated number: ${actualFileNumber}`);
+            }
+            
+            console.log(`Using randomized file number ${fileNumberToUse} for index ${safeIndex} (day ${trainingDay})`);
 
             // Int01, Int02, etc. format for the actual stimulus ID
-            const actualStimulusId = `Int${String(actualFileNumber).padStart(2, '0')}`;
+            // CRITICAL: Use fileNumberToUse which may be from window.lastRandomizedFileNumber
+            const actualStimulusId = `Int${String(fileNumberToUse).padStart(2, '0')}`;
 
             // Log what we're about to send
             const requestBody = {
@@ -614,23 +635,28 @@ const TrainingSession = ({
                         
                         console.log(`Directly using file number ${actualFileNumber} from day ${trainingDay} sequence`);
                         
-                        // Since backend has two separate routes, we need to pick one that works
-                        // The pretest route accepts intelligibility files but rejects 'training' phase
-                        // The training route requires the 'day' parameter which doesn't work for int files
+                        // Now the backend supports 'training' as a valid phase for intelligibility tests
+                        // We can directly use the proper phase instead of the pretest workaround
+                        console.log(`Using direct training phase for intelligibility file #${actualFileNumber}`);
                         
-                        // WORKAROUND: Use pretest phase to access intelligibility files
-                        console.log(`Using pretest phase as workaround to access intelligibility file #${actualFileNumber}`);
+                        // CRITICAL: Store the randomized file number in a global variable for debugging
+                        if (typeof window !== 'undefined') {
+                            window.lastRandomizedFileNumber = actualFileNumber;
+                            console.log(`Set lastRandomizedFileNumber in window: ${actualFileNumber}`);
+                        }
                         
                         // Handle 404s gracefully with fallback
                         try {
                             return await audioService.playTestAudio(
-                                'pretest', // Use 'pretest' which works with the backend route
+                                'training', // Use 'training' directly now that the backend supports it
                                 'intelligibility',
                                 null,
                                 actualFileNumber, // Use pre-randomized file number
-                                // We're still correctly randomizing based on training phase+day on the frontend
-                                // This is just to make the backend API work
-                                {actualPhase: 'training'}
+                                // Pass additional info to help with debugging and ensure consistent randomization
+                                {
+                                    trainingDay: trainingDay, 
+                                    randomizedFileNumber: actualFileNumber
+                                }
                             );
                         } catch (error) {
                             if (error.message === 'AUDIO_NOT_FOUND' || error.message.includes('not found') || error.message.includes('404')) {
@@ -647,8 +673,18 @@ const TrainingSession = ({
                                     throw new Error('No authentication token found');
                                 }
                                 
-                                // Try using the pretest phase as another approach
-                                const backupUrl = `${config.API_BASE_URL}/audio/pretest/intelligibility/null/${actualFileNumber}`;
+                                // CRITICAL: Log the actual file number we're using for the API call
+                                console.log(`CRITICAL BACKUP: Using randomized file number ${actualFileNumber} for backup API call`);
+                                
+                                // Store backup file number in window for debugging
+                                if (typeof window !== 'undefined') {
+                                    window.lastBackupFileNumber = actualFileNumber;
+                                    console.log(`Set lastBackupFileNumber in window: ${actualFileNumber}`);
+                                }
+                                
+                                // Use the training phase directly instead of pretest
+                                // Include trainingDay as a query parameter to ensure consistent randomization
+                                const backupUrl = `${config.API_BASE_URL}/audio/training/intelligibility/null/${actualFileNumber}?trainingDay=${trainingDay}`;
                                 console.log(`Trying backup API endpoint: ${backupUrl}`);
                                 
                                 const response = await fetch(backupUrl, {

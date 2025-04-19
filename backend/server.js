@@ -304,9 +304,9 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
       });
     }
 
-    // Validate phase - ensure this route is only used for pretest and posttest
-    if (phase !== 'pretest' && !phase.startsWith('posttest')) {
-      return res.status(400).json({ error: 'Invalid phase specified. Must be pretest or posttest' });
+    // Validate phase - ensure this route is only used for pretest, posttest, and training intelligibility tests
+    if (phase !== 'pretest' && !phase.startsWith('posttest') && !(phase === 'training' && testType === 'intelligibility')) {
+      return res.status(400).json({ error: 'Invalid phase specified. Must be pretest, posttest, or training (only for intelligibility tests)' });
     }
 
     // Validate test type against available types in boxService
@@ -345,7 +345,13 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         }
 
         // Get the randomized sequence for this user and phase
-        const randomizedFiles = randomization.getGroupForPhase(phase, null, userId);
+        // For training intelligibility tests, make sure to pass the training day parameter
+        const trainingDay = (phase === 'training' && testType.toUpperCase() === 'INTELLIGIBILITY') 
+          ? req.query.trainingDay || null  // Try to get from query parameter
+          : null;
+        
+        console.log(`Server.js: Getting randomized sequence for ${phase}, trainingDay=${trainingDay}`);
+        const randomizedFiles = randomization.getGroupForPhase(phase, trainingDay, userId);
 
         // Verify we got a valid array back
         if (!Array.isArray(randomizedFiles) || randomizedFiles.length === 0) {
@@ -358,8 +364,16 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
         // instead of trying to look it up in the randomized sequence
         let randomizedFileNumber;
 
+        // CRITICAL: For training intelligibility test, pay special attention 
+        if (phase === 'training' && testType.toUpperCase() === 'INTELLIGIBILITY') {
+          console.log(`Server.js: TRAINING INTELLIGIBILITY test detected with sentence ${sentence}`);
+          
+          // For training phase, we should always use the provided file number directly
+          randomizedFileNumber = parseInt(sentence);
+          console.log(`Server.js: Using file number ${randomizedFileNumber} directly for training intelligibility test`);
+        }
         // Check if the sentence is already one of the randomized file numbers
-        if (randomizedFiles.includes(parseInt(sentence))) {
+        else if (randomizedFiles.includes(parseInt(sentence))) {
           console.log(`Server.js: Sentence ${sentence} is already a randomized file number, using directly`);
           randomizedFileNumber = parseInt(sentence);
         } else {

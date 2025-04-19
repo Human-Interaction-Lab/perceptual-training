@@ -664,14 +664,32 @@ const audioService = {
         // The backend doesn't have a direct route for this, so we use pretest route
         const actualPhase = options?.actualPhase || phase;
         
+        // CRITICAL FIX: Check if a randomized file number was provided in options
+        // This helps ensure the correct randomized number is used and logged
+        let finalSentence = sentence;
+        if (options?.randomizedFileNumber && testType === 'intelligibility') {
+            console.log(`CRITICAL: Using provided randomized file number ${options.randomizedFileNumber} instead of ${sentence}`);
+            finalSentence = options.randomizedFileNumber;
+            
+            // Also store in window for debugging and cross-checking
+            if (typeof window !== 'undefined') {
+                window.lastRandomizedFileNumberInAudioService = options.randomizedFileNumber;
+                console.log(`Stored randomizedFileNumber in window: ${options.randomizedFileNumber}`);
+            }
+        }
+        
         try {
-            // SPECIAL CASE: If this is actually for training intelligibility but using pretest route
-            if (actualPhase === 'training' && phase === 'pretest' && testType === 'intelligibility') {
-                console.log('Special case: Training intelligibility test using pretest route as workaround');
+            // SPECIAL CASE: Track training intelligibility test for debugging
+            if (phase === 'training' && testType === 'intelligibility') {
+                console.log('Training intelligibility test detected - using direct route');
                 
                 // Store this info for logging/debugging
                 if (typeof window !== 'undefined') {
                     window.isTrainingIntelligibilityTest = true;
+                    window.trainingDay = options?.trainingDay;
+                    // Also store the file number we're using
+                    window.intelligibilityFileNumber = finalSentence;
+                    console.log(`Set intelligibilityFileNumber in window: ${finalSentence} for training day ${options?.trainingDay}`);
                 }
             }
             
@@ -686,7 +704,15 @@ const audioService = {
             }
             
             // Construct URL - pretest and posttest use standard route
-            const url = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${sentence}`;
+            // IMPORTANT: Use finalSentence which might be the randomized file number
+            let url = `${BASE_URL}/audio/${normalizedPhase}/${testType}/${version}/${finalSentence}`;
+            
+            // For training intelligibility tests, add the training day as a query parameter
+            if (phase === 'training' && testType === 'intelligibility' && options?.trainingDay) {
+                url += `?trainingDay=${options.trainingDay}`;
+                console.log(`Adding training day ${options.trainingDay} to URL`);
+            }
+            
             console.log(`Requesting audio file from: ${url}`);
 
             // Request the audio file URL from the backend
