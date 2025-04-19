@@ -20,6 +20,97 @@ import { toEasternTime } from './lib/utils';
 import config from './config';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
 
+// Error boundary component to prevent app crashes
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    // Update state so the next render will show the fallback UI
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // Log the error to console
+    console.error('App error caught by boundary:', error, errorInfo);
+    this.setState({ errorInfo });
+    
+    // You could also log the error to an error reporting service
+    // or send it to your backend for logging
+  }
+
+  handleReset = () => {
+    // Clear the error state
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    
+    // Attempt to recover by clearing localStorage for this session
+    try {
+      // Only clear progress data to avoid forcing re-login
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('progress_')) {
+          localStorage.removeItem(key);
+        }
+      }
+      console.log('Cleared progress data to recover from error');
+    } catch (e) {
+      console.error('Failed to clear localStorage during recovery:', e);
+    }
+    
+    // Refresh the page to restore the app to a clean state
+    window.location.reload();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Render fallback UI
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white shadow-xl rounded-lg p-8 text-center">
+              <h2 className="text-2xl font-bold text-red-600 mb-4">
+                Something went wrong
+              </h2>
+              <p className="text-gray-700 mb-4">
+                We're sorry, but there was an error in the application. This could be due to:
+              </p>
+              <ul className="text-left list-disc ml-8 mb-6">
+                <li>A temporary network issue</li>
+                <li>Audio playback problems</li>
+                <li>Browser compatibility issues</li>
+                <li>Data storage limitations</li>
+              </ul>
+              <p className="text-gray-700 mb-6">
+                Your progress may have been saved. Please try refreshing the page.
+              </p>
+              <button
+                onClick={this.handleReset}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Reset and Reload
+              </button>
+              
+              {this.state.error && (
+                <div className="mt-6 text-left">
+                  <p className="text-sm text-gray-500">Error details (for support):</p>
+                  <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-40">
+                    {this.state.error.toString()}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Otherwise, render children normally
+    return this.props.children;
+  }
+}
+
 const App = () => {
   const [phase, setPhase] = useState('auth');
   const [authMode, setAuthMode] = useState('login');
@@ -56,34 +147,98 @@ const App = () => {
     }
 
     // Try to load saved progress for current user and phase
-    const userId = localStorage.getItem('userId');
-    if (userId && phase !== 'selection' && phase !== 'auth') {
-      const savedProgressKey = `progress_${userId}_${phase}_${currentTestType || ''}`;
-      const savedProgress = localStorage.getItem(savedProgressKey);
-
-      if (savedProgress) {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (userId && phase !== 'selection' && phase !== 'auth') {
+        const savedProgressKey = `progress_${userId}_${phase}_${currentTestType || ''}`;
+        let savedProgress = null;
+        
         try {
-          const progress = JSON.parse(savedProgress);
-          console.log(`Resuming saved progress for ${phase} (${currentTestType}):`, progress);
+          savedProgress = localStorage.getItem(savedProgressKey);
+        } catch (storageError) {
+          console.error('Error accessing localStorage:', storageError);
+        }
 
-          // Restore state from saved progress
-          setCurrentStimulus(progress.stimulus || 0);
-          setUserResponse(progress.response || '');
-          if (progress.rating) setRating(progress.rating);
-          if (progress.questionIndex !== undefined) setQuestionIndex(progress.questionIndex);
-          if (progress.currentStoryIndex !== undefined) setCurrentStoryIndex(progress.currentStoryIndex);
+        if (savedProgress) {
+          try {
+            // Parse the saved progress
+            const progress = JSON.parse(savedProgress);
+            
+            // Validate the progress data to ensure integrity
+            const isValidProgress = (
+              progress && 
+              typeof progress === 'object' &&
+              'timestamp' in progress &&
+              'stimulus' in progress &&
+              // Ensure timestamp is a valid date within the last 30 days
+              new Date(progress.timestamp) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            );
+            
+            if (isValidProgress) {
+              console.log(`Resuming valid saved progress for ${phase} (${currentTestType}):`, progress);
 
-          // Don't reset other states when resuming
-          return;
-        } catch (error) {
-          console.error('Error parsing saved progress:', error);
+              // Safely restore state from saved progress with defaults
+              setCurrentStimulus(typeof progress.stimulus === 'number' ? progress.stimulus : 0);
+              
+              // Handle different data types based on test type
+              if (currentTestType === 'comprehension') {
+                // For comprehension tests, we use null as initial state
+                setUserResponse(progress.response !== undefined ? progress.response : null);
+              } else {
+                // For other tests, we use empty string
+                setUserResponse(typeof progress.response === 'string' ? progress.response : '');
+              }
+              
+              // Only set rating if it's a valid number
+              if (typeof progress.rating === 'number' && progress.rating >= 1 && progress.rating <= 100) {
+                setRating(progress.rating);
+              } else {
+                setRating(null);
+              }
+              
+              // Handle indices for comprehension tests
+              if (typeof progress.questionIndex === 'number' && progress.questionIndex >= 0) {
+                setQuestionIndex(progress.questionIndex);
+              }
+              
+              if (typeof progress.currentStoryIndex === 'number' && progress.currentStoryIndex >= 0) {
+                setCurrentStoryIndex(progress.currentStoryIndex);
+              }
+
+              // Don't reset other states when resuming
+              return;
+            } else {
+              console.warn('Invalid progress data format, ignoring:', progress);
+              
+              // Remove invalid data
+              try {
+                localStorage.removeItem(savedProgressKey);
+                console.log(`Removed invalid progress data for key: ${savedProgressKey}`);
+              } catch (removeError) {
+                console.error('Error removing invalid progress data:', removeError);
+              }
+            }
+          } catch (parseError) {
+            console.error('Error parsing saved progress:', parseError);
+            
+            // Try to remove corrupted data
+            try {
+              localStorage.removeItem(savedProgressKey);
+              console.log(`Removed corrupted progress data for key: ${savedProgressKey}`);
+            } catch (removeError) {
+              console.error('Error removing corrupted progress data:', removeError);
+            }
+          }
         }
       }
+    } catch (error) {
+      console.error('Unexpected error in progress restoration:', error);
     }
 
     // If no saved progress or error parsing, use default initial values
     setCurrentStimulus(0);
-    setUserResponse('');
+    setUserResponse(currentTestType === 'comprehension' ? null : '');
+    setRating(null);
     setShowComplete(false);
   }, [phase, currentTestType]);
 
@@ -139,35 +294,80 @@ const App = () => {
     });
 
     // Save progress for resuming later - applies to all test phases
-    const userId = localStorage.getItem('userId');
-    if (userId && phase !== 'selection' && phase !== 'auth' && phase !== 'demographics'
-      && !showComplete && currentTestType) {
+    try {
+      const userId = localStorage.getItem('userId');
+      if (userId && phase !== 'selection' && phase !== 'auth' && phase !== 'demographics'
+        && !showComplete && currentTestType) {
 
-      // Create a unique key for this user, phase and test type
-      const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
+        // Create a unique key for this user, phase and test type
+        const progressKey = `progress_${userId}_${phase}_${currentTestType}`;
 
-      // Save all relevant state for this test type
-      const progressData = {
-        stimulus: currentStimulus,
-        response: userResponse,
-        timestamp: new Date().toISOString()
-      };
+        // Save all relevant state for this test type
+        const progressData = {
+          stimulus: currentStimulus,
+          response: userResponse,
+          timestamp: new Date().toISOString(),
+          version: 2 // Version marker for future compatibility
+        };
 
-      // Add test-specific data
-      if (currentTestType === 'effort' && rating !== null) {
-        progressData.rating = rating;
+        // Add test-specific data
+        if (currentTestType === 'effort' && rating !== null) {
+          progressData.rating = rating;
+        }
+
+        if (currentTestType === 'comprehension') {
+          progressData.questionIndex = questionIndex;
+          progressData.currentStoryIndex = currentStoryIndex;
+        }
+
+        // Only save if we're actively in a test (stimulus > 0 or explicit save)
+        if (currentStimulus > 0 || phase === 'training') {
+          console.log(`Saving progress for ${progressKey}`, progressData);
+          
+          // Check if localStorage is available and has space
+          try {
+            // First try storing in a temporary key to check quota
+            const testKey = `_test_${Date.now()}`;
+            localStorage.setItem(testKey, '1');
+            localStorage.removeItem(testKey);
+            
+            // If that worked, try to store the real data
+            const serializedData = JSON.stringify(progressData);
+            localStorage.setItem(progressKey, serializedData);
+            console.log(`Successfully saved ${serializedData.length} bytes to localStorage`);
+          } catch (storageError) {
+            console.error('Failed to save progress to localStorage:', storageError);
+            
+            // If we hit quota, try cleaning up old progress data
+            if (storageError.name === 'QuotaExceededError' || 
+                storageError.code === 22 || // Chrome's storage full error code
+                storageError.message.includes('storage') || 
+                storageError.message.includes('quota')) {
+              console.warn('Storage quota exceeded, cleaning up old data...');
+              
+              // Find and remove old progress entries
+              try {
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && key.startsWith('progress_') && key !== progressKey) {
+                    localStorage.removeItem(key);
+                    console.log(`Removed old progress key: ${key}`);
+                  }
+                }
+                
+                // Try saving again after cleanup
+                localStorage.setItem(progressKey, JSON.stringify(progressData));
+                console.log('Successfully saved progress after cleanup');
+              } catch (cleanupError) {
+                console.error('Still unable to save after cleanup:', cleanupError);
+              }
+            }
+          }
+        }
       }
-
-      if (currentTestType === 'comprehension') {
-        progressData.questionIndex = questionIndex;
-        progressData.currentStoryIndex = currentStoryIndex;
-      }
-
-      // Only save if we're actively in a test (stimulus > 0 or explicit save)
-      if (currentStimulus > 0 || phase === 'training') {
-        console.log(`Saving progress for ${progressKey}`, progressData);
-        localStorage.setItem(progressKey, JSON.stringify(progressData));
-      }
+    } catch (error) {
+      console.error('Error in progress saving logic:', error);
+      // Non-fatal error, don't crash the app
     }
   }, [phase, currentPhase, trainingDay, currentStimulus, currentTestType,
     userResponse, rating, questionIndex, currentStoryIndex, showComplete]);
@@ -592,59 +792,55 @@ const App = () => {
   const handleEffortSubmit = async () => {
     if (!validateResponse()) return;
 
-    try {
-      // Ensure rating is a number and at least 1
-      const ratingValue = typeof rating === 'number' ? Math.max(1, rating) : 1;
-      const token = localStorage.getItem('token');
-      
-      // Check if this is the last stimulus (30th file, index 29)
-      const isLastStimulus = currentStimulus === 29;
-      
-      // Get the actual stimulus ID (Eff01, Eff02, etc.) for effort test
-      // Map the sequential index to the actual randomized file number
-      const { getEffortFilesForPhase } = require('./utils/randomization');
-      const actualEffortFileNumber = getEffortFilesForPhase(phase, userId)[currentStimulus];
-      
-      // Format the stimulusId as Eff01, Eff02, etc.
-      const actualEffortStimulusId = `Eff${String(actualEffortFileNumber).padStart(2, '0')}`;
-      
-      console.log(`Submitting effort response for stimulus ${actualEffortStimulusId} (sequential index: ${currentStimulus + 1})`);
-      
-      const response = await fetch(`${config.API_BASE_URL}/api/response`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          phase,
-          testType: 'effort',
-          stimulusId: actualEffortStimulusId, // Use actual Eff01, Eff02 format
-          response: userResponse,
-          trainingDay: 1,
-          rating: ratingValue,  // Use the validated rating value
-          isTestCompleted: isLastStimulus  // Flag to tell backend this completes the entire test
-        }),
-      });
+    // Set submitting state immediately to prevent double submissions
+    setIsSubmitting(true);
 
-      // Check response status and log outcome
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error:', errorData);
-        throw new Error(`Server error: ${response.status} ${errorData.message || 'Unknown error'}`);
-      }
-
-      const responseData = await response.json();
-      console.log('Server response:', responseData);
-
-      // Prevent multiple submissions of last stimulus
-      if (isLastStimulus) {
-        setIsSubmitting(true);
+    // Track submission attempts for retry logic
+    let attemptCount = 0;
+    const maxAttempts = 3;
+    
+    // Use while loop for retry logic
+    while (attemptCount < maxAttempts) {
+      attemptCount++;
+      console.log(`Submission attempt ${attemptCount} of ${maxAttempts}`);
+      
+      try {
+        // Ensure rating is a number and at least 1
+        const ratingValue = typeof rating === 'number' ? Math.max(1, rating) : 1;
+        const token = localStorage.getItem('token');
         
-        // Also mark test as completed in database with a direct API call
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.');
+        }
+        
+        // Check if this is the last stimulus (30th file, index 29)
+        const isLastStimulus = currentStimulus === 29;
+        
+        // Get the actual stimulus ID (Eff01, Eff02, etc.) for effort test
+        // Map the sequential index to the actual randomized file number
         try {
-          // Make a separate call to explicitly mark the test as completed
-          await fetch(`${config.API_BASE_URL}/api/test-completed`, {
+          const { getEffortFilesForPhase } = require('./utils/randomization');
+          const randomizedEffortFiles = getEffortFilesForPhase(phase, userId);
+          
+          if (!randomizedEffortFiles || randomizedEffortFiles.length <= currentStimulus) {
+            console.error('Invalid randomized effort files:', randomizedEffortFiles);
+            throw new Error('Could not determine the correct file number for this stimulus');
+          }
+          
+          const actualEffortFileNumber = randomizedEffortFiles[currentStimulus];
+          
+          // Format the stimulusId as Eff01, Eff02, etc.
+          const actualEffortStimulusId = `Eff${String(actualEffortFileNumber).padStart(2, '0')}`;
+          
+          console.log(`Submitting effort response for stimulus ${actualEffortStimulusId} (sequential index: ${currentStimulus + 1})`);
+          
+          // Create a timeout promise for the fetch operation
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timed out')), 10000);
+          });
+          
+          // Race the fetch against a timeout
+          const fetchPromise = fetch(`${config.API_BASE_URL}/api/response`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -653,39 +849,107 @@ const App = () => {
             body: JSON.stringify({
               phase,
               testType: 'effort',
-              completed: true
+              stimulusId: actualEffortStimulusId, // Use actual Eff01, Eff02 format
+              response: userResponse,
+              trainingDay: 1,
+              rating: ratingValue,  // Use the validated rating value
+              isTestCompleted: isLastStimulus  // Flag to tell backend this completes the entire test
             }),
           });
-          console.log(`Explicitly marked ${phase} effort test as completed`);
-        } catch (markError) {
-          console.error('Error marking test as completed:', markError);
-          // Continue even if this fails - the isTestCompleted flag should still work
+          
+          // Use Promise.race to implement timeout
+          const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+          // Check response status and log outcome
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Server error:', errorData);
+            throw new Error(`Server error: ${response.status} ${errorData.message || 'Unknown error'}`);
+          }
+
+          const responseData = await response.json();
+          console.log('Server response:', responseData);
+
+          // For the last stimulus, mark test as explicitly completed
+          if (isLastStimulus) {
+            // Also mark test as completed in database with a direct API call
+            try {
+              // Make a separate call to explicitly mark the test as completed
+              await fetch(`${config.API_BASE_URL}/api/test-completed`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  phase,
+                  testType: 'effort',
+                  completed: true
+                }),
+              });
+              console.log(`Explicitly marked ${phase} effort test as completed`);
+            } catch (markError) {
+              console.error('Error marking test as completed:', markError);
+              // Continue even if this fails - the isTestCompleted flag should still work
+            }
+          }
+
+          // Store the current values before resetting
+          const currentStim = currentStimulus;
+          const currentResponse = userResponse;
+          const currentRating = ratingValue;
+
+          // Call handleResponseSuccess AFTER ensuring the data was sent successfully
+          handleResponseSuccess();
+
+          // Log to confirm state was updated correctly after submission
+          console.log('After submission:', {
+            previousStimulus: currentStim,
+            newStimulus: currentStimulus,
+            previousResponse: currentResponse,
+            newResponse: userResponse,
+            previousRating: currentRating,
+            newRating: rating
+          });
+          
+          // Success! Break out of the retry loop
+          break;
+        } catch (randomizationError) {
+          console.error('Error during effort file randomization:', randomizationError);
+          throw new Error('Unable to determine correct file number. Please try again.');
+        }
+      } catch (error) {
+        console.error(`Error submitting response (attempt ${attemptCount}):`, error);
+        
+        // On the last attempt, show the error to the user
+        if (attemptCount >= maxAttempts) {
+          console.error('All submission attempts failed');
+          
+          // Determine if it's a network error
+          const isNetworkError = 
+            error.message.includes('network') || 
+            error.message.includes('timeout') ||
+            error.message.includes('offline') ||
+            error.message.includes('Failed to fetch');
+          
+          if (isNetworkError) {
+            alert('Network error: Please check your internet connection and try again.');
+          } else {
+            alert(`Failed to submit response: ${error.message}`);
+          }
+          
+          // Stop trying after max attempts
+          break;
+        } else {
+          // Wait before retrying
+          console.log(`Waiting before retry attempt ${attemptCount + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-
-      // Store the current values before resetting
-      const currentStim = currentStimulus;
-      const currentResponse = userResponse;
-      const currentRating = ratingValue;
-
-      // Call handleResponseSuccess AFTER ensuring the data was sent successfully
-      handleResponseSuccess();
-
-      // Log to confirm state was updated correctly after submission
-      console.log('After submission:', {
-        previousStimulus: currentStim,
-        newStimulus: currentStimulus,
-        previousResponse: currentResponse,
-        newResponse: userResponse,
-        previousRating: currentRating,
-        newRating: rating
-      });
-    } catch (error) {
-      console.error('Error submitting response:', error);
-      alert(`Failed to submit response: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
     }
+    
+    // Always reset submitting state when done
+    setIsSubmitting(false);
   };
 
   // Handle comprehension test submissions (reusing previous code)
@@ -1701,4 +1965,11 @@ const App = () => {
 };
 
 
-export default App;
+// Export the app wrapped in our error boundary
+export default function AppWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}

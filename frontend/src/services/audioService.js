@@ -770,10 +770,61 @@ const audioService = {
      */
     playAudioFromUrl(url) {
         return new Promise((resolve, reject) => {
+            // Flag to prevent multiple resolves/rejects (avoid race conditions)
+            let isSettled = false;
+            
+            // Safe resolve function to prevent multiple calls
+            const safeResolve = () => {
+                if (!isSettled) {
+                    isSettled = true;
+                    resolve();
+                }
+            };
+            
+            // Safe reject function to prevent multiple calls
+            const safeReject = (error) => {
+                if (!isSettled) {
+                    isSettled = true;
+                    reject(error);
+                }
+            };
+            
             console.log(`Playing audio from URL: ${url}`);
             const audio = new Audio();
             let playTimeout;
             let loadingTimeout;
+
+            // Clean up function to prevent memory leaks
+            const cleanup = () => {
+                if (playTimeout) {
+                    clearTimeout(playTimeout);
+                    playTimeout = null;
+                }
+                
+                if (loadingTimeout) {
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = null;
+                }
+                
+                // Remove event listeners to prevent memory leaks
+                if (audio) {
+                    audio.onended = null;
+                    audio.oncanplaythrough = null;
+                    audio.onerror = null;
+                    audio.onstalled = null;
+                    audio.onsuspend = null;
+                    audio.onabort = null;
+                    
+                    // Stop playback if still playing
+                    try {
+                        audio.pause();
+                        audio.src = '';
+                        audio.load();
+                    } catch (err) {
+                        console.warn('Error cleaning up audio element:', err);
+                    }
+                }
+            };
 
             // Set up event listeners before setting the source
             // This is important for catching load errors properly
@@ -781,23 +832,26 @@ const audioService = {
             // Audio event handlers
             audio.onended = () => {
                 console.log('Audio playback completed normally');
-                if (playTimeout) clearTimeout(playTimeout);
-                if (loadingTimeout) clearTimeout(loadingTimeout);
-                resolve();
+                cleanup();
+                safeResolve();
             };
 
             audio.oncanplaythrough = () => {
                 console.log('Audio can play through without buffering');
                 // Clear loading timeout since we can play now
-                if (loadingTimeout) clearTimeout(loadingTimeout);
+                if (loadingTimeout) {
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = null;
+                }
                 
                 // Set a new timeout for the actual playback duration
                 if (audio.duration && !isNaN(audio.duration)) {
-                    const duration = Math.ceil(audio.duration * 1000) + 2000; // Audio duration + 2 seconds buffer
+                    const duration = Math.ceil(audio.duration * 1000) + 3000; // Audio duration + 3 seconds buffer
                     console.log(`Setting playback timeout for ${duration}ms`);
                     playTimeout = setTimeout(() => {
                         console.warn('Audio playback timeout - forcing completion');
-                        resolve();
+                        cleanup();
+                        safeResolve();
                     }, duration);
                 }
             };
@@ -805,83 +859,138 @@ const audioService = {
             audio.onerror = (event) => {
                 const errorMessage = `Audio error: ${audio.error ? audio.error.code : 'unknown error'}`;
                 console.error(errorMessage, event);
-                if (playTimeout) clearTimeout(playTimeout);
-                if (loadingTimeout) clearTimeout(loadingTimeout);
+                cleanup();
                 
-                // This is a new fallback: Try hacking the URL to see if it's an intelligibility file
-                // that we can access directly
-                if (url.includes('/audio/') && !url.includes('Grace Norman_Int')) {
-                    // Try to extract the phase and sentence number from the URL
-                    const phaseMatch = url.match(/\/audio\/([^\/]+)/);
-                    const numberMatch = url.match(/\/(\d+)$/);
-                    
-                    if (phaseMatch && phaseMatch[1] && numberMatch && numberMatch[1]) {
-                        const phase = phaseMatch[1];
-                        const sequentialNum = parseInt(numberMatch[1]);
+                // Only attempt fallback if we haven't settled the promise yet
+                if (!isSettled) {
+                    // This is a new fallback: Try hacking the URL to see if it's an intelligibility file
+                    // that we can access directly
+                    if (url.includes('/audio/') && !url.includes('Grace Norman_Int')) {
+                        // Try to extract the phase and sentence number from the URL
+                        const phaseMatch = url.match(/\/audio\/([^\/]+)/);
+                        const numberMatch = url.match(/\/(\d+)$/);
                         
-                        // Get randomized file number
-                        try {
-                            const { getGroupForPhase } = require('../utils/randomization');
-                            const userId = this.extractUserIdFromToken();
+                        if (phaseMatch && phaseMatch[1] && numberMatch && numberMatch[1]) {
+                            const phase = phaseMatch[1];
+                            const sequentialNum = parseInt(numberMatch[1]);
                             
-                            // Get the randomized sequence for this phase
-                            const randomizedFiles = getGroupForPhase(phase, null, userId);
-                            
-                            // Map sequential index to randomized file number
-                            const randomizedFileNumber = randomizedFiles[sequentialNum - 1];
-                            console.log(`Fallback: Using randomized file ${randomizedFileNumber} instead of sequential ${sequentialNum}`);
-                            
-                            // Construct a direct file URL using randomized number
-                            const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
-                            console.log(`Original audio URL failed, trying randomized fallback URL: ${directUrl}`);
-                            
-                            // Create a new audio element for the fallback
-                            const fallbackAudio = new Audio(directUrl);
-                            fallbackAudio.onended = () => {
-                                console.log('Fallback audio playback completed successfully');
-                                resolve();
-                            };
-                            fallbackAudio.onerror = () => {
-                                console.error('Fallback audio also failed');
-                                reject(new Error('All audio playback methods failed'));
-                            };
-                            
-                            // Try playing the fallback
-                            fallbackAudio.play().catch(fallbackError => {
-                                console.error('Fallback playback attempt failed:', fallbackError);
-                                reject(new Error('All audio playback methods failed'));
-                            });
-                            
-                            return; // Exit early since we're handling with fallback
-                        } catch (randomizationError) {
-                            console.error('Error with randomization in fallback:', randomizationError);
-                            
-                            // Fall back to sequential as last resort
-                            const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sequentialNum).padStart(2, '0')}.wav`;
-                            console.log(`Randomization failed, using sequential fallback: ${directUrl}`);
-                            
-                            const fallbackAudio = new Audio(directUrl);
-                            fallbackAudio.onended = () => {
-                                console.log('Sequential fallback audio playback completed');
-                                resolve();
-                            };
-                            fallbackAudio.onerror = () => {
-                                console.error('Sequential fallback audio also failed');
-                                reject(new Error('All audio playback methods failed'));
-                            };
-                            
-                            fallbackAudio.play().catch(fallbackError => {
-                                console.error('Sequential fallback playback attempt failed:', fallbackError);
-                                reject(new Error('All audio playback methods failed'));
-                            });
-                            
-                            return; // Exit early
+                            // Get randomized file number
+                            try {
+                                const { getGroupForPhase } = require('../utils/randomization');
+                                const userId = this.extractUserIdFromToken();
+                                
+                                // Get the randomized sequence for this phase
+                                const randomizedFiles = getGroupForPhase(phase, null, userId);
+                                
+                                // Map sequential index to randomized file number
+                                const randomizedFileNumber = randomizedFiles[sequentialNum - 1];
+                                console.log(`Fallback: Using randomized file ${randomizedFileNumber} instead of sequential ${sequentialNum}`);
+                                
+                                // Construct a direct file URL using randomized number
+                                const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(randomizedFileNumber).padStart(2, '0')}.wav`;
+                                console.log(`Original audio URL failed, trying randomized fallback URL: ${directUrl}`);
+                                
+                                // Create a new audio element for the fallback
+                                const fallbackAudio = new Audio(directUrl);
+                                
+                                // Clean up function for fallback
+                                let fallbackCleaned = false;
+                                const cleanupFallback = () => {
+                                    if (!fallbackCleaned) {
+                                        fallbackCleaned = true;
+                                        fallbackAudio.onended = null;
+                                        fallbackAudio.onerror = null;
+                                        try {
+                                            fallbackAudio.pause();
+                                            fallbackAudio.src = '';
+                                            fallbackAudio.load();
+                                        } catch (err) {
+                                            console.warn('Error cleaning up fallback audio:', err);
+                                        }
+                                    }
+                                };
+                                
+                                fallbackAudio.onended = () => {
+                                    console.log('Fallback audio playback completed successfully');
+                                    cleanupFallback();
+                                    safeResolve();
+                                };
+                                
+                                fallbackAudio.onerror = () => {
+                                    console.error('Fallback audio also failed');
+                                    cleanupFallback();
+                                    safeReject(new Error('All audio playback methods failed'));
+                                };
+                                
+                                // Try playing the fallback
+                                fallbackAudio.play().catch(fallbackError => {
+                                    console.error('Fallback playback attempt failed:', fallbackError);
+                                    cleanupFallback();
+                                    safeReject(new Error('All audio playback methods failed'));
+                                });
+                                
+                                // Track this fallback audio element for cleanup
+                                this.fallbackAudio = fallbackAudio;
+                                
+                                return; // Exit early since we're handling with fallback
+                            } catch (randomizationError) {
+                                console.error('Error with randomization in fallback:', randomizationError);
+                                
+                                // Only try the sequential fallback if we haven't settled yet
+                                if (!isSettled) {
+                                    // Fall back to sequential as last resort
+                                    const directUrl = `${BASE_URL}/audio/public/Grace Norman_Int${String(sequentialNum).padStart(2, '0')}.wav`;
+                                    console.log(`Randomization failed, using sequential fallback: ${directUrl}`);
+                                    
+                                    const seqFallbackAudio = new Audio(directUrl);
+                                    
+                                    // Clean up function for sequential fallback
+                                    let seqFallbackCleaned = false;
+                                    const cleanupSeqFallback = () => {
+                                        if (!seqFallbackCleaned) {
+                                            seqFallbackCleaned = true;
+                                            seqFallbackAudio.onended = null;
+                                            seqFallbackAudio.onerror = null;
+                                            try {
+                                                seqFallbackAudio.pause();
+                                                seqFallbackAudio.src = '';
+                                                seqFallbackAudio.load();
+                                            } catch (err) {
+                                                console.warn('Error cleaning up sequential fallback audio:', err);
+                                            }
+                                        }
+                                    };
+                                    
+                                    seqFallbackAudio.onended = () => {
+                                        console.log('Sequential fallback audio playback completed');
+                                        cleanupSeqFallback();
+                                        safeResolve();
+                                    };
+                                    
+                                    seqFallbackAudio.onerror = () => {
+                                        console.error('Sequential fallback audio also failed');
+                                        cleanupSeqFallback();
+                                        safeReject(new Error('All audio playback methods failed'));
+                                    };
+                                    
+                                    seqFallbackAudio.play().catch(fallbackError => {
+                                        console.error('Sequential fallback playback attempt failed:', fallbackError);
+                                        cleanupSeqFallback();
+                                        safeReject(new Error('All audio playback methods failed'));
+                                    });
+                                    
+                                    // Track this sequential fallback audio element for cleanup
+                                    this.seqFallbackAudio = seqFallbackAudio;
+                                    
+                                    return; // Exit early
+                                }
+                            }
                         }
                     }
                 }
                 
                 // If we reach here, we couldn't create a fallback
-                reject(new Error(errorMessage));
+                safeReject(new Error(errorMessage));
             };
 
             // Just in case these events aren't fired
@@ -889,14 +998,15 @@ const audioService = {
             audio.onsuspend = () => console.warn('Audio loading suspended');
             audio.onabort = () => console.warn('Audio loading aborted');
             
-            // Set a timeout for initial loading - reduced to 10 seconds for faster fallback
+            // Set a timeout for initial loading - increased to 15 seconds for slower networks
             loadingTimeout = setTimeout(() => {
                 console.warn('Audio loading timeout - could not load audio file');
+                cleanup();
                 if (this.currentAudio === audio) {
                     this.dispose(); // Clean up this audio element
                 }
-                reject(new Error('Audio loading timeout'));
-            }, 10000); // 10 seconds timeout for loading
+                safeReject(new Error('Audio loading timeout'));
+            }, 15000); // 15 seconds timeout for loading (increased)
             
             // Set the source and begin loading
             audio.src = url;
@@ -905,15 +1015,14 @@ const audioService = {
             // Use a separate try/catch for play() to ensure we catch any immediate errors
             audio.play().catch(error => {
                 console.error('Error starting audio playback:', error);
-                if (playTimeout) clearTimeout(playTimeout);
-                if (loadingTimeout) clearTimeout(loadingTimeout);
+                cleanup();
                 
                 // Check for specific autoplay policy error
                 if (error.name === 'NotAllowedError') {
-                    return reject(new Error('Playback not allowed - may need user interaction'));
+                    return safeReject(new Error('Playback not allowed - may need user interaction'));
                 }
                 
-                reject(error);
+                safeReject(error);
             });
             
             // Track this audio element for cleanup
@@ -1038,27 +1147,57 @@ const audioService = {
     },
 
     /**
-     * Clean up any resources
+     * Clean up all audio resources
      */
     dispose() {
-        // Cancel any ongoing audio playback
-        if (this.currentAudio) {
-            try {
-                // Pause the audio
-                this.currentAudio.pause();
-                
-                // Reset the audio element
-                this.currentAudio.src = '';
-                this.currentAudio.load();
-                
-                // Remove reference
-                this.currentAudio = null;
-                
-                console.log('Audio playback disposed');
-            } catch (error) {
-                console.error('Error disposing audio:', error);
-            }
+        // Array of all audio elements to clean up
+        const audioElements = [
+            this.currentAudio,
+            this.fallbackAudio,
+            this.seqFallbackAudio
+        ].filter(Boolean); // Filter out nulls/undefineds
+        
+        // Log cleanup attempt
+        if (audioElements.length > 0) {
+            console.log(`Disposing ${audioElements.length} audio elements`);
         }
+        
+        // Clean up each audio element
+        audioElements.forEach((audio, index) => {
+            try {
+                // Remove all event listeners to prevent memory leaks
+                if (audio) {
+                    // Remove all event handlers
+                    audio.onended = null;
+                    audio.oncanplaythrough = null;
+                    audio.onerror = null;
+                    audio.onstalled = null;
+                    audio.onsuspend = null;
+                    audio.onabort = null;
+                    audio.onplay = null;
+                    audio.onpause = null;
+                    audio.onloadstart = null;
+                    audio.onloadeddata = null;
+                    audio.onloadedmetadata = null;
+                    
+                    // Stop playback
+                    audio.pause();
+                    
+                    // Reset the audio element
+                    audio.src = '';
+                    audio.load();
+                    
+                    console.log(`Audio element ${index+1} disposed`);
+                }
+            } catch (error) {
+                console.error(`Error disposing audio element ${index+1}:`, error);
+            }
+        });
+        
+        // Clear all references
+        this.currentAudio = null;
+        this.fallbackAudio = null;
+        this.seqFallbackAudio = null;
     }
 };
 
