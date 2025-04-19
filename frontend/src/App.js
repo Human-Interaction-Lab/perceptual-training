@@ -1774,11 +1774,20 @@ const App = () => {
 
     const userAgent = window.navigator.userAgent.toLowerCase();
 
-    if (userAgent.indexOf('chrome') > -1) return 'chrome';
-    if (userAgent.indexOf('firefox') > -1) return 'firefox';
-    if (userAgent.indexOf('safari') > -1) return 'safari';
-    if (userAgent.indexOf('edge') > -1 || userAgent.indexOf('edg') > -1) return 'edge';
+    // Check for Edge first (Edge has both "edge" and "chrome" in UA)
+    if (userAgent.indexOf('edg') > -1) return 'edge';
+    
+    // Check for Opera next (Opera has both "opr" and "chrome" in UA)
     if (userAgent.indexOf('opr') > -1 || userAgent.indexOf('opera') > -1) return 'opera';
+    
+    // Check for Chrome (but not Edge or Opera)
+    if (userAgent.indexOf('chrome') > -1) return 'chrome';
+    
+    // Safari check comes after Chrome (Safari also has "safari" in UA)
+    if (userAgent.indexOf('safari') > -1) return 'safari';
+    
+    // Firefox check
+    if (userAgent.indexOf('firefox') > -1) return 'firefox';
 
     return 'other';
   };
