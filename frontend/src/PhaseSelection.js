@@ -1125,16 +1125,27 @@ const PhaseSelection = ({
           </div>
         )}
 
-        {/* Message when all pretest tests are completed */}
+        {/* Message when all pretest tests are completed - only show on the day they were completed */}
         {currentPhase === 'pretest' && isDemographicsCompleted && isAllPretestCompleted && (
-          <div className="mb-8 text-center p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
-            <div className="flex items-center justify-center mb-2">
-              <PartyPopper className="h-8 w-8 text-[#6c8376] mr-2" />
-              <h2 className="text-xl font-semibold text-[#406368]">Great job completing all tests!</h2>
-              <PartyPopper className="h-8 w-8 text-[#6c8376] ml-2" />
+          // Only show the completion message if we're on the same day as the pretest date
+          // or if the pretest date doesn't exist yet (which can happen right after completion)
+          !pretestDate || isToday(pretestDate) ? (
+            <div className="mb-8 text-center p-6 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+              <div className="flex items-center justify-center mb-2">
+                <PartyPopper className="h-8 w-8 text-[#6c8376] mr-2" />
+                <h2 className="text-xl font-semibold text-[#406368]">Great job completing all tests!</h2>
+                <PartyPopper className="h-8 w-8 text-[#6c8376] ml-2" />
+              </div>
+              <p className="text-lg text-[#6c8376]">Please return any time tomorrow to start the training.</p>
             </div>
-            <p className="text-lg text-[#6c8376]">Please return any time tomorrow to start the training.</p>
-          </div>
+          ) : (
+            // If it's a different day, show a smaller reminder message
+            <div className="mb-8 text-center p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
+              <p className="text-[#6c8376]">
+                You have completed all pretest activities. You can now proceed to training.
+              </p>
+            </div>
+          )
         )}
 
         {/* Training Section */}
