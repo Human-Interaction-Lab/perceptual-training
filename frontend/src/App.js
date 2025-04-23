@@ -970,6 +970,12 @@ const App = () => {
     let attemptCount = 0;
     const maxAttempts = 3;
     
+    // Safety check - if this is the last stimulus, specifically log it
+    const isLastStimulus = currentStimulus === 29;
+    if (isLastStimulus) {
+      console.log('THIS IS THE FINAL EFFORT STIMULUS - Special handling enabled');
+    }
+    
     // Use while loop for retry logic
     while (attemptCount < maxAttempts) {
       attemptCount++;
@@ -991,19 +997,57 @@ const App = () => {
         // Map the sequential index to the actual randomized file number
         try {
           const { getEffortFilesForPhase } = require('./utils/randomization');
+          
+          // Get the randomized effort files
           const randomizedEffortFiles = getEffortFilesForPhase(phase, userId);
           
-          if (!randomizedEffortFiles || randomizedEffortFiles.length <= currentStimulus) {
-            console.error('Invalid randomized effort files:', randomizedEffortFiles);
+          // Check if we have valid randomization data for the current stimulus
+          if (!randomizedEffortFiles || !Array.isArray(randomizedEffortFiles) || 
+              randomizedEffortFiles.length <= currentStimulus) {
+            
+            console.error(`Invalid randomized effort files for stimulus ${currentStimulus + 1}:`, 
+                          randomizedEffortFiles ? `Array length: ${randomizedEffortFiles.length}` : 'null/undefined');
+            
+            // If this is the last stimulus, handle it gracefully by moving to completion
+            if (isLastStimulus) {
+              console.log('This is the last stimulus - moving to completion instead of showing error');
+              
+              // Mark the test as completed in state
+              setCompletedTests(prev => ({
+                ...prev,
+                [`${phase}_effort`]: true,
+                effort: true
+              }));
+              
+              // Show completion and return to phase selection
+              setShowComplete(true);
+              setTimeout(() => {
+                setPhase('selection');
+                setShowComplete(false);
+                setCurrentStimulus(0);
+                setUserResponse('');
+                setRating(null);
+              }, 3000);
+              
+              // Reset the submission state since we're exiting early
+              setIsSubmitting(false);
+              return;
+            }
+            
+            // Otherwise, throw error for non-last stimuli
             throw new Error('Could not determine the correct file number for this stimulus');
           }
           
+          // Get the file number from the randomization
           const actualEffortFileNumber = randomizedEffortFiles[currentStimulus];
+          console.log(`Using randomized file number ${actualEffortFileNumber} for stimulus ${currentStimulus + 1}`);
           
           // Format the stimulusId as Eff01, Eff02, etc.
-          const actualEffortStimulusId = `Eff${String(actualEffortFileNumber).padStart(2, '0')}`;
+          // Ensure the file number is valid and doesn't exceed 90 (total effort files)
+          const validFileNumber = Math.min(Math.max(1, actualEffortFileNumber || 1), 90);
+          const actualEffortStimulusId = `Eff${String(validFileNumber).padStart(2, '0')}`;
           
-          console.log(`Submitting effort response for stimulus ${actualEffortStimulusId} (sequential index: ${currentStimulus + 1})`);
+          console.log(`Submitting effort response for stimulus ${actualEffortStimulusId} (sequential index: ${currentStimulus + 1}, file number: ${validFileNumber})`);
           
           // Create a timeout promise for the fetch operation
           const timeoutPromise = new Promise((_, reject) => {

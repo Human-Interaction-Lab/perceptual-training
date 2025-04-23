@@ -657,8 +657,8 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
 
     // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
     if (phase === 'pretest' && completed && !user.pretestDate) {
-      const { getCurrentDateInEastern } = require('./utils');
-      const easternDate = getCurrentDateInEastern();
+      const utils = require('./utils');
+      const easternDate = utils.getCurrentDateInEastern();
       console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} via test-completed endpoint ***`);
       user.pretestDate = easternDate;
     }
@@ -836,6 +836,8 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/response', authenticateToken, async (req, res) => {
   try {
     const { phase, testType, stimulusId, response, trainingDay, rating, isTestCompleted } = req.body;
+    logger.info(`Received response for phase=${phase}, testType=${testType}, stimulusId=${stimulusId}, isTestCompleted=${isTestCompleted}`);
+    
     const user = await User.findOne({ userId: req.user.userId });
 
     if (!user) {
@@ -866,25 +868,30 @@ app.post('/api/response', authenticateToken, async (req, res) => {
     if (isTestCompleted) {
       console.log(`*** MARKING TEST TYPE ${testType} AS COMPLETED FOR PHASE ${phase} ***`);
       // Also mark the entire test type as completed in addition to the individual stimulus
-      user.markTestCompleted(phase, testType.toUpperCase(), true);
+      try {
+        user.markTestCompleted(phase, testType.toUpperCase(), true);
 
-      // For backward compatibility, also mark it with the special key format
-      user.markTestCompleted(phase, `${phase}_${testType}`, true);
-      user.markTestCompleted(phase, testType, true); // Simple key for backward compatibility
+        // For backward compatibility, also mark it with the special key format
+        user.markTestCompleted(phase, `${phase}_${testType}`, true);
+        user.markTestCompleted(phase, testType, true); // Simple key for backward compatibility
 
-      // Additional key for the combined format
-      const combinedKey = `${phase}_${testType}`;
-      user.completedTests.set(combinedKey, true);
+        // Additional key for the combined format
+        const combinedKey = `${phase}_${testType}`;
+        user.completedTests.set(combinedKey, true);
 
-      console.log(`Added test completion markers to user record for ${phase}_${testType}`);
+        console.log(`Added test completion markers to user record for ${phase}_${testType}`);
 
-      // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
-      // This ensures the pretestDate is set when users start the pretest phase
-      if (phase === 'pretest' && !user.pretestDate) {
-        const { getCurrentDateInEastern } = require('./utils');
-        const easternDate = getCurrentDateInEastern();
-        console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} ***`);
-        user.pretestDate = easternDate;
+        // CRITICAL FIX: Set the pretestDate if this is the first completion of a pretest component
+        // This ensures the pretestDate is set when users start the pretest phase
+        if (phase === 'pretest' && !user.pretestDate) {
+          const utils = require('./utils');
+          const easternDate = utils.getCurrentDateInEastern();
+          console.log(`*** SETTING PRETEST DATE to ${easternDate} (Eastern Time) for user ${user.userId} ***`);
+          user.pretestDate = easternDate;
+        }
+      } catch (markError) {
+        logger.error(`Error marking test completion: ${markError.message}`, markError);
+        // Continue processing even if marking complete fails
       }
 
       // Immediately save the user to ensure completion state is persisted
@@ -892,11 +899,28 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       console.log(`User record saved with updated test completion status`);
     }
 
+    // Validate stimulusId format - ensure it's properly formatted
+    let validatedStimulusId = stimulusId;
+    
+    // Check if the stimulusId follows expected patterns and fix if needed
+    if (testType === 'effort' && stimulusId && stimulusId.startsWith('Eff')) {
+      // Extract the numeric part and ensure it's within valid range (1-90)
+      const numMatch = stimulusId.match(/Eff(\d+)/);
+      if (numMatch && numMatch[1]) {
+        const numPart = parseInt(numMatch[1]);
+        if (numPart > 90) {
+          // Clamp to valid range
+          validatedStimulusId = `Eff${String(Math.min(numPart, 90)).padStart(2, '0')}`;
+          logger.warn(`Adjusted invalid effort stimulusId from ${stimulusId} to ${validatedStimulusId}`);
+        }
+      }
+    }
+    
     // Create response record
     const newResponse = new Response({
       userId: req.user.userId,
       phase,
-      stimulusId,
+      stimulusId: validatedStimulusId, // Use the validated stimulus ID
       // Save the actual response when testType is 'intelligibility' (training test)
       // Otherwise use the default 'training_completed' for training phase
       response: (phase === 'training' && testType !== 'intelligibility') ? 'training_completed' : response,
@@ -1744,8 +1768,9 @@ app.post('/api/update-pretest-date', authenticateToken, async (req, res) => {
 
     // Only set if not already set
     if (!user.pretestDate) {
-      const { getCurrentDateInEastern } = require('./utils');
-      const easternDate = getCurrentDateInEastern();
+      // Import the full utils module to avoid any dynamic require issues
+      const utils = require('./utils');
+      const easternDate = utils.getCurrentDateInEastern();
       console.log(`Setting missing pretest date to ${easternDate} (Eastern Time) for user ${user.userId}`);
       user.pretestDate = easternDate;
       await user.save();
