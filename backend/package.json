@@ -11,7 +11,9 @@
     "test:coverage": "cross-env NODE_ENV=test jest --coverage --testTimeout=30000",
     "explore-box": "node scripts/explore-box.js",
     "explore-box-root": "node scripts/explore-box-root.js",
-    "test-box": "node tests/test-box-connection.js"
+    "test-box": "node tests/test-box-connection.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "reload:pm2": "pm2 reload ecosystem.config.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",
@@ -30,7 +32,8 @@
     "mongoose": "^8.2.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

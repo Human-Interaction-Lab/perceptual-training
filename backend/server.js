@@ -16,6 +16,7 @@ const boxService = require('./boxService');
 //const initializeAdmin = require('./utils/initAdmin');
 const { initializeUsers } = require('./utils/initUsers');
 const tempFileService = require('./tempFileService');
+const { logger } = require('./utils');
 require('dotenv').config();
 const helmet = require('helmet');
 const config = {
@@ -45,6 +46,15 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 app.use(helmet());
+
+// Add request logging middleware
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Add error handling middleware - must be added last after all routes
+// Moved to end of file
 if (process.env.NODE_ENV === 'production') {
   //app.use(session({
   //  secret: process.env.SESSION_SECRET,
@@ -82,7 +92,7 @@ const authenticateAdmin = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      console.log('No token provided');
+      logger.warn('No token provided');
       return res.status(401).json({ error: 'Access denied' });
     }
 
@@ -90,14 +100,14 @@ const authenticateAdmin = async (req, res, next) => {
     const user = await User.findOne({ userId: verified.userId });
 
     if (!user || !user.isAdmin) {
-      console.log('User not found or not admin');
+      logger.warn('User not found or not admin');
       return res.status(403).json({ error: 'Access denied - Admin only' });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    console.error('Admin authentication error:', err);
+    logger.error('Admin authentication error:', err);
     res.status(403).json({ error: 'Invalid token or insufficient permissions' });
   }
 };
@@ -139,12 +149,12 @@ const isCorrectDay = (user, phase) => {
 const connectDB = async () => {
   try {
     if (mongoose.connection.readyState === 1) {
-      console.log('MongoDB already connected');
+      logger.info('MongoDB already connected');
       return;
     }
 
     if (process.env.NODE_ENV === 'test') {
-      console.log('Test environment detected, skipping DB connection');
+      logger.info('Test environment detected, skipping DB connection');
       return;
     }
 
@@ -153,12 +163,12 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
-    console.log('MongoDB connected...');
+    logger.info('MongoDB connected...');
 
     // Initialize admin and test users after successful connection
     await initializeUsers();
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    logger.error('MongoDB connection error:', err);
     if (process.env.NODE_ENV !== 'test') {
       process.exit(1);
     }
@@ -172,7 +182,7 @@ const startServer = async () => {
   const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 28303);
   const server = app.listen(config.PORT, () => {
     const actualPort = server.address().port;
-    console.log(`Server running on port ${actualPort}`);
+    logger.info(`Server running on port ${actualPort}`);
   });
   return server;
 };
@@ -244,7 +254,7 @@ app.get('/audio/training/day/:day/:sentence', authenticateToken, async (req, res
       filename: fileInfo.filename
     });
   } catch (error) {
-    console.error('Error handling training audio request:', error);
+    logger.error('Error handling training audio request:', error);
     res.status(500).json({ error: 'Failed to retrieve training audio file' });
   }
 });
@@ -444,7 +454,7 @@ app.get('/audio/:phase/:testType/:version/:sentence', authenticateToken, async (
       filename: fileInfo.filename
     });
   } catch (error) {
-    console.error('Error handling audio request:', error);
+    logger.error('Error handling audio request:', error);
     res.status(500).json({ error: 'Failed to retrieve audio file' });
   }
 });
@@ -1703,9 +1713,22 @@ app.get('/api/admin/export/demographics', authenticateAdmin, async (req, res) =>
 
 
 
+// Add error handling middleware - must be placed after all routes
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error:', err);
+  
+  // Send appropriate error response to client
+  const statusCode = err.statusCode || 500;
+  const message = process.env.NODE_ENV === 'production' 
+    ? 'An error occurred' 
+    : err.message || 'Internal server error';
+    
+  res.status(statusCode).json({ error: message });
+});
+
 // Only auto-start if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  startServer().catch(console.error);
+  startServer().catch(err => logger.error('Server startup error:', err));
 }
 
 

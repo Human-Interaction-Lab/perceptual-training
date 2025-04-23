@@ -4,6 +4,51 @@ const crypto = require('crypto');
 const path = require('path');
 const { zonedTimeToUtc, toZonedTime, format } = require('date-fns-tz');
 const { format: formatDate, parseISO } = require('date-fns');
+const winston = require('winston');
+const fs = require('fs');
+
+// Ensure logs directory exists
+const logsDir = path.join(__dirname, '..', 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({
+      format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'speech-training-backend' },
+  transports: [
+    new winston.transports.File({ 
+      filename: path.join(logsDir, 'error.log'), 
+      level: 'error',
+      maxsize: 5242880, // 5MB
+      maxFiles: 5
+    }),
+    new winston.transports.File({ 
+      filename: path.join(logsDir, 'combined.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5
+    })
+  ]
+});
+
+// Add console transport in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
+  }));
+}
 
 // Eastern timezone 
 const EASTERN_TIMEZONE = 'America/New_York';
@@ -136,5 +181,6 @@ module.exports = {
   isSameDay,
   isToday,
   daysBetween,
-  addDays
+  addDays,
+  logger
 };
