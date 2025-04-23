@@ -1579,16 +1579,20 @@ const App = () => {
             break;
           case 'comprehension':
             // Store the completion status and show message,
-            // but DON'T change the phase yet - we'll do that AFTER showing the message
+            // but DON'T change the phase yet - we'll do that AFTER showing the message and user sees the phase selection
             if (phase === 'pretest') {
               // Save that we need to move to training phase, but don't do it immediately
-              console.log('Pretest completed - will set phase to training AFTER showing completion message');
+              console.log('Pretest completed - marking completion for phase selection screen first');
               
-              // Instead of immediately setting currentPhase, schedule it after returning to selection
-              setTimeout(() => {
-                console.log('Now setting phase to training after showing completion message');
-                setCurrentPhase('training');
-              }, 20000); // Increased to 20 seconds to give plenty of time to read
+              // Instead of immediately setting currentPhase to training, store a flag to indicate pretest is completed
+              // The user will see the phase selection screen first with the completed pretest activities
+              localStorage.setItem('pretest_completed', 'true');
+              
+              // Only mark training as available, don't auto-transition to it
+              // This way user will see the phase selection screen with completion message
+              console.log('Setting pretest_completed flag in localStorage instead of auto-transitioning to training');
+              
+              // We'll check this flag when user enters phase selection and move to training only after they've seen the completed status
             } else if (phase === 'posttest1') {
               // Mark posttest1 as fully completed
               setCompletedTests(prev => ({
@@ -2358,6 +2362,10 @@ const App = () => {
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
               isDemographicsCompleted={isDemographicsCompleted}
+              onPhaseTransition={(newPhase) => {
+                console.log(`PhaseSelection requested transition to ${newPhase}`);
+                setCurrentPhase(newPhase);
+              }}
             />
 
           ) : !canProceedToday && currentPhase !== 'pretest' ? (

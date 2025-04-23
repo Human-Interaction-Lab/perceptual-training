@@ -385,6 +385,7 @@ const PhaseSelection = ({
   pretestDate,
   onSelectPhase,
   isDemographicsCompleted,
+  onPhaseTransition,
   completedTests = {} // Track completed test types
 }) => {
   const [isPreloading, setIsPreloading] = useState(false);
@@ -418,6 +419,14 @@ const PhaseSelection = ({
 
   // Add state to track if we're in the fresh demographics completion state
   const [isPostDemographics, setIsPostDemographics] = useState(false);
+  
+  // Add state for completion message/modal
+  const [completionMessage, setCompletionMessage] = useState({
+    show: false,
+    title: '',
+    message: '',
+    type: ''
+  });
 
   // Add state for practice audio playback
   const [isPlayingPractice, setIsPlayingPractice] = useState(false);
@@ -801,6 +810,41 @@ const PhaseSelection = ({
       daysUntilPosttest1: getDaysUntilPosttest1()
     });
   }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
+  
+  // Check for pretest_completed flag to handle transition to training after seeing phase selection
+  useEffect(() => {
+    // Check for pretest_completed flag - this means user has completed pretest comprehension
+    // and has now seen the phase selection screen with the completions
+    const pretestCompleted = localStorage.getItem('pretest_completed') === 'true';
+    
+    if (pretestCompleted && currentPhase === 'pretest') {
+      console.log('Detected pretest_completed flag - user has now seen the completion status');
+      
+      // Clear the flag first to prevent repeated transitions
+      localStorage.removeItem('pretest_completed');
+      
+      // Show congratulatory message for completing pretest
+      setCompletionMessage({
+        show: true,
+        title: 'Pretest Completed!',
+        message: 'Congratulations! You have completed all pretest activities. Please return tomorrow to begin your training.',
+        type: 'pretest'
+      });
+      
+      // Set a timeout to update currentPhase to training after showing message
+      // This ensures user sees the completion message first
+      setTimeout(() => {
+        console.log('Now transitioning to training phase after user has seen pretest completion');
+        // If App.js provides an onPhaseTransition prop, call it
+        if (typeof onPhaseTransition === 'function') {
+          onPhaseTransition('training');
+        }
+      }, 5000); // 5 seconds after showing the message
+    }
+    
+    // No cleanup needed for this effect
+    return () => {};
+  }, [currentPhase, onPhaseTransition]);
 
   // Completely redesigned phase selection without preloading during navigation
   const handleSelectPhase = (phase, testType, day = null) => {
@@ -849,8 +893,38 @@ const PhaseSelection = ({
     return 'other';
   };
 
+  // Completion message modal component
+  const CompletionMessageModal = () => {
+    if (!completionMessage.show) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-[#f3ecda] rounded-lg max-w-md w-full p-6 shadow-xl">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold text-[#406368]">
+              {completionMessage.title}
+            </h3>
+            <PartyPopper className="h-6 w-6 text-[#406368]" />
+          </div>
+          <p className="text-[#6e6e6d] mb-6">
+            {completionMessage.message}
+          </p>
+          <Button 
+            className="w-full bg-[#406368] hover:bg-[#6c8376]"
+            onClick={() => setCompletionMessage({...completionMessage, show: false})}
+          >
+            Continue
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
+      {/* Render completion message modal if needed */}
+      <CompletionMessageModal />
+      
       <div className="max-w-4xl mx-auto">
         {/* Browser compatibility warning for non-Chrome browsers */}
         {getBrowserType() !== 'chrome' && (
