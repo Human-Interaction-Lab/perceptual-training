@@ -139,32 +139,46 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
     } else if (stageId.startsWith('training')) {
       const day = stageId.charAt(stageId.length - 1);
       
-      // Check for any keys that contain day number and training
-      let hasCompletionKey = false;
-      const pattern = new RegExp(`(training|day).*${day}|${day}.*training`, 'i');
+      // We need a more specific pattern that only matches this exact day
+      // Make sure to include word boundaries to prevent matching day1 in day10, etc.
+      const pattern = new RegExp(`(training|day)[^0-9]*${day}\\b|\\bday${day}\\b`, 'i');
       
-      for (const key in completedTests) {
-        if (pattern.test(key) && completedTests[key] === true) {
-          hasCompletionKey = true;
-          break;
-        }
-      }
+      // Use a targeted approach - check specific keys and formats
+      const isCompleted = 
+        // Check direct formats we know about
+        Boolean(completedTests[`training_day${day}`]) || 
+        
+        // Only do the pattern matching if we need to (avoids false positives)
+        (() => {
+          // Check specific keys based on the exact day number
+          for (const key in completedTests) {
+            // Only consider keys that contain "training" and are true
+            if (completedTests[key] === true && key.includes('training')) {
+              // For training day 1, look for these specific patterns
+              if (day === '1' && (
+                key === 'training_day1' || 
+                key === 'day1' || 
+                key === 'training1'
+              )) {
+                return true;
+              }
+              // For other days, only match their specific patterns
+              else if (day !== '1' && pattern.test(key)) {
+                return true;
+              }
+            }
+          }
+          return false;
+        })() || 
+        
+        // Use trainingDay only for days we've already passed
+        (parseInt(day) < parseInt(trainingDay));
       
-      // Check multiple possible formats for training day completion
-      const isCompleted = Boolean(completedTests[`training_day${day}`]) || 
-                         Boolean(completedTests[`day${day}`]) || 
-                         Boolean(completedTests[`training${day}`]) ||
-                         hasCompletionKey ||
-                         // Also check if we're past this day in the training sequence
-                         (parseInt(day) < parseInt(trainingDay));
-      
-      // Log the check for debugging - but only for day 1 to avoid cluttering logs
-      if (day === '1') {
+      // Log for debugging - only for day 1 and day 2 to see comparison
+      if (day === '1' || day === '2') {
         console.log(`Training day ${day} completion check:`, {
           [`training_day${day}`]: Boolean(completedTests[`training_day${day}`]),
-          [`day${day}`]: Boolean(completedTests[`day${day}`]),
-          [`training${day}`]: Boolean(completedTests[`training${day}`]),
-          hasCompletionKey: hasCompletionKey,
+          trainingDay: trainingDay,
           pastDay: parseInt(day) < parseInt(trainingDay),
           isCompleted: isCompleted
         });
