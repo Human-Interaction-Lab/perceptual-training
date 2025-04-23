@@ -129,6 +129,7 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
 
   // Helper function to determine if a stage is completed
   const isStageCompleted = (stageId) => {
+    // Access trainingDay from parent component scope
     if (stageId === 'demographics') {
       return Boolean(completedTests['demographics']) || localStorage.getItem('demographicsCompleted') === 'true';
     } else if (stageId === 'pretest') {
@@ -137,7 +138,39 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
         Boolean(completedTests['pretest_comprehension']);
     } else if (stageId.startsWith('training')) {
       const day = stageId.charAt(stageId.length - 1);
-      return Boolean(completedTests[`training_day${day}`]);
+      
+      // Check for any keys that contain day number and training
+      let hasCompletionKey = false;
+      const pattern = new RegExp(`(training|day).*${day}|${day}.*training`, 'i');
+      
+      for (const key in completedTests) {
+        if (pattern.test(key) && completedTests[key] === true) {
+          hasCompletionKey = true;
+          break;
+        }
+      }
+      
+      // Check multiple possible formats for training day completion
+      const isCompleted = Boolean(completedTests[`training_day${day}`]) || 
+                         Boolean(completedTests[`day${day}`]) || 
+                         Boolean(completedTests[`training${day}`]) ||
+                         hasCompletionKey ||
+                         // Also check if we're past this day in the training sequence
+                         (parseInt(day) < parseInt(trainingDay));
+      
+      // Log the check for debugging - but only for day 1 to avoid cluttering logs
+      if (day === '1') {
+        console.log(`Training day ${day} completion check:`, {
+          [`training_day${day}`]: Boolean(completedTests[`training_day${day}`]),
+          [`day${day}`]: Boolean(completedTests[`day${day}`]),
+          [`training${day}`]: Boolean(completedTests[`training${day}`]),
+          hasCompletionKey: hasCompletionKey,
+          pastDay: parseInt(day) < parseInt(trainingDay),
+          isCompleted: isCompleted
+        });
+      }
+      
+      return isCompleted;
     } else if (stageId === 'posttest1') {
       return Boolean(completedTests['posttest1_intelligibility']) &&
         Boolean(completedTests['posttest1_effort']) &&
