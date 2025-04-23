@@ -835,8 +835,13 @@ const PhaseSelection = ({
   
   // Auto-transition to training phase when returning on a different day after completing pretest
   useEffect(() => {
+    // We need to declare isAllPretestCompleted inside the effect to avoid hoisting issues
+    const allPretestComplete = testTypes.every(test =>
+      completedTests[`pretest_${test.type}`] === true
+    );
+    
     // Check if this is a return visit on a different day from pretest completion
-    if (currentPhase === 'pretest' && isAllPretestCompleted && pretestDate && !isToday(pretestDate)) {
+    if (currentPhase === 'pretest' && allPretestComplete && pretestDate && !isToday(pretestDate)) {
       console.log('User returned on a different day after completing pretest - auto-transitioning to training');
       
       // Automatically transition to training phase after a short delay
@@ -847,7 +852,7 @@ const PhaseSelection = ({
         }
       }, 1500);
     }
-  }, [currentPhase, isAllPretestCompleted, pretestDate, onPhaseTransition]);
+  }, [currentPhase, pretestDate, onPhaseTransition, completedTests, testTypes]);
 
   // Check for pretest_completed flag to handle transition to training after seeing phase selection
   useEffect(() => {
