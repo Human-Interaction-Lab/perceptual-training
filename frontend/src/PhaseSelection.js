@@ -153,11 +153,11 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   // Helper function to determine if a stage is the current one
   const isCurrentStage = (stageId) => {
     // First check if demographics is not completed, force demographics to be the current stage
-    const isDemoCompleted = Boolean(completedTests['demographics']) || 
-                           localStorage.getItem('demographicsCompleted') === 'true';
-    
+    const isDemoCompleted = Boolean(completedTests['demographics']) ||
+      localStorage.getItem('demographicsCompleted') === 'true';
+
     if (stageId === 'demographics' && !isDemoCompleted) return true;
-    
+
     // Otherwise, proceed with normal stage checks
     if (stageId === 'demographics' && currentPhase === 'demographics') return true;
     if (stageId === 'pretest' && currentPhase === 'pretest') return true;
@@ -186,13 +186,12 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
       <div className="flex flex-col lg:hidden">
         <div className="grid grid-cols-2 gap-1 text-xs">
           {stages.map((stage, index) => (
-            <div key={stage.id} className={`px-2 py-1.5 mb-1 rounded ${
-              isStageCompleted(stage.id)
+            <div key={stage.id} className={`px-2 py-1.5 mb-1 rounded ${isStageCompleted(stage.id)
                 ? "bg-green-100 text-green-800 border-l-4 border-green-500"
                 : isCurrentStage(stage.id)
                   ? "bg-[#d9f0f4] text-[#2d8c9e] font-medium border-l-4 border-[#2d8c9e]"
                   : "bg-gray-100 text-gray-600 border-l-4 border-gray-300"
-            }`}>
+              }`}>
               <div className="flex items-center">
                 {isStageCompleted(stage.id) && <CheckCircle className="w-3 h-3 mr-1 text-green-600" />}
                 <span>{stage.label}</span>
@@ -243,7 +242,7 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
           </span>
         </p>
       </div>
-      
+
       {/* Legend for desktop timeline */}
       <div className="hidden lg:block">
         <p className="text-xs text-gray-600 text-center mt-4">
@@ -265,9 +264,10 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   );
 };
 
-const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
-  // Keep the original completed check - day is less than current day
-  const isCompleted = day < currentDay;
+const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, completedTests = {} }) => {
+  // Update isCompleted check to look at both currentDay and completedTests
+  // This ensures we consider both the sequential order AND explicit completion status
+  const isCompleted = day < currentDay || Boolean(completedTests[`training_day${day}`]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Check for in-progress data
@@ -300,6 +300,30 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
   // Available only if it's current day AND correct calendar day
   // AND it's not already completed
   const isAvailable = !isCompleted && day === currentDay && isDayAvailableToday;
+
+  // Get tomorrow's date for return message
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
+
+  // Get message based on completion status and day
+  const getMessage = () => {
+    if (isCompleted) {
+      if (day === 4) {
+        return 'Completed - Please return in 1 week for follow-up activities';
+      } else {
+        return `Completed - Please return tomorrow (${getTomorrowDate()}) for Day ${day + 1}`;
+      }
+    } else if (hasProgress) {
+      return 'In Progress - Continue';
+    } else if (isAvailable) {
+      return 'Available Now';
+    } else {
+      return 'Locked';
+    }
+  };
 
   // Handle the loading and selection for training days
   const handleClick = () => {
@@ -345,10 +369,8 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate }) => {
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' :
-              hasProgress ? 'In Progress - Continue' :
-                isAvailable ? 'Available Now' : 'Locked'}
-            {date && ` • ${date}`}
+            {getMessage()}
+            {date && !isCompleted && ` • ${date}`}
           </p>
         )}
       </CardContent>
@@ -419,7 +441,7 @@ const PhaseSelection = ({
 
   // Add state to track if we're in the fresh demographics completion state
   const [isPostDemographics, setIsPostDemographics] = useState(false);
-  
+
   // Add state for completion message/modal
   const [completionMessage, setCompletionMessage] = useState({
     show: false,
@@ -810,19 +832,19 @@ const PhaseSelection = ({
       daysUntilPosttest1: getDaysUntilPosttest1()
     });
   }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
-  
+
   // Check for pretest_completed flag to handle transition to training after seeing phase selection
   useEffect(() => {
     // Check for pretest_completed flag - this means user has completed pretest comprehension
     // and has now seen the phase selection screen with the completions
     const pretestCompleted = localStorage.getItem('pretest_completed') === 'true';
-    
+
     if (pretestCompleted && currentPhase === 'pretest') {
       console.log('Detected pretest_completed flag - user has now seen the completion status');
-      
+
       // Clear the flag first to prevent repeated transitions
       localStorage.removeItem('pretest_completed');
-      
+
       // Show congratulatory message for completing pretest
       setCompletionMessage({
         show: true,
@@ -830,7 +852,7 @@ const PhaseSelection = ({
         message: 'Congratulations! You have completed all pretest activities. Please return tomorrow to begin your training.',
         type: 'pretest'
       });
-      
+
       // Set a timeout to update currentPhase to training after showing message
       // This ensures user sees the completion message first
       setTimeout(() => {
@@ -841,9 +863,9 @@ const PhaseSelection = ({
         }
       }, 5000); // 5 seconds after showing the message
     }
-    
+
     // No cleanup needed for this effect
-    return () => {};
+    return () => { };
   }, [currentPhase, onPhaseTransition]);
 
   // Completely redesigned phase selection without preloading during navigation
@@ -896,7 +918,7 @@ const PhaseSelection = ({
   // Completion message modal component
   const CompletionMessageModal = () => {
     if (!completionMessage.show) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-[#f3ecda] rounded-lg max-w-md w-full p-6 shadow-xl">
@@ -909,9 +931,9 @@ const PhaseSelection = ({
           <p className="text-[#6e6e6d] mb-6">
             {completionMessage.message}
           </p>
-          <Button 
+          <Button
             className="w-full bg-[#406368] hover:bg-[#6c8376]"
-            onClick={() => setCompletionMessage({...completionMessage, show: false})}
+            onClick={() => setCompletionMessage({ ...completionMessage, show: false })}
           >
             Continue
           </Button>
@@ -924,7 +946,7 @@ const PhaseSelection = ({
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
       {/* Render completion message modal if needed */}
       <CompletionMessageModal />
-      
+
       <div className="max-w-4xl mx-auto">
         {/* Browser compatibility warning for non-Chrome browsers */}
         {getBrowserType() !== 'chrome' && (
@@ -1132,6 +1154,7 @@ const PhaseSelection = ({
                   date={getExpectedDate('training', day)}
                   isPreloading={isPreloading && preloadingPhase === 'training' && day === trainingDay}
                   pretestDate={pretestDate} // Pass the pretestDate as a prop
+                  completedTests={completedTests} // Pass completedTests to check completion status directly
                 />
               ))}
             </div>
