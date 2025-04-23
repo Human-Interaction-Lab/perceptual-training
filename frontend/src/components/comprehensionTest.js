@@ -101,6 +101,12 @@ const ComprehensionTest = ({
             return;
         }
         
+        // If this is a retry attempt, reset error and played states
+        if (audioError) {
+            console.log('Retrying audio playback after previous error');
+            setStoryAudioPlayed(false);
+        }
+        
         setIsPlayingStory(true);
         isPlayingRef.current = true;
         setAudioError(false);
@@ -109,30 +115,64 @@ const ComprehensionTest = ({
         // Clean up any previous resources
         cleanupAudioResources();
 
-        // Add a timeout for the entire operation
+        // Add a timeout for the entire operation - increased to 60 seconds for comprehension stories
         const timeoutPromise = new Promise((_, reject) => {
             timeoutRef.current = setTimeout(() => {
                 reject(new Error('Audio playback timed out'));
-            }, 20000); // Longer timeout for stories which have multiple clips
+            }, 60000); // Much longer timeout (60 seconds) for stories which have multiple clips
         });
 
         try {
             console.log(`Playing full story audio for ${storyId}`);
             
-            // Race the story playback against our timeout
-            await Promise.race([
-                onPlayAudio(storyId),
-                timeoutPromise
-            ]);
+            // Create a flag to track if audio has started playing
+            let hasStartedPlaying = false;
             
-            // Clear timeout if successful
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
+            // Listen for audio play events at the window level
+            const handleAudioPlaying = () => {
+                console.log('Detected audio is playing - adjusting timeout');
+                hasStartedPlaying = true;
+                
+                // Once audio starts playing, clear the original timeout and set a much longer one
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    
+                    // Set a very long timeout (2 minutes) once audio is actually playing
+                    // This prevents timeout errors while audio is still playing
+                    timeoutRef.current = setTimeout(() => {
+                        console.log('Extended audio playback timeout reached');
+                        setAudioError(true);
+                        setStoryAudioPlayed(true); // Allow proceeding even with error
+                    }, 120000); // 2 minutes
+                }
+            };
+            
+            // Add a global event listener for audio play events
+            if (typeof window !== 'undefined') {
+                window.addEventListener('audio-playing', handleAudioPlaying);
             }
             
-            setStoryAudioPlayed(true);
-            console.log('Story audio played successfully');
+            try {
+                // Race the story playback against our timeout
+                await Promise.race([
+                    onPlayAudio(storyId),
+                    timeoutPromise
+                ]);
+                
+                // Clear timeout if successful
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                }
+                
+                setStoryAudioPlayed(true);
+                console.log('Story audio played successfully');
+            } finally {
+                // Clean up event listener
+                if (typeof window !== 'undefined') {
+                    window.removeEventListener('audio-playing', handleAudioPlaying);
+                }
+            }
         } catch (error) {
             console.error("Error playing story audio:", error);
             
@@ -270,18 +310,18 @@ const ComprehensionTest = ({
                     <Button
                         onClick={handlePlayStoryAudio}
                         className={`w-full h-16 text-lg flex items-center justify-center space-x-3 transition-colors ${isPlayingStory ? "bg-[#6c8376]" :
-                            audioError ? "bg-red-500 hover:bg-red-600" :
+                            audioError ? "bg-[#406368] hover:bg-[#6c8376]" : // Changed to use standard color for retry
                                 storyAudioPlayed ? "bg-[#6e6e6d] hover:bg-[#6e6e6d] cursor-not-allowed" :
                                     "bg-[#406368] hover:bg-[#6c8376]"
                             }`}
-                        disabled={storyAudioPlayed || isPlayingStory || isSubmitting}
+                        disabled={(!audioError && storyAudioPlayed) || isPlayingStory || isSubmitting}
                     >
                         {isPlayingStory ? (
                             <span className="animate-pulse">Playing Story Audio...</span>
                         ) : audioError ? (
                             <>
                                 <AlertCircle className="h-6 w-6" />
-                                <span>Audio Not Available</span>
+                                <span>Retry Audio</span>
                             </>
                         ) : (
                             <>

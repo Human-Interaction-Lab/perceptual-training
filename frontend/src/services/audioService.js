@@ -1011,6 +1011,24 @@ const audioService = {
                 cleanup();
                 safeResolve();
             };
+            
+            // Add play event handler to detect when audio actually starts playing
+            audio.onplay = () => {
+                console.log('Audio has started playing');
+                
+                // Dispatch a custom event that components can listen for
+                if (typeof window !== 'undefined') {
+                    try {
+                        const playingEvent = new CustomEvent('audio-playing', {
+                            detail: { url }
+                        });
+                        window.dispatchEvent(playingEvent);
+                        console.log('Dispatched audio-playing event');
+                    } catch (eventError) {
+                        console.warn('Failed to dispatch audio-playing event:', eventError);
+                    }
+                }
+            };
 
             audio.oncanplaythrough = () => {
                 console.log('Audio can play through without buffering');
@@ -1022,8 +1040,12 @@ const audioService = {
                 
                 // Set a new timeout for the actual playback duration
                 if (audio.duration && !isNaN(audio.duration)) {
-                    const duration = Math.ceil(audio.duration * 1000) + 3000; // Audio duration + 3 seconds buffer
-                    console.log(`Setting playback timeout for ${duration}ms`);
+                    // For comprehension files, add extra time since they're longer
+                    const isComprehensionFile = url.includes('/comprehension/');
+                    const buffer = isComprehensionFile ? 15000 : 3000; // 15 seconds extra for comprehension, 3 for others
+                    
+                    const duration = Math.ceil(audio.duration * 1000) + buffer;
+                    console.log(`Setting playback timeout for ${duration}ms (${isComprehensionFile ? 'with extra buffer for comprehension file' : 'standard buffer'})`);
                     playTimeout = setTimeout(() => {
                         console.warn('Audio playback timeout - forcing completion');
                         cleanup();
@@ -1200,15 +1222,19 @@ const audioService = {
             audio.onsuspend = () => console.warn('Audio loading suspended');
             audio.onabort = () => console.warn('Audio loading aborted');
             
-            // Set a timeout for initial loading - increased to 15 seconds for slower networks
+            // Set a timeout for initial loading - increased timeout
+            // Check the URL to determine if this is a comprehension file (which is larger)
+            const isComprehensionFile = url.includes('/comprehension/');
+            const loadingTimeoutDuration = isComprehensionFile ? 30000 : 15000; // 30 seconds for comprehension, 15 for others
+            
             loadingTimeout = setTimeout(() => {
-                console.warn('Audio loading timeout - could not load audio file');
+                console.warn(`Audio loading timeout (${loadingTimeoutDuration}ms) - could not load audio file`);
                 cleanup();
                 if (this.currentAudio === audio) {
                     this.dispose(); // Clean up this audio element
                 }
                 safeReject(new Error('Audio loading timeout'));
-            }, 15000); // 15 seconds timeout for loading (increased)
+            }, loadingTimeoutDuration); // Longer timeout for comprehension files
             
             // Set the source and begin loading
             audio.src = url;
