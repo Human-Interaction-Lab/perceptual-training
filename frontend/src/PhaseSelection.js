@@ -832,6 +832,22 @@ const PhaseSelection = ({
       daysUntilPosttest1: getDaysUntilPosttest1()
     });
   }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
+  
+  // Auto-transition to training phase when returning on a different day after completing pretest
+  useEffect(() => {
+    // Check if this is a return visit on a different day from pretest completion
+    if (currentPhase === 'pretest' && isAllPretestCompleted && pretestDate && !isToday(pretestDate)) {
+      console.log('User returned on a different day after completing pretest - auto-transitioning to training');
+      
+      // Automatically transition to training phase after a short delay
+      // to ensure the UI has time to render and user can see what's happening
+      setTimeout(() => {
+        if (typeof onPhaseTransition === 'function') {
+          onPhaseTransition('training');
+        }
+      }, 1500);
+    }
+  }, [currentPhase, isAllPretestCompleted, pretestDate, onPhaseTransition]);
 
   // Check for pretest_completed flag to handle transition to training after seeing phase selection
   useEffect(() => {
