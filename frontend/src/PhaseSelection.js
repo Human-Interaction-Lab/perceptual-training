@@ -1139,11 +1139,23 @@ const PhaseSelection = ({
               <p className="text-lg text-[#6c8376]">Please return any time tomorrow to start the training.</p>
             </div>
           ) : (
-            // If it's a different day, show a smaller reminder message
+            // If it's a different day, show a smaller reminder with a button to proceed
             <div className="mb-8 text-center p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
-              <p className="text-[#6c8376]">
+              <p className="text-[#6c8376] mb-4">
                 You have completed all pretest activities. You can now proceed to training.
               </p>
+              <Button 
+                className="bg-[#406368] hover:bg-[#6c8376]"
+                onClick={() => {
+                  // Transition to training phase
+                  if (typeof onPhaseTransition === 'function') {
+                    onPhaseTransition('training');
+                  }
+                }}
+              >
+                Begin Training
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           )
         )}
