@@ -138,16 +138,16 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
         Boolean(completedTests['pretest_comprehension']);
     } else if (stageId.startsWith('training')) {
       const day = stageId.charAt(stageId.length - 1);
-      
+
       // We need a more specific pattern that only matches this exact day
       // Make sure to include word boundaries to prevent matching day1 in day10, etc.
       const pattern = new RegExp(`(training|day)[^0-9]*${day}\\b|\\bday${day}\\b`, 'i');
-      
+
       // Use a targeted approach - check specific keys and formats
-      const isCompleted = 
+      const isCompleted =
         // Check direct formats we know about
-        Boolean(completedTests[`training_day${day}`]) || 
-        
+        Boolean(completedTests[`training_day${day}`]) ||
+
         // Only do the pattern matching if we need to (avoids false positives)
         (() => {
           // Check specific keys based on the exact day number
@@ -156,8 +156,8 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
             if (completedTests[key] === true && key.includes('training')) {
               // For training day 1, look for these specific patterns
               if (day === '1' && (
-                key === 'training_day1' || 
-                key === 'day1' || 
+                key === 'training_day1' ||
+                key === 'day1' ||
                 key === 'training1'
               )) {
                 return true;
@@ -169,11 +169,11 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
             }
           }
           return false;
-        })() || 
-        
+        })() ||
+
         // Use trainingDay only for days we've already passed
         (parseInt(day) < parseInt(trainingDay));
-      
+
       // Log for debugging - only for day 1 and day 2 to see comparison
       if (day === '1' || day === '2') {
         console.log(`Training day ${day} completion check:`, {
@@ -183,7 +183,7 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
           isCompleted: isCompleted
         });
       }
-      
+
       return isCompleted;
     } else if (stageId === 'posttest1') {
       return Boolean(completedTests['posttest1_intelligibility']) &&
@@ -234,10 +234,10 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
         <div className="grid grid-cols-2 gap-1 text-xs">
           {stages.map((stage, index) => (
             <div key={stage.id} className={`px-2 py-1.5 mb-1 rounded ${isStageCompleted(stage.id)
-                ? "bg-green-100 text-green-800 border-l-4 border-green-500"
-                : isCurrentStage(stage.id)
-                  ? "bg-[#d9f0f4] text-[#2d8c9e] font-medium border-l-4 border-[#2d8c9e]"
-                  : "bg-gray-100 text-gray-600 border-l-4 border-gray-300"
+              ? "bg-green-100 text-green-800 border-l-4 border-green-500"
+              : isCurrentStage(stage.id)
+                ? "bg-[#d9f0f4] text-[#2d8c9e] font-medium border-l-4 border-[#2d8c9e]"
+                : "bg-gray-100 text-gray-600 border-l-4 border-gray-300"
               }`}>
               <div className="flex items-center">
                 {isStageCompleted(stage.id) && <CheckCircle className="w-3 h-3 mr-1 text-green-600" />}
@@ -566,14 +566,14 @@ const PhaseSelection = ({
   const checkDemographicsCompleted = () => {
     // Get userId for user-specific demographic completion validation
     const userId = localStorage.getItem('userId');
-    
+
     // Check user-specific demographics completion flag
     const userSpecificCompletion = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
-    
+
     // Only consider localStorage demographicsCompleted flag if we also have the user-specific flag
-    const localStorageCompletion = 
+    const localStorageCompletion =
       localStorage.getItem('demographicsCompleted') === 'true' && userSpecificCompletion;
-    
+
     return isDemographicsCompleted ||
       Boolean(completedTests['demographics']) ||
       Boolean(completedTests['pretest_demographics']) ||
@@ -889,18 +889,18 @@ const PhaseSelection = ({
       daysUntilPosttest1: getDaysUntilPosttest1()
     });
   }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
-  
+
   // Auto-transition to training phase when returning on a different day after completing pretest
   useEffect(() => {
     // We need to declare isAllPretestCompleted inside the effect to avoid hoisting issues
     const allPretestComplete = testTypes.every(test =>
       completedTests[`pretest_${test.type}`] === true
     );
-    
+
     // Check if this is a return visit on a different day from pretest completion
     if (currentPhase === 'pretest' && allPretestComplete && pretestDate && !isToday(pretestDate)) {
       console.log('User returned on a different day after completing pretest - auto-transitioning to training');
-      
+
       // Automatically transition to training phase after a short delay
       // to ensure the UI has time to render and user can see what's happening
       setTimeout(() => {
@@ -1182,7 +1182,7 @@ const PhaseSelection = ({
         {/* Pretest Section WITHOUT Demographics Card */}
         {currentPhase === 'pretest' && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Initial Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">Initial Activities</h2>
             <p className="mb-4">Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
@@ -1222,7 +1222,7 @@ const PhaseSelection = ({
               <p className="text-[#6c8376] mb-4">
                 You have completed all pretest activities. You can now proceed to training.
               </p>
-              <Button 
+              <Button
                 className="bg-[#406368] hover:bg-[#6c8376]"
                 onClick={() => {
                   // Transition to training phase
@@ -1265,7 +1265,7 @@ const PhaseSelection = ({
         {/* Posttest1 Section - Only show if current phase is posttest1 AND the date requirement is met */}
         {currentPhase === 'posttest1' && posttestAvailability.posttest1 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Week Follow-up Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Week Follow-up Activities</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
 
             {/* Debug info - can be removed in production */}
@@ -1304,7 +1304,7 @@ const PhaseSelection = ({
               You've completed all training days! Your 1-week follow-up will be available in <span className="font-bold">{getDaysUntilPosttest1()} days</span>.
             </p>
             <p className="text-sm text-[#6c8376] mt-2">
-              Please return on {getExpectedDate('posttest1')} to complete the follow-up assessment.
+              Please return on {getExpectedDate('posttest1')} to complete the follow-up activities.
             </p>
           </div>
         )}
@@ -1322,7 +1322,7 @@ const PhaseSelection = ({
               You've completed the 1-week follow-up! Your 1-month follow-up will be available in <span className="font-bold">{getDaysUntilPosttest2()} days</span>.
             </p>
             <p className="text-sm text-[#6c8376] mt-2">
-              Please return on {getExpectedDate('posttest2')} to complete the final assessment.
+              Please return on {getExpectedDate('posttest2')} to complete the final activities.
             </p>
           </div>
         )}
@@ -1337,7 +1337,7 @@ const PhaseSelection = ({
               <h3 className="text-lg font-medium text-[#406368]">Your 1-month follow-up is now available!</h3>
             </div>
             <p className="text-[#6c8376]">
-              Please complete the final assessment to finish the study.
+              Please complete the final activities to finish the study.
             </p>
           </div>
         )}
@@ -1345,7 +1345,7 @@ const PhaseSelection = ({
         {/* Posttest2 Section - Only show if current phase is posttest2 AND the date requirement is met */}
         {currentPhase === 'posttest2' && posttestAvailability.posttest2 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Month Follow-up Assessment</h2>
+            <h2 className="text-xl font-semibold mb-4 text-[#406368]">1-Month Follow-up Activities</h2>
             <p>Please wear <strong>headphones</strong> during all portions of this app. Please complete the activities in one session.</p>
 
             {/* Debug info - can be removed in production */}
