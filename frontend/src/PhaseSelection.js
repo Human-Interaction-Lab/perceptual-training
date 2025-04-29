@@ -562,12 +562,22 @@ const PhaseSelection = ({
       .map(test => test.type);
   };
 
-  // CRITICAL FIX: Helper function to consistently check demographics completion
+  // CRITICAL FIX: Helper function to consistently check demographics completion with improved validation
   const checkDemographicsCompleted = () => {
+    // Get userId for user-specific demographic completion validation
+    const userId = localStorage.getItem('userId');
+    
+    // Check user-specific demographics completion flag
+    const userSpecificCompletion = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
+    
+    // Only consider localStorage demographicsCompleted flag if we also have the user-specific flag
+    const localStorageCompletion = 
+      localStorage.getItem('demographicsCompleted') === 'true' && userSpecificCompletion;
+    
     return isDemographicsCompleted ||
       Boolean(completedTests['demographics']) ||
       Boolean(completedTests['pretest_demographics']) ||
-      localStorage.getItem('demographicsCompleted') === 'true';
+      localStorageCompletion;
   };
 
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading

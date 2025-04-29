@@ -315,17 +315,30 @@ const App = () => {
     setShowComplete(false);
   }, [phase, currentTestType]);
 
-  // Check localStorage for demographics completion status on initial load
+  // Check demographics completion status on initial load with additional validation
   useEffect(() => {
     const savedDemographicsCompletion = localStorage.getItem('demographicsCompleted');
-    if (savedDemographicsCompletion === 'true') {
-      console.log('Demographics completion found in localStorage - marking as completed');
+    const userSpecificCompletion = localStorage.getItem(`demographicsCompleted_${localStorage.getItem('userId')}`);
+    
+    // Only mark demographics as completed if BOTH the general flag AND the user-specific flag are true
+    if (savedDemographicsCompletion === 'true' && userSpecificCompletion === 'true') {
+      console.log('Demographics completion verified from localStorage - marking as completed');
       setIsDemographicsCompleted(true);
       // Also ensure completedTests is consistent
       setCompletedTests(prev => ({
         ...prev,
         demographics: true,
         pretest_demographics: true
+      }));
+    } else if (savedDemographicsCompletion === 'true' && !userSpecificCompletion) {
+      // This happens when a new user logs in but the general flag is still true from previous user
+      console.log('General demographics flag is true, but user-specific flag is missing - clearing flag');
+      localStorage.removeItem('demographicsCompleted');
+      setIsDemographicsCompleted(false);
+      setCompletedTests(prev => ({
+        ...prev,
+        demographics: false,
+        pretest_demographics: false
       }));
     }
   }, []);  // Empty dependency array means this runs once on component mount
@@ -800,31 +813,43 @@ const App = () => {
         // Initialize story assignments
         initializeStoryAssignments(userId);
 
-        // IMPROVED check for demographics completion from multiple sources
+        // IMPROVED check for demographics completion from multiple sources with user verification
         const completedTestsObj = data.completedTests || {};
         
-        // Check demographics completion from multiple sources
-        const demoCompleted =
+        // Check demographics completion from multiple backend sources
+        const backendDemoCompleted = 
           completedTestsObj.demographics === true ||
           completedTestsObj.pretest_demographics === true ||
-          data.isDemographicsCompleted === true ||
-          localStorage.getItem('demographicsCompleted') === 'true';
+          data.isDemographicsCompleted === true;
+        
+        // Check localStorage with user-specific validation
+        const localStorageFlag = localStorage.getItem('demographicsCompleted') === 'true';
+        const userSpecificFlag = localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
+        
+        // Overall completion status requires either backend confirmation OR both localStorage flags
+        const demoCompleted = backendDemoCompleted || (localStorageFlag && userSpecificFlag);
 
         // Log the demographic completion status for debugging
         console.log('Demographics completed status:', {
           fromData: data.isDemographicsCompleted,
           fromCompletedTests: completedTestsObj.demographics || completedTestsObj.pretest_demographics,
-          fromLocalStorage: localStorage.getItem('demographicsCompleted') === 'true',
+          fromLocalStorage: localStorageFlag,
+          userSpecificFlag: userSpecificFlag,
           finalStatus: demoCompleted
         });
         
         // Set the proper demographics status based on all sources
         setIsDemographicsCompleted(demoCompleted);
         
-        // Save to localStorage if completed
-        if (demoCompleted) {
+        // Save to localStorage if completed according to backend
+        if (backendDemoCompleted) {
+          console.log(`Saving demographics completion from backend for user: ${userId}`);
           localStorage.setItem('demographicsCompleted', 'true');
-          console.log('Demographics completion status saved to localStorage');
+          localStorage.setItem(`demographicsCompleted_${userId}`, 'true');
+        } else if (localStorageFlag && !userSpecificFlag) {
+          // Clear general flag if it exists without user-specific flag (leftover from previous user)
+          console.log('Clearing general demographics flag - not valid for current user');
+          localStorage.removeItem('demographicsCompleted');
         }
         
         // Update completedTests to include demographics status if needed
@@ -2317,7 +2342,15 @@ const App = () => {
                 }));
                 
                 // CRITICAL FIX: Also save to localStorage for persistence between sessions
-                localStorage.setItem('demographicsCompleted', 'true');
+                const userId = localStorage.getItem('userId');
+                if (userId) {
+                  console.log(`Saving demographics completion status for user: ${userId}`);
+                  localStorage.setItem('demographicsCompleted', 'true');
+                  localStorage.setItem(`demographicsCompleted_${userId}`, 'true');
+                } else {
+                  console.warn('No userId found when trying to save demographics completion');
+                  localStorage.setItem('demographicsCompleted', 'true');
+                }
                 console.log('Demographics completion saved to localStorage on form submission');
                 
                 // CRITICAL FIX: Ensure pretest date is set when demographics is completed

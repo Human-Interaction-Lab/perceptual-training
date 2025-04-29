@@ -280,9 +280,16 @@ const DemographicsForm = ({ onSubmit, onBack }) => {
         throw new Error(data.error || 'Failed to submit form');
       }
 
-      // Save completion status in localStorage
-      localStorage.setItem('demographicsCompleted', 'true');
-      localStorage.setItem(`demographicsCompleted_${localStorage.getItem('userId')}`, 'true');
+      // Save completion status in localStorage - both general and user-specific flags
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        console.log(`Saving demographics completion status for user: ${userId}`);
+        localStorage.setItem('demographicsCompleted', 'true');
+        localStorage.setItem(`demographicsCompleted_${userId}`, 'true');
+      } else {
+        console.warn('No userId found when trying to save demographics completion');
+        localStorage.setItem('demographicsCompleted', 'true');
+      }
       
       // CRITICAL FIX: Ensure pretest date is set when demographics is completed
       console.log('Demographics completed - ensuring pretest date is set');
