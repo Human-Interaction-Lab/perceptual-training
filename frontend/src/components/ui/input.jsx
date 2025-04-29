@@ -16,6 +16,7 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
   );
 });
 
+// Prevent unnecessary re-renders that cause input focus loss
 Input.displayName = "Input";
 
 export { Input };
