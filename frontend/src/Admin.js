@@ -630,21 +630,29 @@ This action cannot be undone.`)) {
                 <label className="block text-sm font-medium text-gray-700">
                   New Password
                 </label>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="mt-1 block w-full"
-                  placeholder="Enter new password"
-                />
+                {/* Using a properly managed form to avoid focus issues */}
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleResetPassword(user.userId);
+                }}>
+                  <div className="flex space-x-2">
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="mt-1 block w-full"
+                      placeholder="Enter new password"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="submit"
+                      className="mt-1 bg-[#406368] text-white px-4 py-2 rounded hover:bg-[#6c8376]"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <button
-                onClick={() => handleResetPassword(user.userId)}
-                className="w-full bg-[#406368] text-white px-4 py-2 rounded hover:bg-[#6c8376]"
-              >
-                Reset Password
-              </button>
             </div>
           </div>
 
@@ -775,6 +783,7 @@ This action cannot be undone.`)) {
               onChange={handleCreateUserChange}
               className="mt-1 block w-full"
               placeholder="Minimum 8 characters"
+              autoComplete="new-password"
             />
             <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters.</p>
           </div>
