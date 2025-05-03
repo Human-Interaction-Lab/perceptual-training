@@ -725,6 +725,88 @@ This action cannot be undone.`)) {
                   <div className="font-medium">Created:</div>
                   <div>{new Date(user.createdAt).toLocaleDateString()}</div>
                 </div>
+
+                {/* Display Completed Tests */}
+                <div className="mt-4 border-t pt-4">
+                  <div className="font-medium mb-2">Completed Activities:</div>
+                  
+                  {user.completedTestsByPhase && (
+                    <div className="text-sm">
+                      <div className="mb-2">
+                        <div className="font-medium">Pretest:</div>
+                        <div className="ml-2">
+                          {user.completedTestsByPhase.pretest && user.completedTestsByPhase.pretest.length > 0 
+                            ? user.completedTestsByPhase.pretest.map(test => (
+                                <div key={`pretest-${test}`} className="text-green-600">
+                                  ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                                </div>
+                              ))
+                            : <div className="text-gray-500">No completed activities</div>
+                          }
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <div className="font-medium">Training:</div>
+                        <div className="ml-2">
+                          {user.completedTestsByPhase.training && user.completedTestsByPhase.training.length > 0
+                            ? user.completedTestsByPhase.training.map(test => (
+                                <div key={`training-${test}`} className="text-green-600">
+                                  ✓ {test.replace('training_intel', 'Intelligibility').replace('day', 'Day ')}
+                                </div>
+                              ))
+                            : <div className="text-gray-500">No completed activities</div>
+                          }
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <div className="font-medium">Posttest 1:</div>
+                        <div className="ml-2">
+                          {user.completedTestsByPhase.posttest1 && user.completedTestsByPhase.posttest1.length > 0
+                            ? user.completedTestsByPhase.posttest1
+                                .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
+                                .map(test => (
+                                  <div key={`posttest1-${test}`} className="text-green-600">
+                                    ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                                  </div>
+                                ))
+                            : <div className="text-gray-500">No completed activities</div>
+                          }
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <div className="font-medium">Posttest 2:</div>
+                        <div className="ml-2">
+                          {user.completedTestsByPhase.posttest2 && user.completedTestsByPhase.posttest2.length > 0
+                            ? user.completedTestsByPhase.posttest2
+                                .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
+                                .map(test => (
+                                  <div key={`posttest2-${test}`} className="text-green-600">
+                                    ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                                  </div>
+                                ))
+                            : <div className="text-gray-500">No completed activities</div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Display Response Counts */}
+                  {user.responseCounts && (
+                    <div className="mt-3">
+                      <div className="font-medium mb-1">Total Responses by Phase:</div>
+                      <div className="grid grid-cols-2 gap-2 text-sm ml-2">
+                        <div>Pretest: <span className="font-medium">{user.responseCounts.pretest || 0}</span></div>
+                        <div>Training: <span className="font-medium">{user.responseCounts.training || 0}</span></div>
+                        <div>Posttest 1: <span className="font-medium">{user.responseCounts.posttest1 || 0}</span></div>
+                        <div>Posttest 2: <span className="font-medium">{user.responseCounts.posttest2 || 0}</span></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1076,7 +1158,7 @@ This action cannot be undone.`)) {
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Progress & Dates
+                Progress, Dates & Activities
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -1101,8 +1183,30 @@ This action cannot be undone.`)) {
                       Phase: {user.currentPhase}<br />
                       Day: {user.trainingDay}<br />
                       {user.pretestDate && (
-                        <>Pretest: {new Date(user.pretestDate).toLocaleDateString()}</>
+                        <>Pretest: {new Date(user.pretestDate).toLocaleDateString()}<br /></>
                       )}
+                      {/* Activity completion summary */}
+                      <span className="text-xs mt-1">
+                        {user.completedTestsByPhase && (
+                          <>
+                            <span className={user.completedTestsByPhase.pretest?.length > 0 ? "text-green-600 font-medium" : "text-gray-400"}>
+                              Pretest: {user.completedTestsByPhase.pretest?.length || 0}
+                            </span>
+                            {" | "}
+                            <span className={user.completedTestsByPhase.training?.length > 0 ? "text-green-600 font-medium" : "text-gray-400"}>
+                              Training: {user.completedTestsByPhase.training?.length || 0}
+                            </span>
+                            {" | "}
+                            <span className={user.completedTestsByPhase.posttest1?.length > 0 ? "text-green-600 font-medium" : "text-gray-400"}>
+                              Post1: {user.completedTestsByPhase.posttest1?.length || 0}
+                            </span>
+                            {" | "}
+                            <span className={user.completedTestsByPhase.posttest2?.length > 0 ? "text-green-600 font-medium" : "text-gray-400"}>
+                              Post2: {user.completedTestsByPhase.posttest2?.length || 0}
+                            </span>
+                          </>
+                        )}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -12,17 +12,15 @@ const initializeUsers = async () => {
             return;
         }
 
-        // First, remove existing test users but keep admin
+        // First, remove all existing test users but keep admin
         console.log('Removing existing test users...');
+        await User.deleteMany({ userId: { $regex: /^test_/ } });
+        await Demographics.deleteMany({ userId: { $regex: /^test_/ } });
+        await Response.deleteMany({ userId: { $regex: /^test_/ } });
+        
+        // Define our specific test user IDs for creating new ones
         const testUserIds = [
-            'test_pretest', 'test_training', 'test_posttest',
-            'test_training2', 'test_training4',
-            'test_pretest1', 'test_pretest2', 'test_pretest3',
-            'test_pretest5', 'test_pretest6', 'test_pretest7', 'test_pretest8',
-            'test_pretest9', 'test_pretest10', 'test_pretest11', 'test_pretest12',
-            'test_training5', 'test_training6', 'test_training7', 'test_training8',
-            'test_training9', 'test_training10', 'test_training11', 'test_training12',
-            'test_posttest1', 'test_posttest2', 'test_posttest3'
+            'test_pretesta', 'test_pretestb', 'test_pretestc'
         ];
 
         // Note: localStorage can only be cleared in the browser context
@@ -68,241 +66,29 @@ const initializeUsers = async () => {
             isActive: true
         };
 
-        // Test Users Configuration
+        // Test Users Configuration - just the three pretest users
         const testUsers = [
-            // Original test users
+            // Create the three test users in pretest phase (no completed activities)
             {
-                userId: 'test_pretest',
-                email: 'pretest@test.com',
+                userId: 'test_pretesta',
+                email: 'pretesta@test.com',
                 currentPhase: 'pretest',
                 speaker: 'OHSp01',
                 ...baseTestUser
             },
             {
-                userId: 'test_training',
-                email: 'training@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 1,
-                pretestDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training2',
-                email: 'training2@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 2,
-                pretestDate: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training4',
-                email: 'training4@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_posttest',
-                email: 'posttest@test.com',
-                currentPhase: 'posttest1',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
-                ...baseTestUser
-            },
-
-            // New test users with different pretest states
-            {
-                userId: 'test_pretest1',
-                email: 'pretest1@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-                // This user will only have demographics completed
-            },
-            {
-                userId: 'test_pretest2',
-                email: 'pretest2@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-                // Will add demographics + intelligibility responses
-            },
-            {
-                userId: 'test_pretest3',
-                email: 'pretest3@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-                // Will add demographics + intelligibility + effort responses
-            },
-
-            // Additional pretest users (test_pretest5 - test_pretest12)
-            {
-                userId: 'test_pretest5',
-                email: 'pretest5@test.com',
+                userId: 'test_pretestb',
+                email: 'pretestb@test.com',
                 currentPhase: 'pretest',
                 speaker: 'OHSp01',
                 ...baseTestUser
             },
             {
-                userId: 'test_pretest6',
-                email: 'pretest6@test.com',
+                userId: 'test_pretestc',
+                email: 'pretestc@test.com',
                 currentPhase: 'pretest',
                 speaker: 'OHSp01',
                 ...baseTestUser
-            },
-            {
-                userId: 'test_pretest7',
-                email: 'pretest7@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-            {
-                userId: 'test_pretest8',
-                email: 'pretest8@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-            {
-                userId: 'test_pretest9',
-                email: 'pretest9@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-            {
-                userId: 'test_pretest10',
-                email: 'pretest10@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-            {
-                userId: 'test_pretest11',
-                email: 'pretest11@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-            {
-                userId: 'test_pretest12',
-                email: 'pretest12@test.com',
-                currentPhase: 'pretest',
-                speaker: 'OHSp01',
-                ...baseTestUser
-            },
-
-            // Additional training users on day 4 (test_training5 - test_training12)
-            {
-                userId: 'test_training5',
-                email: 'training5@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training6',
-                email: 'training6@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training7',
-                email: 'training7@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training8',
-                email: 'training8@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training9',
-                email: 'training9@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training10',
-                email: 'training10@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training11',
-                email: 'training11@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-            {
-                userId: 'test_training12',
-                email: 'training12@test.com',
-                currentPhase: 'training',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 96 * 60 * 60 * 1000), // 4 days ago
-                ...baseTestUser
-            },
-
-            // Three posttest users with different testing states
-            {
-                userId: 'test_posttest1',
-                email: 'posttest1@test.com',
-                currentPhase: 'posttest1',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
-                ...baseTestUser
-                // This user will only have demographics completed for posttest
-            },
-            {
-                userId: 'test_posttest2',
-                email: 'posttest2@test.com',
-                currentPhase: 'posttest1',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
-                ...baseTestUser
-                // Will add demographics + intelligibility responses
-            },
-            {
-                userId: 'test_posttest3',
-                email: 'posttest3@test.com',
-                currentPhase: 'posttest1',
-                speaker: 'OHSp01',
-                trainingDay: 4,
-                pretestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
-                ...baseTestUser
-                // Will add demographics + intelligibility + effort responses
             }
         ];
 
@@ -346,13 +132,7 @@ const initializeUsers = async () => {
         };
 
         const allTestUsers = [
-            'test_pretest1', 'test_pretest2', 'test_pretest3',
-            'test_pretest5', 'test_pretest6', 'test_pretest7', 'test_pretest8',
-            'test_pretest9', 'test_pretest10', 'test_pretest11', 'test_pretest12',
-            'test_training', 'test_training2', 'test_training4',
-            'test_training5', 'test_training6', 'test_training7', 'test_training8',
-            'test_training9', 'test_training10', 'test_training11', 'test_training12',
-            'test_posttest1', 'test_posttest2', 'test_posttest3'
+            'test_pretesta', 'test_pretestb', 'test_pretestc'
         ];
 
         for (const userId of allTestUsers) {
@@ -364,244 +144,15 @@ const initializeUsers = async () => {
             console.log(`Demographics created for ${userId}`);
         }
 
-        // Add pretest user completed tests
-        const pretest1 = await User.findOne({ userId: 'test_pretest1' });
-        const pretest2 = await User.findOne({ userId: 'test_pretest2' });
-        const pretest3 = await User.findOne({ userId: 'test_pretest3' });
-
-        // Add posttest user references
-        const posttest1 = await User.findOne({ userId: 'test_posttest1' });
-        const posttest2 = await User.findOne({ userId: 'test_posttest2' });
-        const posttest3 = await User.findOne({ userId: 'test_posttest3' });
-
-        // Intelligibility responses template
-        const intelligibilityResponses = [
-            { stimulusId: 'intelligibility_1', response: 'Sample response 1' },
-            { stimulusId: 'intelligibility_2', response: 'Sample response 2' },
-            { stimulusId: 'intelligibility_3', response: 'Sample response 3' }
-        ];
-
-        // Effort responses template
-        const effortResponses = [
-            { stimulusId: 'effort_1', response: 'Sample effort 1', rating: 75 },
-            { stimulusId: 'effort_2', response: 'Sample effort 2', rating: 60 },
-            { stimulusId: 'effort_3', response: 'Sample effort 3', rating: 85 }
-        ];
-
-        // Create responses for pretest users
-        for (const respData of intelligibilityResponses) {
-            // For pretest2
-            const response2 = new Response({
-                userId: 'test_pretest2',
-                phase: 'pretest',
-                stimulusId: `pretest_${respData.stimulusId}`,
-                response: respData.response
-            });
-            await response2.save();
-
-            // For pretest3
-            const response3 = new Response({
-                userId: 'test_pretest3',
-                phase: 'pretest',
-                stimulusId: `pretest_${respData.stimulusId}`,
-                response: respData.response
-            });
-            await response3.save();
-        }
-
-        // Add effort responses for pretest3
-        for (const respData of effortResponses) {
-            const response = new Response({
-                userId: 'test_pretest3',
-                phase: 'pretest',
-                stimulusId: `pretest_${respData.stimulusId}`,
-                response: respData.response,
-                rating: respData.rating
-            });
-            await response.save();
-        }
-
-        // CREATE RESPONSES FOR POSTTEST USERS
-        for (const respData of intelligibilityResponses) {
-            // For posttest2
-            const post_response2 = new Response({
-                userId: 'test_posttest2',
-                phase: 'posttest1',
-                stimulusId: `posttest1_${respData.stimulusId}`,
-                response: respData.response
-            });
-            await post_response2.save();
-
-            // For posttest3
-            const post_response3 = new Response({
-                userId: 'test_posttest3',
-                phase: 'posttest1',
-                stimulusId: `posttest1_${respData.stimulusId}`,
-                response: respData.response
-            });
-            await post_response3.save();
-        }
-
-        // Add effort responses for posttest3
-        for (const respData of effortResponses) {
-            const response = new Response({
-                userId: 'test_posttest3',
-                phase: 'posttest1',
-                stimulusId: `posttest1_${respData.stimulusId}`,
-                response: respData.response,
-                rating: respData.rating
-            });
-            await response.save();
-        }
-
-        // Update completedTests property for the pretest users
-        if (pretest1) {
-            // Set both the specific phase key and the general demographics key
-            pretest1.completedTests.set('pretest_demographics', true);
-            pretest1.completedTests.set('demographics', true); // General flag for demographics completion
-            await pretest1.save();
-            console.log('Updated completedTests for test_pretest1 (demographics only)');
-        }
-
-        if (pretest2) {
-            pretest2.completedTests.set('pretest_demographics', true);
-            pretest2.completedTests.set('demographics', true); // General flag for demographics completion
-            pretest2.completedTests.set('pretest_intelligibility', true);
-            await pretest2.save();
-            console.log('Updated completedTests for test_pretest2');
-        }
-
-        if (pretest3) {
-            pretest3.completedTests.set('pretest_demographics', true);
-            pretest3.completedTests.set('demographics', true); // General flag for demographics completion
-            pretest3.completedTests.set('pretest_intelligibility', true);
-            pretest3.completedTests.set('pretest_effort', true);
-            await pretest3.save();
-            console.log('Updated completedTests for test_pretest3');
-        }
-
-        // Update standard test users as well
-        const trainingUser = await User.findOne({ userId: 'test_training' });
-        if (trainingUser) {
-            trainingUser.completedTests.set('pretest_demographics', true);
-            trainingUser.completedTests.set('demographics', true); // General flag for demographics completion
-            trainingUser.completedTests.set('pretest_intelligibility', true);
-            trainingUser.completedTests.set('pretest_effort', true);
-            trainingUser.completedTests.set('pretest_comprehension', true);
-            await trainingUser.save();
-            console.log('Updated completedTests for test_training user');
-        }
-
-        const training2User = await User.findOne({ userId: 'test_training2' });
-        if (training2User) {
-            training2User.completedTests.set('pretest_demographics', true);
-            training2User.completedTests.set('demographics', true); // General flag for demographics completion
-            training2User.completedTests.set('pretest_intelligibility', true);
-            training2User.completedTests.set('pretest_effort', true);
-            training2User.completedTests.set('pretest_comprehension', true);
-            await training2User.save();
-            console.log('Updated completedTests for test_training2 user');
-        }
-
-        const training4User = await User.findOne({ userId: 'test_training4' });
-        if (training4User) {
-            training4User.completedTests.set('pretest_demographics', true);
-            training4User.completedTests.set('demographics', true); // General flag for demographics completion
-            training4User.completedTests.set('pretest_intelligibility', true);
-            training4User.completedTests.set('pretest_effort', true);
-            training4User.completedTests.set('pretest_comprehension', true);
-            // Mark training day 1-3 as complete
-            training4User.completedTests.set('training_day1', true);
-            training4User.completedTests.set('training_day2', true);
-            training4User.completedTests.set('training_day3', true);
-            await training4User.save();
-            console.log('Updated completedTests for test_training4 user (day 4 pending)');
-        }
-
-        // Configure new training users (5-12) with all pretest phases completed and training days 1-3
-        const trainingUsers = [
-            'test_training5', 'test_training6', 'test_training7', 'test_training8',
-            'test_training9', 'test_training10', 'test_training11', 'test_training12'
-        ];
-
-        for (const userId of trainingUsers) {
+        // Verify all test users have blank completion records
+        for (const userId of allTestUsers) {
             const user = await User.findOne({ userId });
             if (user) {
-                user.completedTests.set('pretest_demographics', true);
-                user.completedTests.set('demographics', true); // General flag for demographics completion
-                user.completedTests.set('pretest_intelligibility', true);
-                user.completedTests.set('pretest_effort', true);
-                user.completedTests.set('pretest_comprehension', true);
-                // Mark training day 1-3 as complete
-                user.completedTests.set('training_day1', true);
-                user.completedTests.set('training_day2', true);
-                user.completedTests.set('training_day3', true);
+                // Make sure all test users start with no completed tests/activities
+                user.completedTests = new Map();
                 await user.save();
-                console.log(`Updated completedTests for ${userId} user (day 4 pending)`);
+                console.log(`Ensured user ${userId} has no completed activities - ready for testing`);
             }
-        }
-
-        // Update completedTests property for the posttest users
-        if (posttest1) {
-            posttest1.completedTests.set('pretest_demographics', true);
-            posttest1.completedTests.set('demographics', true); // General flag for demographics completion
-            posttest1.completedTests.set('pretest_intelligibility', true);
-            posttest1.completedTests.set('pretest_effort', true);
-            posttest1.completedTests.set('pretest_comprehension', true);
-            posttest1.completedTests.set('posttest1_demographics', true);
-            await posttest1.save();
-            console.log('Updated completedTests for test_posttest1 (demographics only for posttest1)');
-        }
-
-        if (posttest2) {
-            posttest2.completedTests.set('pretest_demographics', true);
-            posttest2.completedTests.set('demographics', true); // General flag for demographics completion
-            posttest2.completedTests.set('pretest_intelligibility', true);
-            posttest2.completedTests.set('pretest_effort', true);
-            posttest2.completedTests.set('pretest_comprehension', true);
-            posttest2.completedTests.set('posttest1_demographics', true);
-            posttest2.completedTests.set('posttest1_intelligibility', true);
-            await posttest2.save();
-            console.log('Updated completedTests for test_posttest2');
-        }
-
-        if (posttest3) {
-            posttest3.completedTests.set('pretest_demographics', true);
-            posttest3.completedTests.set('demographics', true); // General flag for demographics completion
-            posttest3.completedTests.set('pretest_intelligibility', true);
-            posttest3.completedTests.set('pretest_effort', true);
-            posttest3.completedTests.set('pretest_comprehension', true);
-            posttest3.completedTests.set('posttest1_demographics', true);
-            posttest3.completedTests.set('posttest1_intelligibility', true);
-            posttest3.completedTests.set('posttest1_effort', true);
-            await posttest3.save();
-            console.log('Updated completedTests for test_posttest3');
-        }
-
-        // The test_pretest user should NOT have any completed tests - they are just starting
-        const pretestUser = await User.findOne({ userId: 'test_pretest' });
-        if (pretestUser) {
-            // Clear any completion flags that might have been set previously
-            pretestUser.completedTests = new Map();
-            await pretestUser.save();
-            console.log('Cleared all completedTests for test_pretest user - ready for fresh start');
-        }
-
-        // Add completed flags for the standard posttest user (all pretest and all training should be complete)
-        const posttestUser = await User.findOne({ userId: 'test_posttest' });
-        if (posttestUser) {
-            posttestUser.completedTests.set('pretest_demographics', true);
-            posttestUser.completedTests.set('demographics', true); // General flag for demographics completion
-            posttestUser.completedTests.set('pretest_intelligibility', true);
-            posttestUser.completedTests.set('pretest_effort', true);
-            posttestUser.completedTests.set('pretest_comprehension', true);
-            // Mark training day 1-4 as complete
-            posttestUser.completedTests.set('training_day1', true);
-            posttestUser.completedTests.set('training_day2', true);
-            posttestUser.completedTests.set('training_day3', true);
-            posttestUser.completedTests.set('training_day4', true);
-            await posttestUser.save();
-            console.log('Updated completedTests for test_posttest user');
         }
 
         console.log('All users initialized successfully');

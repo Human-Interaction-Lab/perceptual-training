@@ -1085,7 +1085,38 @@ app.get('/api/admin/users', async (req, res) => {
       _id: 0
     }).sort({ createdAt: -1 });
 
-    res.json(users);
+    // Add test completion data for each user
+    const enhancedUsers = await Promise.all(users.map(async (user) => {
+      // Convert user to a plain object so we can add properties
+      const userObj = user.toObject();
+      
+      // Add completed tests breakdown by phase
+      userObj.completedTestsByPhase = {
+        pretest: user.getCompletedTestsForPhase('pretest'),
+        training: user.getCompletedTestsForPhase('training'),
+        posttest1: user.getCompletedTestsForPhase('posttest1'),
+        posttest2: user.getCompletedTestsForPhase('posttest2')
+      };
+
+      // Get response counts for each phase
+      const responseCounts = await Response.aggregate([
+        { $match: { userId: user.userId } },
+        { $group: { 
+          _id: '$phase', 
+          count: { $sum: 1 } 
+        }}
+      ]);
+
+      // Format response counts into an object
+      userObj.responseCounts = {};
+      responseCounts.forEach(item => {
+        userObj.responseCounts[item._id] = item.count;
+      });
+
+      return userObj;
+    }));
+
+    res.json(enhancedUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
