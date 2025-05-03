@@ -846,53 +846,53 @@ const PhaseSelection = ({
   // Calculate posttest availability when current time is after expected date
   const calculatePosttestAvailability = (pretestDate, trainingCompletedDate, trainingDay) => {
     const today = getCurrentDateInEastern();
-    
+
     // Use trainingCompletedDate if available, otherwise fallback to pretestDate for backward compatibility
     if (trainingCompletedDate) {
       const trainingCompleted = toEasternTime(trainingCompletedDate);
-      
+
       // Posttest1 is 7 days after training completion
       const posttest1Date = new Date(trainingCompleted);
       posttest1Date.setDate(posttest1Date.getDate() + 7);
-      
+
       // Posttest2 is 30 days after training completion
       const posttest2Date = new Date(trainingCompleted);
       posttest2Date.setDate(posttest2Date.getDate() + 30);
-      
+
       // For debugging
       console.log("Today (Eastern):", today);
       console.log("Training completed date (Eastern):", trainingCompleted);
       console.log("Posttest1 date (Eastern):", posttest1Date);
       console.log("Posttest2 date (Eastern):", posttest2Date);
       console.log("Days since training completed:", Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24)));
-      
+
       return {
         // For posttest1, check both date AND phase
         posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
         // For posttest2, check both date AND that the current phase is posttest2
         posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
       };
-    } 
+    }
     // Fall back to original logic using pretestDate
     else if (pretestDate) {
       const baseDate = toEasternTime(pretestDate);
-      
+
       // Use legacy calculation for backward compatibility
       // Posttest1 is 12 days after pretest (1 week after 4 days of training + 1 day)
       const posttest1Date = new Date(baseDate);
       posttest1Date.setDate(posttest1Date.getDate() + 12);
-      
+
       // Posttest2 is 35 days after pretest
       const posttest2Date = new Date(baseDate);
       posttest2Date.setDate(posttest2Date.getDate() + 35);
-      
+
       // For debugging
       console.log("Today (Eastern):", today);
       console.log("Pretest date (Eastern):", baseDate);
       console.log("Posttest1 date (Eastern) [legacy]:", posttest1Date);
       console.log("Posttest2 date (Eastern) [legacy]:", posttest2Date);
       console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
-      
+
       return {
         // For posttest1, check both date AND that all training days are completed
         posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
@@ -900,7 +900,7 @@ const PhaseSelection = ({
         posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
       };
     }
-    
+
     // No dates available at all
     return { posttest1: false, posttest2: false };
   };
@@ -1202,7 +1202,7 @@ const PhaseSelection = ({
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
               <TestTypeCard
                 title="Background Questionnaire"
-                description="Required before starting any tests"
+                description="Required before starting any activities"
                 phase="demographics"
                 testType="demographics"
                 status={{
