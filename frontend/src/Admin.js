@@ -560,10 +560,21 @@ This action cannot be undone.`)) {
       // Call the update user API
       handleUpdateUser(user.userId);
     };
+    
+    // Handle clicks outside the modal to close it
+    const handleBackdropClick = (e) => {
+      // Only close if clicking the backdrop, not the modal content
+      if (e.target === e.currentTarget) {
+        setShowUserModal(false);
+      }
+    };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+        onClick={handleBackdropClick}
+      >
+        <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto" onClick={e => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-4">Edit User: {user.userId}</h2>
           <p className="text-sm text-gray-600 mb-4">You can update user details including email, speaker ID, and progress information.</p>
 
@@ -892,6 +903,15 @@ This action cannot be undone.`)) {
       // Continue with create user API call
       handleCreateUserSubmit();
     };
+    
+    // Handle clicks outside the modal to close it
+    const handleBackdropClick = (e) => {
+      // Only close if clicking the backdrop, not the modal content
+      if (e.target === e.currentTarget) {
+        setShowCreateUserModal(false);
+        setModalMessage('');
+      }
+    };
 
     // Modified version of handleCreateUser that uses the local state
     const handleCreateUserSubmit = async () => {
@@ -954,8 +974,11 @@ This action cannot be undone.`)) {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        onClick={handleBackdropClick}
+      >
+        <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto" onClick={e => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-4">Create New User</h2>
 
           {modalMessage && (
