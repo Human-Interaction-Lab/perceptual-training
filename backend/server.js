@@ -42,7 +42,7 @@ let server;
 app.use(cors({
   origin: [config.CLIENT_ORIGIN],
   credentials: true,
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
@@ -1218,6 +1218,12 @@ app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     const { userId } = req.params;
     const { email, trainingDay, pretestDate, currentPhase, speaker } = req.body;
 
+    // Debug request
+    console.log('PUT /api/admin/users/:userId request:');
+    console.log('- userId:', userId);
+    console.log('- Request body:', req.body);
+    console.log('- email:', email);
+    
     // Input validation
     if (email && !email.includes('@')) {
       return res.status(400).json({ error: 'Invalid email format' });
@@ -1232,9 +1238,22 @@ app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    console.log('- Current user email:', user.email);
+
+    // Check for email uniqueness before updating
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email: email });
+      if (existingUser && existingUser.userId !== userId) {
+        return res.status(400).json({ error: 'Email is already in use by another user' });
+      }
+    }
 
     // Update fields if provided
-    if (email) user.email = email;
+    if (email) {
+      console.log(`- Updating user email from "${user.email}" to "${email}"`);
+      user.email = email;
+    }
     if (trainingDay) user.trainingDay = trainingDay;
     if (currentPhase) user.currentPhase = currentPhase;
     if (speaker) user.speaker = speaker;
@@ -1247,27 +1266,44 @@ app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Invalid pretest date format' });
       }
     }
-
+    
     // Save the updated user
     await user.save();
+    
+    // Get the fresh user from database after save
+    const updatedUser = await User.findOne({ userId });
+    console.log('- User after save, email:', updatedUser.email);
 
     res.json({
       message: 'User updated successfully',
       user: {
-        userId: user.userId,
-        email: user.email,
-        trainingDay: user.trainingDay,
-        currentPhase: user.currentPhase,
-        pretestDate: user.pretestDate,
-        speaker: user.speaker
+        userId: updatedUser.userId,
+        email: updatedUser.email,
+        trainingDay: updatedUser.trainingDay,
+        currentPhase: updatedUser.currentPhase,
+        pretestDate: updatedUser.pretestDate,
+        speaker: updatedUser.speaker
       }
     });
   } catch (error) {
     console.error('Error updating user:', error);
 
-    // Handle validation errors
+    // Handle validation errors with more specific details
     if (error.name === 'ValidationError') {
+      // Check if it's an email validation error
+      if (error.errors && error.errors.email) {
+        return res.status(400).json({ 
+          error: 'Invalid email format. Please provide a valid email address.' 
+        });
+      }
       return res.status(400).json({ error: error.message });
+    }
+    
+    // Handle duplicate key errors (e.g., email already exists)
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
+      return res.status(400).json({ 
+        error: 'Email is already in use by another user' 
+      });
     }
 
     res.status(500).json({ error: 'Failed to update user' });

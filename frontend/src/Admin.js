@@ -71,6 +71,24 @@ const Admin = () => {
 
       setUsers(usersData);
       setStats(statsData);
+
+      // If there's a selected user, update their data from the refreshed users list
+      if (selectedUser) {
+        const refreshedUser = usersData.find(u => u.userId === selectedUser.userId);
+        if (refreshedUser) {
+          console.log("Updating selected user with fresh data:", refreshedUser);
+          setSelectedUser(refreshedUser);
+          // Also update the edited user form data to match
+          setEditedUser({
+            email: refreshedUser.email || '',
+            trainingDay: refreshedUser.trainingDay || 1,
+            pretestDate: refreshedUser.pretestDate ? new Date(refreshedUser.pretestDate).toISOString().split('T')[0] : '',
+            currentPhase: refreshedUser.currentPhase || 'pretest',
+            speaker: refreshedUser.speaker || ''
+          });
+        }
+      }
+
       setError(null);
     } catch (err) {
       setError('Failed to fetch data');
@@ -117,7 +135,7 @@ This action CANNOT be undone!`)) {
     try {
       // If no password is provided, use the global state
       const passwordToUse = password || newPassword;
-      
+
       if (!passwordToUse) {
         setModalMessage('Please enter a new password');
         return;
@@ -167,45 +185,45 @@ This action CANNOT be undone!`)) {
       alert('Error updating user status');
     }
   };
-  
+
   // Function to clear user-specific localStorage data
   const clearUserLocalStorage = (userId) => {
     const progressKeys = [
       // Demographics progress
       `progress_${userId}_demographics_demographics`,
-      
+
       // Pretest progress
       `progress_${userId}_pretest_intelligibility`,
       `progress_${userId}_pretest_effort`,
       `progress_${userId}_pretest_comprehension`,
-      
+
       // Training progress
       `progress_${userId}_training_day1`,
       `progress_${userId}_training_day2`,
       `progress_${userId}_training_day3`,
       `progress_${userId}_training_day4`,
-      
+
       // Posttest1 progress
       `progress_${userId}_posttest1_intelligibility`,
       `progress_${userId}_posttest1_effort`,
       `progress_${userId}_posttest1_comprehension`,
-      
+
       // Posttest2 progress
       `progress_${userId}_posttest2_intelligibility`,
       `progress_${userId}_posttest2_effort`,
       `progress_${userId}_posttest2_comprehension`,
-      
+
       // Posttest3 progress
       `progress_${userId}_posttest3_intelligibility`,
       `progress_${userId}_posttest3_effort`,
       `progress_${userId}_posttest3_comprehension`,
-      
+
       // Any user-specific demographics data
       `demographicsCompleted_${userId}`
     ];
-    
+
     let clearedCount = 0;
-    
+
     // Clear each key if it exists
     progressKeys.forEach(key => {
       if (localStorage.getItem(key) !== null) {
@@ -213,13 +231,13 @@ This action CANNOT be undone!`)) {
         clearedCount++;
       }
     });
-    
+
     // Clear global demographics flag if this was the current logged in user
     if (localStorage.getItem('userId') === userId && localStorage.getItem('demographicsCompleted') !== null) {
       localStorage.removeItem('demographicsCompleted');
       clearedCount++;
     }
-    
+
     return clearedCount;
   };
 
@@ -236,14 +254,14 @@ This action CANNOT be undone!`)) {
 This action cannot be undone.`)) {
       return;
     }
-    
+
     try {
       setModalMessage('Resetting user progress...');
-      
+
       // First, clear localStorage for this specific user
       const clearedItemCount = clearUserLocalStorage(userId);
       console.log(`Cleared ${clearedItemCount} localStorage items for user ${userId}`);
-      
+
       // Then call the server API to reset progress in MongoDB
       const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}/reset-progress`, {
         method: 'POST',
@@ -255,7 +273,7 @@ This action cannot be undone.`)) {
       if (response.ok) {
         setModalMessage(`User progress has been reset successfully. Cleared ${clearedItemCount} localStorage items.`);
         await fetchData(); // Refresh the user list
-        
+
         setTimeout(() => {
           setModalMessage('');
           setShowUserModal(false); // Close the modal after success
@@ -273,28 +291,102 @@ This action cannot be undone.`)) {
   // New function to handle updating user details
   const handleUpdateUser = async (userId) => {
     try {
+      setModalMessage('Updating user...');
+
+      // Create a copy of the current form data
+      const updatedUserData = { ...editedUser };
+      console.log("handleUpdateUser: Sending update for user:", userId);
+      console.log("handleUpdateUser: UPDATED USER DATA:", JSON.stringify(updatedUserData));
+
+      // Force a small timeout to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Create a direct object with all fields explicitly
+      const dataToSend = {
+        email: updatedUserData.email || '',
+        trainingDay: updatedUserData.trainingDay || 1,
+        currentPhase: updatedUserData.currentPhase || 'pretest',
+        speaker: updatedUserData.speaker || '',
+        pretestDate: updatedUserData.pretestDate || ''
+      };
+      
+      console.log("handleUpdateUser: SENDING TO SERVER:", JSON.stringify(dataToSend));
+
       const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(editedUser)
+        body: JSON.stringify(dataToSend)
       });
 
+      const data = await response.json();
+
       if (response.ok) {
+        // Log the server response
+        console.log("Server response data:", data);
+        console.log("Server returned user:", data.user);
+        
         setModalMessage('User updated successfully');
-        await fetchData(); // Refresh the user list
-        setTimeout(() => {
+        
+        // First update the user's data in the users array to ensure it's fresh
+        const updatedUsers = users.map(u => 
+          u.userId === userId ? {...u, ...data.user} : u
+        );
+        console.log("Setting users array with updated user:", data.user.email);
+        setUsers(updatedUsers);
+        
+        // Also directly update the selected user
+        console.log("Updating selectedUser with:", data.user.email);
+        setSelectedUser(prev => {
+          const updated = {...prev, ...data.user};
+          console.log("New selectedUser value:", updated);
+          return updated;
+        });
+        
+        // Update the edited user state to match the server response
+        const updatedEditedUser = {
+          email: data.user.email || '',
+          trainingDay: data.user.trainingDay || 1,
+          pretestDate: data.user.pretestDate ? new Date(data.user.pretestDate).toISOString().split('T')[0] : '',
+          currentPhase: data.user.currentPhase || 'pretest',
+          speaker: data.user.speaker || ''
+        };
+        console.log("Setting editedUser to:", updatedEditedUser);
+        setEditedUser(updatedEditedUser);
+        
+        // Refetch all data to ensure everything is up to date
+        console.log("Calling fetchData to refresh all user data");
+        await fetchData();
+        
+        // Update the UI after a brief delay to ensure all state updates have happened
+        setTimeout(async () => {
+          console.log("AFTER TIMEOUT - current selectedUser:", selectedUser?.email);
+          console.log("AFTER TIMEOUT - current editedUser:", editedUser?.email);
+          
+          // One more fetch to be really sure
+          await fetchData();
           setModalMessage('');
-        }, 2000);
+        }, 500);
       } else {
-        const errorData = await response.json();
-        setModalMessage(`Failed to update user: ${errorData.error || 'Unknown error'}`);
+        // Set error message with clear details from server
+        const errorMessage = data.error || 'Unknown error';
+        setModalMessage(
+          <div className="p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+            <p className="font-bold">Update failed</p>
+            <p>{errorMessage}</p>
+          </div>
+        );
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      setModalMessage('Error updating user');
+      setModalMessage(
+        <div className="p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+          <p className="font-bold">Update failed</p>
+          <p>Connection error. Please try again.</p>
+        </div>
+      );
     }
   };
 
@@ -357,7 +449,7 @@ This action cannot be undone.`)) {
           trainingDay: 1,
           pretestDate: ''
         });
-        
+
         // Close modal after a delay
         setTimeout(() => {
           setShowCreateUserModal(false);
@@ -385,14 +477,14 @@ This action cannot be undone.`)) {
         }
 
         console.log('Initiating download from:', url);
-        
+
         // Create a direct XHR request with proper headers
         const xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.responseType = 'blob';
-        
-        xhr.onload = function() {
+
+        xhr.onload = function () {
           if (this.status === 200) {
             // Create a download link and trigger it
             const blob = new Blob([this.response], { type: xhr.getResponseHeader('Content-Type') });
@@ -403,7 +495,7 @@ This action cannot be undone.`)) {
             a.download = filename || 'download';
             document.body.appendChild(a);
             a.click();
-            
+
             // Clean up
             window.URL.revokeObjectURL(downloadUrl);
             document.body.removeChild(a);
@@ -412,12 +504,12 @@ This action cannot be undone.`)) {
             alert(`Download failed: ${this.statusText || 'Server error'}`);
           }
         };
-        
-        xhr.onerror = function() {
+
+        xhr.onerror = function () {
           console.error('XHR error occurred');
           alert('Download failed. Network error or CORS issue.');
         };
-        
+
         // Start the download
         xhr.send();
       } catch (error) {
@@ -432,11 +524,11 @@ This action cannot be undone.`)) {
       all: false,
       demographics: false
     });
-    
+
     const handleExport = async (type, url, filename) => {
       // Set loading state for the specific export
       setIsExporting(prev => ({ ...prev, [type]: true }));
-      
+
       try {
         await downloadFile(url, filename);
       } catch (error) {
@@ -448,7 +540,7 @@ This action cannot be undone.`)) {
         }, 1000);
       }
     };
-    
+
     return (
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
@@ -466,7 +558,7 @@ This action cannot be undone.`)) {
             </>
           ) : "Export Responses"}
         </button>
-        
+
         <button
           onClick={() => handleExport('users', `${config.API_BASE_URL}/api/admin/export/users`, 'users.csv')}
           className="bg-[#406368] hover:bg-[#6c8376] text-white px-4 py-2 rounded flex items-center justify-center"
@@ -482,7 +574,7 @@ This action cannot be undone.`)) {
             </>
           ) : "Export Users"}
         </button>
-        
+
         <button
           onClick={() => handleExport('demographics', `${config.API_BASE_URL}/api/admin/export/demographics`, 'demographics.csv')}
           className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded flex items-center justify-center"
@@ -498,7 +590,7 @@ This action cannot be undone.`)) {
             </>
           ) : "Export Demographics"}
         </button>
-        
+
         <button
           onClick={() => handleExport('all', `${config.API_BASE_URL}/api/admin/export/all`, 'all_data.zip')}
           className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center justify-center"
@@ -518,30 +610,35 @@ This action cannot be undone.`)) {
     );
   };
 
-  // Create a memoized version of UserModal
-  const UserModal = memo(({ user }) => {
+  // Create UserModal - without memo to ensure it always gets fresh data
+  const UserModal = ({ user }) => {
     // Create a local state for the form to prevent parent re-renders
+    // Initialize directly from user prop for more reliability
     const [localEditedUser, setLocalEditedUser] = useState({
-      email: editedUser.email,
-      trainingDay: editedUser.trainingDay,
-      pretestDate: editedUser.pretestDate,
-      currentPhase: editedUser.currentPhase,
-      speaker: editedUser.speaker
+      email: user.email || '',
+      trainingDay: user.trainingDay || 1,
+      pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
+      currentPhase: user.currentPhase || 'pretest',
+      speaker: user.speaker || ''
     });
-    
+
     // Local state for password reset to prevent focus loss
     const [localPassword, setLocalPassword] = useState('');
 
-    // Update local form state when parent editedUser changes
+    // Update local form state when the user prop changes
+    // This ensures we always show the current database values
     useEffect(() => {
+      console.log("User prop changed, updating form - user email:", user.email);
+      
+      // Reset local state directly from user prop
       setLocalEditedUser({
-        email: editedUser.email,
-        trainingDay: editedUser.trainingDay,
-        pretestDate: editedUser.pretestDate,
-        currentPhase: editedUser.currentPhase,
-        speaker: editedUser.speaker
+        email: user.email || '',
+        trainingDay: user.trainingDay || 1,
+        pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
+        currentPhase: user.currentPhase || 'pretest',
+        speaker: user.speaker || ''
       });
-    }, [editedUser]);
+    }, [user]); // Only depend on user prop, not editedUser state
 
     // Handle form input changes locally
     const handleLocalInputChange = (e) => {
@@ -553,14 +650,65 @@ This action cannot be undone.`)) {
     };
 
     // Only update parent state when form is submitted
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
       e.preventDefault();
+      console.log("Form submission - local state:", localEditedUser);
+      
       // Update the parent state with all form values at once
       setEditedUser(localEditedUser);
-      // Call the update user API
-      handleUpdateUser(user.userId);
+      
+      // Log the value being set
+      console.log("Setting editedUser to:", localEditedUser);
+      
+      // Save current form values for direct use in API call
+      const formValues = {...localEditedUser};
+      
+      // Call update API with direct reference to form values
+      try {
+        setModalMessage('Updating user...');
+        
+        console.log("Sending direct API call with form values:", formValues);
+        
+        const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${user.userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify(formValues)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          console.log("API update successful, refreshing data");
+          setModalMessage('User updated successfully');
+          
+          // Refetch user data
+          await fetchData();
+          
+          setTimeout(() => {
+            setModalMessage('');
+          }, 2000);
+        } else {
+          setModalMessage(
+            <div className="p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+              <p className="font-bold">Update failed</p>
+              <p>{data.error || 'Unknown error'}</p>
+            </div>
+          );
+        }
+      } catch (error) {
+        console.error("Error in direct API call:", error);
+        setModalMessage(
+          <div className="p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+            <p className="font-bold">Update failed</p>
+            <p>Connection error. Please try again.</p>
+          </div>
+        );
+      }
     };
-    
+
     // Handle clicks outside the modal to close it
     const handleBackdropClick = (e) => {
       // Only close if clicking the backdrop, not the modal content
@@ -570,8 +718,8 @@ This action cannot be undone.`)) {
     };
 
     return (
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
         onClick={handleBackdropClick}
       >
         <div className="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -740,18 +888,18 @@ This action cannot be undone.`)) {
                 {/* Display Completed Tests */}
                 <div className="mt-4 border-t pt-4">
                   <div className="font-medium mb-2">Completed Activities:</div>
-                  
+
                   {user.completedTestsByPhase && (
                     <div className="text-sm">
                       <div className="mb-2">
                         <div className="font-medium">Pretest:</div>
                         <div className="ml-2">
-                          {user.completedTestsByPhase.pretest && user.completedTestsByPhase.pretest.length > 0 
+                          {user.completedTestsByPhase.pretest && user.completedTestsByPhase.pretest.length > 0
                             ? user.completedTestsByPhase.pretest.map(test => (
-                                <div key={`pretest-${test}`} className="text-green-600">
-                                  ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
-                                </div>
-                              ))
+                              <div key={`pretest-${test}`} className="text-green-600">
+                                ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                              </div>
+                            ))
                             : <div className="text-gray-500">No completed activities</div>
                           }
                         </div>
@@ -762,10 +910,10 @@ This action cannot be undone.`)) {
                         <div className="ml-2">
                           {user.completedTestsByPhase.training && user.completedTestsByPhase.training.length > 0
                             ? user.completedTestsByPhase.training.map(test => (
-                                <div key={`training-${test}`} className="text-green-600">
-                                  ✓ {test.replace('training_intel', 'Intelligibility').replace('day', 'Day ')}
-                                </div>
-                              ))
+                              <div key={`training-${test}`} className="text-green-600">
+                                ✓ {test.replace('training_intel', 'Intelligibility').replace('day', 'Day ')}
+                              </div>
+                            ))
                             : <div className="text-gray-500">No completed activities</div>
                           }
                         </div>
@@ -776,12 +924,12 @@ This action cannot be undone.`)) {
                         <div className="ml-2">
                           {user.completedTestsByPhase.posttest1 && user.completedTestsByPhase.posttest1.length > 0
                             ? user.completedTestsByPhase.posttest1
-                                .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
-                                .map(test => (
-                                  <div key={`posttest1-${test}`} className="text-green-600">
-                                    ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
-                                  </div>
-                                ))
+                              .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
+                              .map(test => (
+                                <div key={`posttest1-${test}`} className="text-green-600">
+                                  ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                                </div>
+                              ))
                             : <div className="text-gray-500">No completed activities</div>
                           }
                         </div>
@@ -792,12 +940,12 @@ This action cannot be undone.`)) {
                         <div className="ml-2">
                           {user.completedTestsByPhase.posttest2 && user.completedTestsByPhase.posttest2.length > 0
                             ? user.completedTestsByPhase.posttest2
-                                .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
-                                .map(test => (
-                                  <div key={`posttest2-${test}`} className="text-green-600">
-                                    ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
-                                  </div>
-                                ))
+                              .filter(test => !test.includes('demographics') && !test.includes('DEMOGRAPHICS'))
+                              .map(test => (
+                                <div key={`posttest2-${test}`} className="text-green-600">
+                                  ✓ {test.replace('COMPREHENSION', 'Comprehension').replace('EFFORT', 'Listening Effort').replace('INTELLIGIBILITY', 'Intelligibility')}
+                                </div>
+                              ))
                             : <div className="text-gray-500">No completed activities</div>
                           }
                         </div>
@@ -838,8 +986,8 @@ This action cannot be undone.`)) {
                     <li>Clear localStorage progress data in this browser</li>
                   </ul>
                   <p className="mt-2 text-sm text-yellow-800">
-                    <strong>Note:</strong> The localStorage data is only cleared on this browser. If users 
-                    are accessing the app from different devices or browsers, they may need to clear their 
+                    <strong>Note:</strong> The localStorage data is only cleared on this browser. If users
+                    are accessing the app from different devices or browsers, they may need to clear their
                     localStorage there as well or log out and log back in.
                   </p>
                   <p className="mt-2 text-sm text-yellow-800 font-bold">
@@ -871,7 +1019,7 @@ This action cannot be undone.`)) {
         </div>
       </div>
     );
-});
+  };
 
   // Memoized CreateUserModal to prevent re-renders
   const CreateUserModal = memo(() => {
@@ -903,7 +1051,7 @@ This action cannot be undone.`)) {
       // Continue with create user API call
       handleCreateUserSubmit();
     };
-    
+
     // Handle clicks outside the modal to close it
     const handleBackdropClick = (e) => {
       // Only close if clicking the backdrop, not the modal content
@@ -957,7 +1105,7 @@ This action cannot be undone.`)) {
             trainingDay: 1,
             pretestDate: ''
           });
-          
+
           // Close modal after a delay
           setTimeout(() => {
             setShowCreateUserModal(false);
@@ -974,7 +1122,7 @@ This action cannot be undone.`)) {
     };
 
     return (
-      <div 
+      <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
         onClick={handleBackdropClick}
       >
