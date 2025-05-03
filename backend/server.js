@@ -130,11 +130,33 @@ const isCorrectDay = (user, phase) => {
 
   // Updated to handle specific posttest phases
   if (phase === 'posttest1') {
-    return daysSincePretest >= 12;  // Allow posttest1 on or after day 12
+    // For posttest1, check if training has been completed and 7 days have passed
+    // If trainingCompletedDate is set, use that as the reference point
+    if (user.trainingCompletedDate) {
+      const trainingCompleted = new Date(user.trainingCompletedDate);
+      trainingCompleted.setHours(0, 0, 0, 0);
+      const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
+      
+      console.log(`User ${user.userId} completed training ${daysSinceTrainingCompleted} days ago`);
+      return daysSinceTrainingCompleted >= 7;  // Allow posttest1 7 days after training completed
+    }
+    
+    // Fall back to old logic if trainingCompletedDate isn't set (for backward compatibility)
+    return daysSincePretest >= 12;
   }
 
   if (phase === 'posttest2') {
-    return daysSincePretest >= 35;  // Allow posttest2 on or after day 35
+    // For posttest2, 30 days after training completion (or 23 days after posttest1)
+    if (user.trainingCompletedDate) {
+      const trainingCompleted = new Date(user.trainingCompletedDate);
+      trainingCompleted.setHours(0, 0, 0, 0);
+      const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
+      
+      return daysSinceTrainingCompleted >= 30;  // 30 days after training completion
+    }
+    
+    // Fall back to old logic
+    return daysSincePretest >= 35;
   }
 
   // For backward compatibility with general 'posttest'
@@ -812,6 +834,7 @@ app.post('/api/login', async (req, res) => {
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
+      trainingCompletedDate: user.trainingCompletedDate, // Add training completed date
       completed: user.completed,
       canProceedToday,
       completedTests: Object.fromEntries(user.completedTests) || {},
@@ -958,7 +981,10 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       }
     } else if (phase === 'training') {
       if (trainingDay >= 4) {
+        // When training day 4 is completed, set the trainingCompletedDate
+        user.trainingCompletedDate = new Date();
         user.currentPhase = 'posttest1'; // Changed from 'posttest' to 'posttest1'
+        console.log(`User ${user.userId} completed training on ${user.trainingCompletedDate}`);
       } else {
         user.trainingDay = trainingDay + 1;
       }
@@ -1003,6 +1029,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
+      trainingCompletedDate: user.trainingCompletedDate,
       completed: user.completed,
       completedTests: Object.fromEntries(user.completedTests) || {}
     });

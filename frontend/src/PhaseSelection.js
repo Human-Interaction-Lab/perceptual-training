@@ -452,6 +452,7 @@ const PhaseSelection = ({
   currentPhase,
   trainingDay,
   pretestDate,
+  trainingCompletedDate, // Add training completed date
   onSelectPhase,
   isDemographicsCompleted,
   onPhaseTransition,
@@ -808,11 +809,11 @@ const PhaseSelection = ({
   };
 
   // Helper function to calculate days until a specific date
-  const getDaysUntilDate = (daysToAdd) => {
-    if (!pretestDate) return null;
+  const getDaysUntilDate = (baseDate, daysToAdd) => {
+    if (!baseDate) return null;
 
-    const baseDate = toEasternTime(pretestDate);
-    const targetDate = new Date(baseDate);
+    const referenceDate = toEasternTime(baseDate);
+    const targetDate = new Date(referenceDate);
     targetDate.setDate(targetDate.getDate() + daysToAdd);
 
     const today = getCurrentDateInEastern();
@@ -826,53 +827,90 @@ const PhaseSelection = ({
 
   // Helper function to calculate days until posttest1
   const getDaysUntilPosttest1 = () => {
-    return getDaysUntilDate(12); // Posttest1 is 12 days after pretest
+    // Use trainingCompletedDate if available, otherwise fall back to pretestDate
+    if (trainingCompletedDate) {
+      return getDaysUntilDate(trainingCompletedDate, 7); // 7 days after training completion
+    }
+    return getDaysUntilDate(pretestDate, 12); // Legacy: 12 days after pretest
   };
 
   // Helper function to calculate days until posttest2
   const getDaysUntilPosttest2 = () => {
-    return getDaysUntilDate(35); // Posttest2 is 35 days after pretest
+    // Use trainingCompletedDate if available, otherwise fall back to pretestDate
+    if (trainingCompletedDate) {
+      return getDaysUntilDate(trainingCompletedDate, 30); // 30 days after training completion
+    }
+    return getDaysUntilDate(pretestDate, 35); // Legacy: 35 days after pretest
   };
 
   // Calculate posttest availability when current time is after expected date
-  const calculatePosttestAvailability = (pretestDate, trainingDay) => {
-    if (!pretestDate) return { posttest1: false, posttest2: false };
-
-    const baseDate = toEasternTime(pretestDate);
+  const calculatePosttestAvailability = (pretestDate, trainingCompletedDate, trainingDay) => {
     const today = getCurrentDateInEastern();
-
-    // Now following the correct timeline:
-    // Posttest1 is 12 days after pretest (1 week after 4 days of training + 1 day)
-    const posttest1Date = new Date(baseDate);
-    posttest1Date.setDate(posttest1Date.getDate() + 12);
-
-    // Posttest2 is 35 days after pretest
-    const posttest2Date = new Date(baseDate);
-    posttest2Date.setDate(posttest2Date.getDate() + 35);
-
-    // For debugging
-    console.log("Today (Eastern):", today);
-    console.log("Pretest date (Eastern):", baseDate);
-    console.log("Posttest1 date (Eastern):", posttest1Date);
-    console.log("Posttest2 date (Eastern):", posttest2Date);
-    console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
-
-    return {
-      // For posttest1, check both date AND that all training days are completed
-      // This ensures posttest1 isn't available until the required date even if training is done
-      posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
-      // For posttest2, check both date AND that the current phase is posttest2
-      // This ensures even if we've completed posttest1, we can't access posttest2 until the date
-      posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
-    };
+    
+    // Use trainingCompletedDate if available, otherwise fallback to pretestDate for backward compatibility
+    if (trainingCompletedDate) {
+      const trainingCompleted = toEasternTime(trainingCompletedDate);
+      
+      // Posttest1 is 7 days after training completion
+      const posttest1Date = new Date(trainingCompleted);
+      posttest1Date.setDate(posttest1Date.getDate() + 7);
+      
+      // Posttest2 is 30 days after training completion
+      const posttest2Date = new Date(trainingCompleted);
+      posttest2Date.setDate(posttest2Date.getDate() + 30);
+      
+      // For debugging
+      console.log("Today (Eastern):", today);
+      console.log("Training completed date (Eastern):", trainingCompleted);
+      console.log("Posttest1 date (Eastern):", posttest1Date);
+      console.log("Posttest2 date (Eastern):", posttest2Date);
+      console.log("Days since training completed:", Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24)));
+      
+      return {
+        // For posttest1, check both date AND phase
+        posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
+        // For posttest2, check both date AND that the current phase is posttest2
+        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
+      };
+    } 
+    // Fall back to original logic using pretestDate
+    else if (pretestDate) {
+      const baseDate = toEasternTime(pretestDate);
+      
+      // Use legacy calculation for backward compatibility
+      // Posttest1 is 12 days after pretest (1 week after 4 days of training + 1 day)
+      const posttest1Date = new Date(baseDate);
+      posttest1Date.setDate(posttest1Date.getDate() + 12);
+      
+      // Posttest2 is 35 days after pretest
+      const posttest2Date = new Date(baseDate);
+      posttest2Date.setDate(posttest2Date.getDate() + 35);
+      
+      // For debugging
+      console.log("Today (Eastern):", today);
+      console.log("Pretest date (Eastern):", baseDate);
+      console.log("Posttest1 date (Eastern) [legacy]:", posttest1Date);
+      console.log("Posttest2 date (Eastern) [legacy]:", posttest2Date);
+      console.log("Days since pretest:", Math.floor((today - baseDate) / (1000 * 60 * 60 * 24)));
+      
+      return {
+        // For posttest1, check both date AND that all training days are completed
+        posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
+        // For posttest2, check both date AND that the current phase is posttest2
+        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
+      };
+    }
+    
+    // No dates available at all
+    return { posttest1: false, posttest2: false };
   };
 
-  // Calculate posttest availability when component mounts or pretestDate changes
+  // Calculate posttest availability when component mounts or date/phase changes
   useEffect(() => {
-    const availability = calculatePosttestAvailability(pretestDate, trainingDay);
+    const availability = calculatePosttestAvailability(pretestDate, trainingCompletedDate, trainingDay);
     console.log("Posttest availability:", availability);
     setPosttestAvailability(availability);
-  }, [pretestDate, trainingDay, currentPhase]);
+  }, [pretestDate, trainingCompletedDate, trainingDay, currentPhase]);
 
   // Debug useEffect to log training completion conditions
   useEffect(() => {

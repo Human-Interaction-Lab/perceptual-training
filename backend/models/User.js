@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    trainingCompletedDate: {
+        type: Date,
+        default: null
+    },
     completed: {
         type: Boolean,
         default: false

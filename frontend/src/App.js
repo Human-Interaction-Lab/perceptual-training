@@ -168,6 +168,7 @@ const App = () => {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [currentPhase, setCurrentPhase] = useState('pretest');
   const [pretestDate, setPretestDate] = useState(null);
+  const [trainingCompletedDate, setTrainingCompletedDate] = useState(null);
   const [canProceedToday, setCanProceedToday] = useState(true);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [rating, setRating] = useState(null);
@@ -703,7 +704,49 @@ const App = () => {
           if (day >= 4) {
             console.log('Training day 4 completed, advancing to posttest1 phase');
             setCurrentPhase('posttest1');
+            
+            // Fetch the user data to get updated trainingCompletedDate
+            try {
+              // Fetch latest user data after completing training, to get trainingCompletedDate
+              const token = localStorage.getItem('token');
+              if (token) {
+                console.log('Fetching updated user data to get trainingCompletedDate');
+                fetch(`${config.API_BASE_URL}/api/login`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ 
+                    userId: localStorage.getItem('userId'), 
+                    password: localStorage.getItem('password') || '' 
+                  }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.trainingCompletedDate) {
+                    console.log('Setting trainingCompletedDate to:', data.trainingCompletedDate);
+                    setTrainingCompletedDate(data.trainingCompletedDate);
+                    
+                    // Update localStorage user object
+                    const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+                    userObj.trainingCompletedDate = data.trainingCompletedDate;
+                    localStorage.setItem('user', JSON.stringify(userObj));
+                    
+                    // Also store in sessionStorage as backup
+                    try {
+                      sessionStorage.setItem('trainingCompletedDate', data.trainingCompletedDate);
+                    } catch (sessionError) {
+                      console.warn('Could not save trainingCompletedDate to sessionStorage:', sessionError);
+                    }
+                  }
+                })
+                .catch(err => console.error('Error fetching user data for trainingCompletedDate:', err));
+              }
+            } catch (error) {
+              console.error('Error updating trainingCompletedDate:', error);
+            }
           }
+          
           setPhase('selection');
           setShowComplete(true);
           setTimeout(() => {
@@ -797,6 +840,7 @@ const App = () => {
           currentPhase: data.currentPhase,
           trainingDay: data.trainingDay,
           pretestDate: data.pretestDate,
+          trainingCompletedDate: data.trainingCompletedDate,
           speaker: data.speaker || 'OHSp01', // Default to OHSp01 if not provided
           canProceedToday: data.canProceedToday
         }));
@@ -808,6 +852,7 @@ const App = () => {
         setCurrentPhase(data.currentPhase);
         setTrainingDay(data.trainingDay);
         setPretestDate(data.pretestDate);
+        setTrainingCompletedDate(data.trainingCompletedDate);
         setCanProceedToday(data.canProceedToday);
         setCompletedTests(data.completedTests || {});
         // Initialize story assignments
@@ -1642,6 +1687,49 @@ const App = () => {
             break;
         }
 
+        // Special handling for training phase completion - update training completion date
+        if (phase === 'training' && trainingDay >= 4) {
+          try {
+            // Fetch latest user data after completing training, to get trainingCompletedDate
+            const token = localStorage.getItem('token');
+            if (token) {
+              console.log('Fetching updated user data to get trainingCompletedDate');
+              fetch(`${config.API_BASE_URL}/api/login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  userId: localStorage.getItem('userId'), 
+                  password: localStorage.getItem('password') || '' 
+                }),
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.trainingCompletedDate) {
+                  console.log('Setting trainingCompletedDate to:', data.trainingCompletedDate);
+                  setTrainingCompletedDate(data.trainingCompletedDate);
+                  
+                  // Update localStorage user object
+                  const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+                  userObj.trainingCompletedDate = data.trainingCompletedDate;
+                  localStorage.setItem('user', JSON.stringify(userObj));
+                  
+                  // Also store in sessionStorage as backup
+                  try {
+                    sessionStorage.setItem('trainingCompletedDate', data.trainingCompletedDate);
+                  } catch (sessionError) {
+                    console.warn('Could not save trainingCompletedDate to sessionStorage:', sessionError);
+                  }
+                }
+              })
+              .catch(err => console.error('Error fetching user data for trainingCompletedDate:', err));
+            }
+          } catch (error) {
+            console.error('Error updating trainingCompletedDate:', error);
+          }
+        }
+
         // Reset states for next activity
         setPhase('selection');
         setShowComplete(false);
@@ -2392,6 +2480,7 @@ const App = () => {
               currentPhase={currentPhase}
               trainingDay={trainingDay}
               pretestDate={pretestDate}
+              trainingCompletedDate={trainingCompletedDate}
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
               isDemographicsCompleted={isDemographicsCompleted}
