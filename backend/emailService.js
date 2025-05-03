@@ -18,6 +18,18 @@ const emailTemplates = {
     posttestReminder: (userId) => ({
         subject: 'Post-test Reminder',
         text: `Hello ${userId},\n\nIt's time for your post-test assessment. Please log in to complete your final evaluation.\n\nBest regards,\nPerceptual Training Team`
+    }),
+    activityCompleted: (userId, phase, testType, timestamp) => ({
+        subject: `Activity Completion Notification`,
+        text: `
+Activity Completion Notification
+
+User: ${userId}
+Activity: ${testType} (${phase})
+Completed at: ${timestamp}
+
+This is an automated notification from the Perceptual Training System.
+        `
     })
 };
 
@@ -49,4 +61,18 @@ const sendReminder = async (user, type, day = null) => {
     return await sendEmail(user.email, template);
 };
 
-module.exports = { sendReminder };
+// Send activity completion notification
+const sendActivityNotification = async (user, phase, testType, notificationEmail) => {
+    if (!notificationEmail) {
+        console.log('No notification email configured, skipping activity notification');
+        return false;
+    }
+    
+    const timestamp = new Date().toISOString();
+    const template = emailTemplates.activityCompleted(user.userId, phase, testType, timestamp);
+    
+    console.log(`Sending activity completion notification to ${notificationEmail} for user ${user.userId}`);
+    return await sendEmail(notificationEmail, template);
+};
+
+module.exports = { sendReminder, sendActivityNotification };

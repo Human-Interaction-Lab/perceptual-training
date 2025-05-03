@@ -17,13 +17,15 @@ const boxService = require('./boxService');
 const { initializeUsers } = require('./utils/initUsers');
 const tempFileService = require('./tempFileService');
 const { logger } = require('./utils');
+const { sendReminder, sendActivityNotification } = require('./emailService');
 require('dotenv').config();
 const helmet = require('helmet');
 const config = {
   PORT: process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 28303),
   CLIENT_ORIGIN: process.env.NODE_ENV === 'production'
     ? 'https://speechtraining.usu.edu'
-    : 'http://localhost:3001'
+    : 'http://localhost:3001',
+  ACTIVITY_NOTIFICATION_EMAIL: process.env.ACTIVITY_NOTIFICATION_EMAIL || null
 };
 
 let server;
@@ -920,6 +922,22 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       // Immediately save the user to ensure completion state is persisted
       await user.save();
       console.log(`User record saved with updated test completion status`);
+
+      // Send activity completion notification email if configured
+      if (config.ACTIVITY_NOTIFICATION_EMAIL) {
+        try {
+          console.log(`Sending activity completion notification for user ${user.userId}, ${phase} - ${testType}`);
+          await sendActivityNotification(
+            user,
+            phase,
+            testType,
+            config.ACTIVITY_NOTIFICATION_EMAIL
+          );
+        } catch (emailError) {
+          // Log error but don't fail the request if email sending fails
+          console.error(`Error sending activity completion notification:`, emailError);
+        }
+      }
     }
 
     // Validate stimulusId format - ensure it's properly formatted
@@ -1617,6 +1635,51 @@ app.get('/api/admin/export/all', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+// Admin route to test activity notification emails
+app.post('/api/admin/test-notification', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId, phase, testType } = req.body;
+    
+    if (!config.ACTIVITY_NOTIFICATION_EMAIL) {
+      return res.status(400).json({ 
+        error: 'ACTIVITY_NOTIFICATION_EMAIL not configured in environment variables' 
+      });
+    }
+    
+    if (!userId || !phase || !testType) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, phase, and testType are required' 
+      });
+    }
+    
+    // Find the user
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Send test notification
+    const result = await sendActivityNotification(
+      user, 
+      phase, 
+      testType, 
+      config.ACTIVITY_NOTIFICATION_EMAIL
+    );
+    
+    if (result) {
+      res.json({ 
+        success: true, 
+        message: `Test notification sent to ${config.ACTIVITY_NOTIFICATION_EMAIL}`
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to send test notification' });
+    }
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    res.status(500).json({ error: 'Failed to send test notification' });
   }
 });
 
