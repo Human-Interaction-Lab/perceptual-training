@@ -62,6 +62,12 @@ const userSchema = new mongoose.Schema({
     testUsersInitializedAt: {
         type: Date,
         default: null
+    },
+    // Field to track last notification time for each activity to prevent duplicate emails
+    lastNotifiedActivities: {
+        type: Map,
+        of: Date,
+        default: new Map()
     }
 }, {
     timestamps: true

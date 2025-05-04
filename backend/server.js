@@ -692,17 +692,39 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
 
     // Send activity completion notification email if configured and test is marked as completed
     if (completed && config.ACTIVITY_NOTIFICATION_EMAIL) {
-      try {
-        console.log(`Sending activity completion notification for user ${user.userId}, ${phase} - ${testType} via test-completed endpoint`);
-        await sendActivityNotification(
-          user,
-          phase,
-          testType,
-          config.ACTIVITY_NOTIFICATION_EMAIL
-        );
-      } catch (emailError) {
-        // Log error but don't fail the request if email sending fails
-        console.error(`Error sending activity completion notification:`, emailError);
+      // Use the same deduplication logic as in the response endpoint
+      const activityKey = `${phase}_${testType}`;
+      const lastNotifiedTime = user.lastNotifiedActivities?.get(activityKey);
+      const currentTime = new Date();
+      
+      // Only send notification if not sent in last 5 minutes
+      const shouldSendNotification = !lastNotifiedTime || 
+        (currentTime - new Date(lastNotifiedTime)) > 5 * 60 * 1000;
+        
+      if (shouldSendNotification) {
+        try {
+          console.log(`Sending activity completion notification for user ${user.userId}, ${phase} - ${testType} via test-completed endpoint`);
+          await sendActivityNotification(
+            user,
+            phase,
+            testType,
+            config.ACTIVITY_NOTIFICATION_EMAIL
+          );
+          
+          // Track this notification to prevent duplicates
+          if (!user.lastNotifiedActivities) {
+            user.lastNotifiedActivities = new Map();
+          }
+          user.lastNotifiedActivities.set(activityKey, currentTime);
+          
+          // No need to save again as we save later in this function
+          console.log(`Updated notification tracking for ${activityKey}`);
+        } catch (emailError) {
+          // Log error but don't fail the request if email sending fails
+          console.error(`Error sending activity completion notification:`, emailError);
+        }
+      } else {
+        console.log(`Skipping duplicate notification for ${phase} - ${testType} (last sent: ${lastNotifiedTime})`);
       }
     }
 
@@ -940,7 +962,16 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       console.log(`User record saved with updated test completion status`);
 
       // Send activity completion notification email if configured
-      if (config.ACTIVITY_NOTIFICATION_EMAIL) {
+      // Add tracking to prevent duplicate emails for the same activity completion
+      const activityKey = `${phase}_${testType}`;
+      const lastNotifiedTime = user.lastNotifiedActivities?.get(activityKey);
+      const currentTime = new Date();
+      
+      // Only send notification if not sent in last 5 minutes
+      const shouldSendNotification = !lastNotifiedTime || 
+        (currentTime - new Date(lastNotifiedTime)) > 5 * 60 * 1000;
+        
+      if (config.ACTIVITY_NOTIFICATION_EMAIL && shouldSendNotification) {
         try {
           console.log(`Sending activity completion notification for user ${user.userId}, ${phase} - ${testType}`);
           await sendActivityNotification(
@@ -949,10 +980,22 @@ app.post('/api/response', authenticateToken, async (req, res) => {
             testType,
             config.ACTIVITY_NOTIFICATION_EMAIL
           );
+          
+          // Track this notification to prevent duplicates
+          if (!user.lastNotifiedActivities) {
+            user.lastNotifiedActivities = new Map();
+          }
+          user.lastNotifiedActivities.set(activityKey, currentTime);
+          
+          // Save the user with updated notification tracking
+          await user.save();
+          console.log(`Updated notification tracking for ${activityKey}`);
         } catch (emailError) {
           // Log error but don't fail the request if email sending fails
           console.error(`Error sending activity completion notification:`, emailError);
         }
+      } else if (lastNotifiedTime) {
+        console.log(`Skipping duplicate notification for ${phase} - ${testType} (last sent: ${lastNotifiedTime})`);
       }
     }
 
