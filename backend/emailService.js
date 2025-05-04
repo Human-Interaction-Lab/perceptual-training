@@ -36,6 +36,9 @@ This is an automated notification from the Perceptual Training System.
 // Send email function
 const sendEmail = async (to, template) => {
     try {
+        console.log(`Preparing to send email to ${to}`);
+        console.log(`Using email credentials: ${process.env.EMAIL_USER}`);
+        
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to,
@@ -43,11 +46,20 @@ const sendEmail = async (to, template) => {
             text: template.text
         };
 
+        console.log('Email content:', {
+            subject: template.subject,
+            textPreview: template.text.substring(0, 100) + '...'
+        });
+
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent:', info.messageId);
+        console.log('Email sent successfully:', info.messageId);
         return true;
     } catch (error) {
         console.error('Error sending email:', error);
+        console.error('Error details:', error.message);
+        if (error.code) {
+            console.error('Error code:', error.code);
+        }
         return false;
     }
 };
@@ -75,4 +87,4 @@ const sendActivityNotification = async (user, phase, testType, notificationEmail
     return await sendEmail(notificationEmail, template);
 };
 
-module.exports = { sendReminder, sendActivityNotification };
+module.exports = { sendReminder, sendActivityNotification, sendEmail };

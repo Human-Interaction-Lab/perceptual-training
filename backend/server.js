@@ -17,7 +17,7 @@ const boxService = require('./boxService');
 const { initializeUsers } = require('./utils/initUsers');
 const tempFileService = require('./tempFileService');
 const { logger } = require('./utils');
-const { sendReminder, sendActivityNotification } = require('./emailService');
+const { sendReminder, sendActivityNotification, sendEmail } = require('./emailService');
 require('dotenv').config();
 const helmet = require('helmet');
 const config = {
@@ -689,6 +689,22 @@ app.post('/api/test-completed', authenticateToken, async (req, res) => {
 
     // Save the user to persist changes
     await user.save();
+
+    // Send activity completion notification email if configured and test is marked as completed
+    if (completed && config.ACTIVITY_NOTIFICATION_EMAIL) {
+      try {
+        console.log(`Sending activity completion notification for user ${user.userId}, ${phase} - ${testType} via test-completed endpoint`);
+        await sendActivityNotification(
+          user,
+          phase,
+          testType,
+          config.ACTIVITY_NOTIFICATION_EMAIL
+        );
+      } catch (emailError) {
+        // Log error but don't fail the request if email sending fails
+        console.error(`Error sending activity completion notification:`, emailError);
+      }
+    }
 
     res.json({
       success: true,
@@ -1697,6 +1713,12 @@ app.post('/api/admin/test-notification', authenticateAdmin, async (req, res) => 
       return res.status(404).json({ error: 'User not found' });
     }
     
+    console.log("Sending test notification with the following parameters:");
+    console.log("- User:", user.userId);
+    console.log("- Phase:", phase);
+    console.log("- Test Type:", testType);
+    console.log("- Notification Email:", config.ACTIVITY_NOTIFICATION_EMAIL);
+    
     // Send test notification
     const result = await sendActivityNotification(
       user, 
@@ -1708,16 +1730,71 @@ app.post('/api/admin/test-notification', authenticateAdmin, async (req, res) => 
     if (result) {
       res.json({ 
         success: true, 
-        message: `Test notification sent to ${config.ACTIVITY_NOTIFICATION_EMAIL}`
+        message: `Test notification sent to ${config.ACTIVITY_NOTIFICATION_EMAIL}`,
+        emailDetails: {
+          from: process.env.EMAIL_USER,
+          to: config.ACTIVITY_NOTIFICATION_EMAIL,
+          subject: "Activity Completion Notification",
+        }
       });
     } else {
       res.status(500).json({ error: 'Failed to send test notification' });
     }
   } catch (error) {
     console.error('Error sending test notification:', error);
-    res.status(500).json({ error: 'Failed to send test notification' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to send test notification', 
+      details: error.message 
+    });
   }
 });
+
+// Test route to directly verify email sending without authentication
+// Only available in development mode
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/test-email', async (req, res) => {
+    try {
+      if (!config.ACTIVITY_NOTIFICATION_EMAIL) {
+        return res.status(400).json({ 
+          error: 'ACTIVITY_NOTIFICATION_EMAIL not configured in environment variables' 
+        });
+      }
+      
+      console.log("Sending direct test email to:", config.ACTIVITY_NOTIFICATION_EMAIL);
+      
+      // Create a simple test template
+      const testTemplate = {
+        subject: "Email System Test",
+        text: `This is a test email sent at ${new Date().toISOString()} to verify the email system is working correctly.`
+      };
+      
+      // Send test email directly
+      const result = await sendEmail(config.ACTIVITY_NOTIFICATION_EMAIL, testTemplate);
+      
+      if (result) {
+        res.json({
+          success: true,
+          message: `Test email sent to ${config.ACTIVITY_NOTIFICATION_EMAIL}`,
+          emailConfig: {
+            EMAIL_USER: process.env.EMAIL_USER ? "Configured" : "Not configured",
+            EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? "Configured" : "Not configured",
+            NOTIFICATION_EMAIL: config.ACTIVITY_NOTIFICATION_EMAIL
+          }
+        });
+      } else {
+        res.status(500).json({ error: 'Failed to send test email' });
+      }
+    } catch (error) {
+      console.error('Error in test-email route:', error);
+      res.status(500).json({ 
+        error: 'Email test failed', 
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+}
 
 
 // Utility function to list files in a directory
