@@ -270,7 +270,7 @@ const App = () => {
   const [currentPhase, setCurrentPhase] = useState('pretest');
   const [pretestDate, setPretestDate] = useState(null);
   const [trainingCompletedDate, setTrainingCompletedDate] = useState(null);
-  const [canProceedToday, setCanProceedToday] = useState(true);
+  const [canProceedToday, setCanProceedToday] = useState(false); // Default to false until we check
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [rating, setRating] = useState(null);
   const [completedTests, setCompletedTests] = useState({});
@@ -282,6 +282,53 @@ const App = () => {
   const [phaseStories, setPhaseStories] = useState({});
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   // const [comprehensionResponses, setComprehensionResponses] = useState([]);
+
+  // Add new useEffect to properly calculate whether user can proceed to training today
+  // This ensures consistent behavior across all devices and browsers
+  useEffect(() => {
+    // Only relevant for transitions from pretest to training
+    if (currentPhase === 'pretest' || currentPhase === 'training') {
+      const calculateCanProceedToday = () => {
+        // Default to not proceeding if we don't have a pretest date
+        if (!pretestDate) {
+          console.log('No pretest date available, cannot proceed to training');
+          setCanProceedToday(false);
+          return;
+        }
+        
+        // Import date utilities with platform-consistent implementations
+        const { isToday, toEasternTime, getCurrentDateInEastern, normalizeDate } = require('./lib/utils');
+        
+        // Convert pretest date to eastern time with cross-platform handling
+        const pretestEastern = toEasternTime(pretestDate);
+        
+        // Get today's date in Eastern time with cross-platform handling
+        const todayEastern = getCurrentDateInEastern();
+        
+        // Normalize both dates to remove time portion and ensure accurate comparison
+        const normalizedPretest = new Date(pretestEastern);
+        normalizedPretest.setHours(0, 0, 0, 0);
+        
+        const normalizedToday = new Date(todayEastern);
+        normalizedToday.setHours(0, 0, 0, 0);
+        
+        // We can proceed if today is NOT the same day as pretest date
+        // This is the core logic that prevents same-day training after pretest
+        const canProceed = normalizedToday.getTime() > normalizedPretest.getTime();
+        
+        console.log('Calendar day check for training:', {
+          pretestDate: normalizedPretest.toISOString(),
+          today: normalizedToday.toISOString(),
+          canProceed,
+          browserInfo: typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown'
+        });
+        
+        setCanProceedToday(canProceed);
+      };
+      
+      calculateCanProceedToday();
+    }
+  }, [currentPhase, pretestDate]);
 
   // Reset states when phase changes - with session persistence
   useEffect(() => {
@@ -2582,6 +2629,7 @@ const App = () => {
               trainingDay={trainingDay}
               pretestDate={pretestDate}
               trainingCompletedDate={trainingCompletedDate}
+              canProceedToday={canProceedToday} // Pass calendar day check flag
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
               isDemographicsCompleted={isDemographicsCompleted}

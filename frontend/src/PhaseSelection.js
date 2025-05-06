@@ -334,6 +334,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, complet
 
   const getExpectedTrainingDate = (baseDate, dayNumber) => {
     if (!baseDate) return null;
+    // Use our improved toEasternTime function which now handles iPad Chrome correctly
     const date = toEasternTime(baseDate);
     date.setDate(date.getDate() + dayNumber);
     return date;
@@ -341,11 +342,37 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, complet
 
   // Date availability check only applies to the current training day
   const expectedDate = getExpectedTrainingDate(pretestDate, day);
-  const isDayAvailableToday = isDateToday(expectedDate) ||
-    (expectedDate && getCurrentDateInEastern() > expectedDate);
+  
+  // Improve date availability check for cross-platform consistency
+  // This is critical to prevent bypassing the calendar day wait requirement
+  const isDayAvailableToday = (() => {
+    // If no expected date is set, we can't determine availability
+    if (!expectedDate) return false;
+    
+    // Normalize dates for comparison (to midnight)
+    const normalizedExpectedDate = new Date(expectedDate);
+    normalizedExpectedDate.setHours(0, 0, 0, 0);
+    
+    const normalizedToday = new Date(getCurrentDateInEastern());
+    normalizedToday.setHours(0, 0, 0, 0);
+    
+    // Compare timestamps for reliable cross-platform behavior
+    // This ensures iPad Chrome uses the same logic as desktop browsers
+    return normalizedToday.getTime() >= normalizedExpectedDate.getTime();
+  })();
+  
+  // Log date checks for debugging (can be removed in production)
+  if (day === 1) {
+    console.log(`Training day ${day} availability check:`, {
+      expectedDate: expectedDate ? new Date(expectedDate).toISOString() : null,
+      today: new Date(getCurrentDateInEastern()).toISOString(),
+      isDayAvailableToday,
+      isIPadChrome: typeof isIPadChrome === 'function' ? isIPadChrome() : 'unknown'
+    });
+  }
 
-  // Available only if it's current day AND correct calendar day
-  // AND it's not already completed
+  // Available only if it's current day AND correct calendar day AND not already completed
+  // This is the most important check for enforcing the calendar day wait
   const isAvailable = !isCompleted && day === currentDay && isDayAvailableToday;
 
   // Get tomorrow's date for return message
@@ -453,6 +480,7 @@ const PhaseSelection = ({
   trainingDay,
   pretestDate,
   trainingCompletedDate, // Add training completed date
+  canProceedToday = false, // Add calendar day verification prop
   onSelectPhase,
   isDemographicsCompleted,
   onPhaseTransition,
@@ -935,8 +963,20 @@ const PhaseSelection = ({
       completedTests[`pretest_${test.type}`] === true
     );
 
+    // Enhanced log for cross-platform debugging
+    console.log('Auto-transition check:', {
+      currentPhase,
+      allPretestComplete,
+      pretestDate: pretestDate ? new Date(pretestDate).toISOString() : null,
+      isToday: pretestDate ? isToday(pretestDate) : false,
+      canProceedToday,
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown'
+    });
+
     // Check if this is a return visit on a different day from pretest completion
-    if (currentPhase === 'pretest' && allPretestComplete && pretestDate && !isToday(pretestDate)) {
+    // CRITICAL FIX: Now we use canProceedToday from App.js which properly checks calendar days
+    // across all platforms including iPad Chrome
+    if (currentPhase === 'pretest' && allPretestComplete && canProceedToday) {
       console.log('User returned on a different day after completing pretest - auto-transitioning to training');
 
       // Automatically transition to training phase after a short delay
@@ -947,7 +987,7 @@ const PhaseSelection = ({
         }
       }, 1500);
     }
-  }, [currentPhase, pretestDate, onPhaseTransition, completedTests, testTypes]);
+  }, [currentPhase, pretestDate, canProceedToday, onPhaseTransition, completedTests, testTypes]);
 
   // Check for pretest_completed flag to handle transition to training after seeing phase selection
   useEffect(() => {
