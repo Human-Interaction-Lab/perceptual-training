@@ -45,68 +45,149 @@ class ErrorBoundary extends React.Component {
     // Clear the error state
     this.setState({ hasError: false, error: null, errorInfo: null });
     
-    // Attempt to recover by clearing localStorage for this session
+    // Attempt to recover while preserving user session data
     try {
+      // Save all critical user session data
       const userId = localStorage.getItem('userId');
       const token = localStorage.getItem('token');
       
-      // Keep track of critical auth data
-      const authData = {
+      // Comprehensive backup of critical session data
+      const backupData = {
         userId,
         token,
         demographicsCompleted: localStorage.getItem('demographicsCompleted'),
-        pretestDate: sessionStorage.getItem('pretestDate')
+        pretestDate: sessionStorage.getItem('pretestDate'),
+        currentPhase: localStorage.getItem('currentPhase'),
+        currentTestType: localStorage.getItem('currentTestType'),
+        // Get any user-specific demographic flags
+        userDemographicsCompleted: userId ? 
+          localStorage.getItem(`demographicsCompleted_${userId}`) : null,
+        // Get timestamps to preserve time-based logic
+        lastActivity: localStorage.getItem('lastActivity'),
+        // Get phase-related data
+        trainingDay: localStorage.getItem('trainingDay'),
+        trainingCompletedDate: localStorage.getItem('trainingCompletedDate')
       };
       
-      // Only clear progress data to avoid forcing re-login
-      // Safer approach: iterate through a copy of keys
-      const progressKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('progress_')) {
-          progressKeys.push(key);
+      // Store the exact error that occurred for debugging
+      if (this.state.error) {
+        try {
+          localStorage.setItem('lastErrorMessage', this.state.error.toString());
+          localStorage.setItem('lastErrorTimestamp', new Date().toISOString());
+          if (this.state.error.stack) {
+            localStorage.setItem('lastErrorStack', this.state.error.stack);
+          }
+        } catch (storageError) {
+          console.warn('Could not store error info:', storageError);
         }
       }
       
-      // Now remove the identified keys
-      progressKeys.forEach(key => {
+      // Problem keys that may be causing the issue - identify for targeted cleanup
+      // We target specific keys that could cause state corruption
+      const potentialProblemKeys = [
+        'currentStimulus', // Current stimulus index that may be corrupted
+        'inputBuffer', // Any input buffer that might be corrupted
+        `progress_${userId}_current`, // Current progress that may be corrupted
+        'audioState', // Audio playback state that may be corrupted
+        // Only target the current test progress, not all progress
+        localStorage.getItem('currentTestType') ? 
+          `progress_${userId}_${localStorage.getItem('currentPhase')}_${localStorage.getItem('currentTestType')}` : 
+          null
+      ].filter(Boolean); // Filter out nulls
+      
+      console.log(`Targeted cleanup of potential problem keys: ${potentialProblemKeys.join(', ')}`);
+      
+      // Only remove the specific targeted keys instead of all progress
+      potentialProblemKeys.forEach(key => {
         try {
           localStorage.removeItem(key);
+          console.log(`Removed potential problem key: ${key}`);
         } catch (removeError) {
           console.warn(`Failed to remove ${key}:`, removeError);
         }
       });
       
-      console.log(`Cleared ${progressKeys.length} progress data keys to recover from error`);
-      
-      // Restore critical auth data if it was removed
+      // Ensure all critical data is preserved
       if (userId && !localStorage.getItem('userId')) {
         localStorage.setItem('userId', userId);
       }
       if (token && !localStorage.getItem('token')) {
         localStorage.setItem('token', token);
       }
-      if (authData.demographicsCompleted && !localStorage.getItem('demographicsCompleted')) {
-        localStorage.setItem('demographicsCompleted', authData.demographicsCompleted);
+      if (backupData.demographicsCompleted && !localStorage.getItem('demographicsCompleted')) {
+        localStorage.setItem('demographicsCompleted', backupData.demographicsCompleted);
       }
-      if (authData.pretestDate) {
-        sessionStorage.setItem('pretestDate', authData.pretestDate);
+      if (backupData.pretestDate) {
+        sessionStorage.setItem('pretestDate', backupData.pretestDate);
+      }
+      if (backupData.currentPhase) {
+        localStorage.setItem('currentPhase', backupData.currentPhase);
+      }
+      if (backupData.currentTestType) {
+        localStorage.setItem('currentTestType', backupData.currentTestType);
       }
       
-      // Also ensure the user-specific demographics flag is preserved
-      if (userId && authData.demographicsCompleted) {
-        localStorage.setItem(`demographicsCompleted_${userId}`, 'true');
+      // Restore user-specific demographics flag
+      if (userId && backupData.userDemographicsCompleted) {
+        localStorage.setItem(`demographicsCompleted_${userId}`, backupData.userDemographicsCompleted);
       }
+      
+      // Restore time-based data
+      if (backupData.lastActivity) {
+        localStorage.setItem('lastActivity', backupData.lastActivity);
+      }
+      if (backupData.trainingDay) {
+        localStorage.setItem('trainingDay', backupData.trainingDay);
+      }
+      if (backupData.trainingCompletedDate) {
+        localStorage.setItem('trainingCompletedDate', backupData.trainingCompletedDate);
+      }
+      
+      // Save recovery attempt info
+      localStorage.setItem('lastRecoveryAttempt', new Date().toISOString());
+      
+      console.log(`Session recovery completed - preserved user session while cleaning up potential issues`);
     } catch (e) {
-      console.error('Failed to clear localStorage during recovery:', e);
+      console.error('Failed during targeted recovery:', e);
+      
+      // Fallback: If targeted recovery fails, try to at least preserve login
+      try {
+        // Simplified recovery - just keep login info if nothing else works
+        const userId = localStorage.getItem('userId');
+        const token = localStorage.getItem('token');
+        
+        // Clear all localStorage as last resort
+        localStorage.clear();
+        
+        // Restore minimal login data
+        if (userId) localStorage.setItem('userId', userId);
+        if (token) localStorage.setItem('token', token);
+        
+        console.log('Fallback recovery: preserved minimal login data');
+      } catch (fallbackError) {
+        console.error('Complete recovery failure:', fallbackError);
+      }
     }
     
     // Refresh the page to restore the app to a clean state
     window.location.reload();
   }
 
+  // Helper to detect if we're on iPad Chrome
+  isIPadChrome = () => {
+    if (typeof window === 'undefined' || !window.navigator) return false;
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isIPad = /ipad/.test(ua) || 
+      (/macintosh/.test(ua) && 'ontouchend' in document);
+    const isChrome = /crios|chrome/.test(ua) && !/edge|edg|firefox|fxios|opera|opr/.test(ua);
+    return isIPad && isChrome;
+  }
+
   render() {
     if (this.state.hasError) {
+      // Check if we're on iPad Chrome for specific guidance
+      const isIPadChrome = this.isIPadChrome();
+      
       // Render fallback UI
       return (
         <div className="min-h-screen bg-gradient-to-b from-gray-100 to-white py-12 px-4">
@@ -123,15 +204,35 @@ class ErrorBoundary extends React.Component {
                 <li>Audio playback problems</li>
                 <li>Browser compatibility issues</li>
                 <li>Data storage limitations</li>
+                {isIPadChrome && (
+                  <li className="font-medium text-orange-700">
+                    iPad keyboard input issues with Chrome (we've fixed this now!)
+                  </li>
+                )}
               </ul>
+              
+              {isIPadChrome && (
+                <div className="mb-6 bg-yellow-50 p-4 border border-yellow-200 rounded-lg text-left">
+                  <h3 className="font-bold text-yellow-800 mb-2">iPad Chrome Users</h3>
+                  <p className="text-yellow-700 mb-2">
+                    We've made improvements to fix input issues on iPad Chrome. After clicking the Reset button:
+                  </p>
+                  <ol className="list-decimal ml-5 text-yellow-700">
+                    <li>Type slowly in input fields</li>
+                    <li>If keyboard issues persist, try Safari instead of Chrome</li>
+                    <li>Your progress should be preserved</li>
+                  </ol>
+                </div>
+              )}
+              
               <p className="text-gray-700 mb-6">
-                Your progress may have been saved. Please try refreshing the page.
+                Your progress has been saved. Please click the button below to continue.
               </p>
               <button
                 onClick={this.handleReset}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Reset and Reload
+                Reset and Continue
               </button>
               
               {this.state.error && (

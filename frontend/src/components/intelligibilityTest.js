@@ -1,10 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
 import { Send, Volume2, AlertCircle } from 'lucide-react';
 import audioService from '../services/audioService';
+
+// Simple debounce function to prevent rapid state updates
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const IntelligibilityTest = ({
     userResponse,
@@ -18,8 +31,18 @@ const IntelligibilityTest = ({
     const [audioError, setAudioError] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [audioPlayed, setAudioPlayed] = useState(false);
+    const [inputValue, setInputValue] = useState(userResponse || ''); // Local state for input
     const timeoutRef = useRef(null);
     const isPlayingRef = useRef(false); // For avoiding race conditions
+    const inputRef = useRef(null); // Reference to input element
+    
+    // Create stable debounced handlers that won't cause re-renders
+    const debouncedResponseChange = useCallback(
+        debounce((value) => {
+            onResponseChange(value);
+        }, 300),
+        [onResponseChange]
+    );
 
     const progress = ((currentStimulus + 1) / totalStimuli) * 100;
 
@@ -27,12 +50,22 @@ const IntelligibilityTest = ({
     useEffect(() => {
         setAudioPlayed(false);
         setAudioError(false);
+        // Reset input value when stimulus changes
+        setInputValue('');
         
         // Ensure cleanup when stimulus changes
         return () => {
             cleanupAudioResources();
         };
     }, [currentStimulus]);
+    
+    // Keep local input state in sync with props
+    useEffect(() => {
+        // Only update if different to avoid loops
+        if (userResponse !== inputValue) {
+            setInputValue(userResponse || '');
+        }
+    }, [userResponse]);
     
     // Proper cleanup on component unmount
     useEffect(() => {
@@ -265,10 +298,30 @@ const IntelligibilityTest = ({
                         <Input
                             id="phraseInput"
                             type="text"
-                            value={userResponse}
-                            onChange={(e) => onResponseChange(e.target.value)}
+                            ref={inputRef}
+                            value={inputValue}
+                            onChange={(e) => {
+                                // Update local state immediately
+                                setInputValue(e.target.value);
+                                // Debounce the actual state update to parent component
+                                debouncedResponseChange(e.target.value);
+                            }}
+                            // Add blur handler to ensure final value is captured
+                            onBlur={() => onResponseChange(inputValue)}
+                            // Add touch-specific handlers for iPad/mobile
+                            onTouchStart={() => {
+                                // Ensure input is properly focused on touch devices
+                                if (inputRef.current) {
+                                    setTimeout(() => {
+                                        inputRef.current.focus();
+                                    }, 10);
+                                }
+                            }}
                             placeholder={audioError ? "Type NA" : "Enter the phrase..."}
                             className="w-full p-3 text-lg border-gray-200 focus:ring-[#406368] focus:border-[#406368]"
+                            // Add data-attributes for better touch handling
+                            data-mobile-input="true"
+                            autoComplete="off"
                         />
                     </div>
 
