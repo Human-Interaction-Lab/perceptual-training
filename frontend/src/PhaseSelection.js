@@ -141,30 +141,30 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
       const anyDemographicsCompleted = Object.entries(completedTests).some(([key, value]) => {
         return key.toLowerCase().includes('demograph') && Boolean(value);
       });
-      
+
       if (anyDemographicsCompleted) {
         return true;
       }
-      
+
       // PRIORITY 2: Check specific keys we know about
       if (Boolean(completedTests['demographics']) || Boolean(completedTests['pretest_demographics'])) {
         return true;
       }
-      
+
       // PRIORITY 3: Fall back to localStorage as a last resort
       const userId = localStorage.getItem('userId');
       const userSpecificFlag = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
       const globalFlag = localStorage.getItem('demographicsCompleted') === 'true';
-      
+
       // Check different combinations for backward compatibility
       if (userSpecificFlag) {
         return true;
       }
-      
+
       if (globalFlag && userId) {
         return true;
       }
-      
+
       return false;
     } else if (stageId === 'pretest') {
       return Boolean(completedTests['pretest_intelligibility']) &&
@@ -236,7 +236,7 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
     // First check if demographics is not completed, force demographics to be the current stage
     // Reuse isStageCompleted to get consistent behavior
     const isDemoCompleted = isStageCompleted('demographics');
-    
+
     if (stageId === 'demographics' && !isDemoCompleted) return true;
 
     // Otherwise, proceed with normal stage checks
@@ -576,60 +576,9 @@ const PhaseSelection = ({
     }
   ], []);
 
-  // Debug log to see current phase and completed tests
-  useEffect(() => {
-    console.log("Current phase:", currentPhase);
-    console.log("Completed tests:", completedTests);
-    console.log("isDemographicsCompleted prop:", isDemographicsCompleted);
-    
-    // Run demographics check on mount and when completed tests change
-    const demoStatus = checkDemographicsCompleted();
-    console.log("Demographics completion status on phase/tests update:", demoStatus);
-
-    // Check for fresh demographics completion
-    // Remove the currentPhase === 'pretest' condition since demographics is totally separate
-    if (completedTests.demographics === true && !isPostDemographics) {
-      console.log("Fresh demographics completion detected - preparing special handling");
-      setIsPostDemographics(true);
-
-      // Schedule reset of this flag after a reasonable time
-      setTimeout(() => {
-        setIsPostDemographics(false);
-        console.log("Post-demographics special handling period ended");
-      }, 60000); // Reset after 1 minute
-    }
-  }, [currentPhase, completedTests, isDemographicsCompleted, isPostDemographics]);
-  
-  // Add a specific effect just to check demographics status on initial load
-  useEffect(() => {
-    // This runs once on component mount
-    console.log("=== INITIAL DEMOGRAPHICS CHECK ===");
-    console.log("Prop isDemographicsCompleted:", isDemographicsCompleted);
-    console.log("completedTests object:", completedTests);
-    
-    const anyDemographicsKey = Object.keys(completedTests).find(key => 
-      key.toLowerCase().includes('demograph')
-    );
-    
-    if (anyDemographicsKey) {
-      console.log(`Found demographics key: ${anyDemographicsKey} with value:`, completedTests[anyDemographicsKey]);
-    } else {
-      console.log("No demographics keys found in completedTests");
-    }
-    
-    // Local storage check
-    const userId = localStorage.getItem('userId');
-    console.log("userId from localStorage:", userId);
-    console.log("Global demographics flag:", localStorage.getItem('demographicsCompleted'));
-    console.log("User-specific demographics flag:", localStorage.getItem(`demographicsCompleted_${userId}`));
-    
-    // Final check result
-    console.log("Final demographics completion status:", checkDemographicsCompleted());
-  }, []);
-
-
   // CRITICAL FIX: Helper function to consistently check demographics completion with improved validation
-  const checkDemographicsCompleted = () => {
+  // Move this function before any useEffect hooks that call it to fix the ESLint no-use-before-define warning
+  const checkDemographicsCompleted = React.useCallback(() => {
     // Add detailed logging to track all possible sources of demographics completion status
     console.log("Checking demographics completion with sources:", {
       serverStatusFlag: isDemographicsCompleted,
@@ -647,48 +596,99 @@ const PhaseSelection = ({
       console.log("Demographics completed via isDemographicsCompleted prop");
       return true;
     }
-    
+
     // PRIORITY 2: Check if completedTests has any demographics-related keys with true values
     // Look for any key containing 'demograph' that has a truthy value
     const anyDemographicsCompleted = Object.entries(completedTests).some(([key, value]) => {
       return key.toLowerCase().includes('demograph') && Boolean(value);
     });
-    
+
     if (anyDemographicsCompleted) {
       console.log("Demographics completed via completedTests object");
       return true;
     }
-    
+
     // PRIORITY 3: Check for specific demographics completion keys we know about
     if (Boolean(completedTests['demographics']) || Boolean(completedTests['pretest_demographics'])) {
       console.log("Demographics completed via specific completedTests keys");
       return true;
     }
-    
+
     // PRIORITY 4: Only fall back to localStorage as a last resort
     const userId = localStorage.getItem('userId');
-    
+
     // Check user-specific demographics completion flag
     const userSpecificCompletion = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
-    
+
     // Check if global flag exists
     const globalFlag = localStorage.getItem('demographicsCompleted') === 'true';
-    
+
     // Now consider various combinations for backward compatibility
     if (userSpecificCompletion) {
       console.log("Demographics completed via user-specific localStorage flag");
       return true;
     }
-    
+
     if (globalFlag && userId) {
       console.log("Demographics completed via global localStorage flag with userID present");
       return true;
     }
-    
+
     console.log("Demographics NOT completed based on all checks");
     return false;
-  };
+  }, [isDemographicsCompleted, completedTests]);
 
+  // Debug log to see current phase and completed tests
+  useEffect(() => {
+    console.log("Current phase:", currentPhase);
+    console.log("Completed tests:", completedTests);
+    console.log("isDemographicsCompleted prop:", isDemographicsCompleted);
+
+    // Run demographics check on mount and when completed tests change
+    const demoStatus = checkDemographicsCompleted();
+    console.log("Demographics completion status on phase/tests update:", demoStatus);
+
+    // Check for fresh demographics completion
+    // Remove the currentPhase === 'pretest' condition since demographics is totally separate
+    if (completedTests.demographics === true && !isPostDemographics) {
+      console.log("Fresh demographics completion detected - preparing special handling");
+      setIsPostDemographics(true);
+
+      // Schedule reset of this flag after a reasonable time
+      setTimeout(() => {
+        setIsPostDemographics(false);
+        console.log("Post-demographics special handling period ended");
+      }, 60000); // Reset after 1 minute
+    }
+  }, [currentPhase, completedTests, isDemographicsCompleted, isPostDemographics, checkDemographicsCompleted]);
+
+  // Add a specific effect just to check demographics status on initial load
+  useEffect(() => {
+    // This runs once on component mount
+    console.log("=== INITIAL DEMOGRAPHICS CHECK ===");
+    console.log("Prop isDemographicsCompleted:", isDemographicsCompleted);
+    console.log("completedTests object:", completedTests);
+
+    const anyDemographicsKey = Object.keys(completedTests).find(key =>
+      key.toLowerCase().includes('demograph')
+    );
+
+    if (anyDemographicsKey) {
+      console.log(`Found demographics key: ${anyDemographicsKey} with value:`, completedTests[anyDemographicsKey]);
+    } else {
+      console.log("No demographics keys found in completedTests");
+    }
+
+    // Local storage check
+    const userId = localStorage.getItem('userId');
+    console.log("userId from localStorage:", userId);
+    console.log("Global demographics flag:", localStorage.getItem('demographicsCompleted'));
+    console.log("User-specific demographics flag:", localStorage.getItem(`demographicsCompleted_${userId}`));
+
+    // Final check result
+    console.log("Final demographics completion status:", checkDemographicsCompleted());
+  }, [isDemographicsCompleted, completedTests, checkDemographicsCompleted]);
+  
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading
   // This is to prevent any preloading from happening automatically when arriving at the selection page
   useEffect(() => {
@@ -702,11 +702,10 @@ const PhaseSelection = ({
 
     // The app will now load audio files one at a time when they are needed
     // This prevents the app from trying to preload everything at once
-
   }, [currentPhase]);
 
-
   // Helper function to check if a test has saved progress
+  // Moving this up before functions that use it to fix ESLint no-use-before-define warning
   const hasInProgressData = (phase, testType) => {
     const userId = localStorage.getItem('userId');
     if (!userId) return false;
@@ -718,13 +717,14 @@ const PhaseSelection = ({
   };
 
   // Helper function to determine if a test type is available
+  // Moving this after hasInProgressData and checkDemographicsCompleted to fix ESLint warnings
   const getTestStatus = (phase, testType) => {
     // Special handling for demographics - completely separate phase
     if (testType === 'demographics') {
       // Using our improved check function for demographics completion
       const demoCompleted = checkDemographicsCompleted();
       console.log(`Demographics completion status from getTestStatus: ${demoCompleted}`);
-      
+
       // Demographics card should not be shown at all if completed
       return {
         isAvailable: !demoCompleted,
@@ -732,15 +732,15 @@ const PhaseSelection = ({
         hasProgress: false // Demographics doesn't support resuming
       };
     }
-    
+
     // Check if demographics is completed for other types of tests
-    const demoCompleted = checkDemographicsCompleted();
+    const demoCompletedStatus = checkDemographicsCompleted();
 
     // For training phase
     if (phase === 'training') {
       const inProgress = hasInProgressData(phase, testType);
       return {
-        isAvailable: currentPhase === 'training' && checkDemographicsCompleted(),
+        isAvailable: currentPhase === 'training' && demoCompletedStatus,
         isCompleted: completedTests[`${phase}_${testType}`] || false,
         hasProgress: inProgress
       };
@@ -796,11 +796,10 @@ const PhaseSelection = ({
       // First test in pretest phase (after demographics)
       if (test.order === 1) {
         const inProgress = hasInProgressData(phase, test.type);
-        const isDemoComplete = checkDemographicsCompleted(); // Use consistent helper
         return {
           // Only available if demographics is completed and we're in pretest phase
           isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
-            isDemoComplete &&
+            demoCompletedStatus &&
             !isTestCompleted,
           isCompleted: isTestCompleted,
           hasProgress: inProgress
@@ -816,7 +815,7 @@ const PhaseSelection = ({
 
       return {
         isAvailable: (currentPhase === 'pretest' || currentPhase === 'training') &&
-          checkDemographicsCompleted() &&
+          demoCompletedStatus &&
           previousTestCompleted &&
           !isTestCompleted,
         isCompleted: isTestCompleted,
@@ -840,7 +839,7 @@ const PhaseSelection = ({
     if (test.order === 1) {
       return {
         isAvailable: phase === currentPhase &&
-          checkDemographicsCompleted() &&
+          demoCompletedStatus &&
           !isTestCompleted,
         isCompleted: isTestCompleted,
         hasProgress: inProgress
@@ -855,7 +854,7 @@ const PhaseSelection = ({
 
     return {
       isAvailable: phase === currentPhase &&
-        checkDemographicsCompleted() &&
+        demoCompletedStatus &&
         previousTestCompleted &&
         !isTestCompleted,
       isCompleted: isTestCompleted,
