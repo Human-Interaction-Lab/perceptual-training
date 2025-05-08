@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X, AlertTriangle } from "lucide-react";
 import { formatDate, getCurrentDateInEastern, toEasternTime, isToday, isSameDay } from './lib/utils';
 import audioService from './services/audioService';
 import config from './config';
+import { isIpadChrome, getDeviceInfo, getAudioSettings } from './utils/deviceDetection';
 // Make audioService available globally for components that need it
 window.audioService = audioService;
+
+// Ensure isIpadChrome() doesn't accidentally render to the page
+// Using a function to prevent direct evaluation at module level
+function getIsUsingIpadChrome() {
+  return typeof window !== 'undefined' ? isIpadChrome() : false;
+}
 
 const TestTypeCard = ({ title, description, testType, phase, status, onSelect, date }) => {
   const { isAvailable, isCompleted, hasProgress } = status;
@@ -342,32 +349,32 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, complet
 
   // Date availability check only applies to the current training day
   const expectedDate = getExpectedTrainingDate(pretestDate, day);
-  
+
   // Improve date availability check for cross-platform consistency
   // This is critical to prevent bypassing the calendar day wait requirement
   const isDayAvailableToday = (() => {
     // If no expected date is set, we can't determine availability
     if (!expectedDate) return false;
-    
+
     // Normalize dates for comparison (to midnight)
     const normalizedExpectedDate = new Date(expectedDate);
     normalizedExpectedDate.setHours(0, 0, 0, 0);
-    
+
     const normalizedToday = new Date(getCurrentDateInEastern());
     normalizedToday.setHours(0, 0, 0, 0);
-    
+
     // Compare timestamps for reliable cross-platform behavior
     // This ensures iPad Chrome uses the same logic as desktop browsers
     return normalizedToday.getTime() >= normalizedExpectedDate.getTime();
   })();
-  
+
   // Log date checks for debugging (can be removed in production)
   if (day === 1) {
     console.log(`Training day ${day} availability check:`, {
       expectedDate: expectedDate ? new Date(expectedDate).toISOString() : null,
       today: new Date(getCurrentDateInEastern()).toISOString(),
       isDayAvailableToday,
-      isIPadChrome: typeof isIPadChrome === 'function' ? isIPadChrome() : 'unknown'
+      isIPadChromeDetected: getIsUsingIpadChrome()
     });
   }
 
@@ -486,6 +493,8 @@ const PhaseSelection = ({
   onPhaseTransition,
   completedTests = {} // Track completed test types
 }) => {
+  // Debug log for the mysterious "0" issue
+  console.log("PhaseSelection component rendering");
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadingPhase, setPreloadingPhase] = useState(null);
   //const [backgroundPreloading, setBackgroundPreloading] = useState(false);
@@ -1104,8 +1113,27 @@ const PhaseSelection = ({
       <CompletionMessageModal />
 
       <div className="max-w-4xl mx-auto">
-        {/* Browser compatibility warning for non-Chrome browsers */}
-        {getBrowserType() !== 'chrome' && (
+        {/* iPad Chrome specific notice 
+        {getIsUsingIpadChrome() && (
+          <div className="mb-6 bg-blue-100 border-l-4 border-blue-500 p-4 rounded-md">
+            <div className="flex items-center">
+              <AlertTriangle className="h-6 w-6 text-blue-500 mr-3" />
+              <div>
+                <p className="font-medium text-blue-800">iPad Chrome Detected</p>
+                <p className="text-sm text-blue-700">
+                  We've detected you're using Chrome on iPad. We've made special adjustments to ensure
+                  audio works correctly. If you experience any issues with audio playback, you can
+                  proceed by entering "NA" as your response after trying to play the audio.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        */}
+
+
+        {/* Browser compatibility warning for non-Chrome browsers (but not iPad Chrome) */}
+        {getBrowserType() !== 'chrome' && !getIsUsingIpadChrome() && (
           <div className="mb-6 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded-md">
             <div className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
@@ -1195,8 +1223,68 @@ const PhaseSelection = ({
                   try {
                     setIsPlayingPractice(true);
                     setPracticeAudioError(false);
-                    // Use default speaker ID '01'
-                    const result = await audioService.playPracticeAudio();
+
+                    // Get device-specific audio settings
+                    const audioSettings = getAudioSettings();
+                    console.log('Using audio settings:', audioSettings);
+
+                    // For iPad Chrome, add timeout protection
+                    const playWithTimeout = async () => {
+                      const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Audio loading timeout')),
+                          audioSettings.timeout || 10000);
+                      });
+
+                      try {
+                        // Race the audio playback against the timeout
+                        return await Promise.race([
+                          audioService.playPracticeAudio(),
+                          timeoutPromise
+                        ]);
+                      } catch (error) {
+                        console.error('Error in practice audio playback:', error);
+                        throw error;
+                      }
+                    };
+
+                    // Add retry logic for iPad Chrome
+                    const maxAttempts = getIsUsingIpadChrome() ? 2 : 1;
+                    let result = false;
+
+                    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                      try {
+                        if (attempt > 1) {
+                          console.log(`Retry attempt ${attempt} for iPad Chrome practice audio`);
+                          // Short delay before retry
+                          await new Promise(r => setTimeout(r, 500));
+                          // Make sure audio is cleaned up between attempts
+                          audioService.dispose();
+                        }
+
+                        result = await playWithTimeout();
+                        if (result) {
+                          console.log('Practice audio played successfully!');
+                          break; // Success, exit retry loop
+                        }
+                      } catch (error) {
+                        console.error(`Practice audio attempt ${attempt} failed:`, error);
+
+                        // On last attempt, set error state
+                        if (attempt === maxAttempts) {
+                          setPracticeAudioError(true);
+
+                          // Special handling for iPad Chrome
+                          if (getIsUsingIpadChrome()) {
+                            console.log('iPad Chrome detected - showing special error message for practice audio');
+                            alert('Audio playback on iPad Chrome may be limited. You can continue with the activities anyway.');
+                          }
+                        }
+
+                        // Clean up before potential retry
+                        audioService.dispose();
+                      }
+                    }
+
                     if (!result) {
                       setPracticeAudioError(true);
                     }
@@ -1205,6 +1293,8 @@ const PhaseSelection = ({
                     setPracticeAudioError(true);
                   } finally {
                     setIsPlayingPractice(false);
+                    // Ensure audio is properly cleaned up
+                    audioService.dispose();
                   }
                 }}
                 disabled={isPlayingPractice}

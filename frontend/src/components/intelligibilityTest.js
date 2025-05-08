@@ -3,8 +3,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Send, Volume2, AlertCircle } from 'lucide-react';
+import { Send, Volume2, AlertCircle, AlertTriangle } from 'lucide-react';
 import audioService from '../services/audioService';
+import { isIpadChrome, getAudioSettings } from '../utils/deviceDetection';
 
 // Simple debounce function to prevent rapid state updates
 const debounce = (func, wait) => {
@@ -111,11 +112,18 @@ const IntelligibilityTest = ({
             try {
                 console.log(`Attempt ${attempt} to play intelligibility audio...`);
 
-                // Add a timeout for the entire operation - increased to 15 seconds
+                // Use device-specific timeout settings from our utility
+                const settings = getAudioSettings();
+                const timeoutDuration = settings.timeout || 15000; // Default to 15s if not specified
+                
+                // iPad Chrome gets a shorter timeout to prevent excessive hanging
+                console.log(`Using timeout of ${timeoutDuration}ms for audio playback${isIpadChrome() ? ' (iPad Chrome)' : ''}`);
+                
+                // Add a timeout promise
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutRef.current = setTimeout(() => {
                         reject(new Error('Audio playback timed out'));
-                    }, 15000); // Increased timeout for slower networks
+                    }, timeoutDuration);
                 });
 
                 // Important: Don't wait for preloading

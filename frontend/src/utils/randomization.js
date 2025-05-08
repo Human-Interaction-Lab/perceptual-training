@@ -396,36 +396,17 @@ const testIntelligibilitySequence = (userId = null) => {
     return sequence;
 };
 
-// Use module.exports for CommonJS compatibility (Node.js) and support for require()
-// This makes the file compatible with both frontend and backend
-if (typeof module !== 'undefined' && module.exports) {
-    // CommonJS environment (Node.js)
-    module.exports = {
-        stratifyAndRandomizeFiles,
-        getGroupForPhase,
-        randomizeComprehensionStories,
-        getStoriesForPhase,
-        randomizeEffortFiles,
-        getEffortFilesForPhase,
-        getTrainingStoriesForDay,
-        getStoryForTrainingDay,
-        getFullRandomizedSequence,
-        testIntelligibilitySequence,
-        resetIntelligibilitySequence
-    };
-} else {
-    // ES Module environment (Browser)
-    //export {
-    //    stratifyAndRandomizeFiles,
-    //    getGroupForPhase,
-    //    randomizeComprehensionStories,
-    //    getStoriesForPhase,
-    //    randomizeEffortFiles,
-    //    getEffortFilesForPhase,
-    //    getTrainingStoriesForDay,
-    //    getStoryForTrainingDay,
-    //    getFullRandomizedSequence,
-    //    testIntelligibilitySequence,
-    //    resetIntelligibilitySequence
-    //};
-}
+// Export all functions for ES module (browser) usage
+export {
+    stratifyAndRandomizeFiles,
+    getGroupForPhase,
+    randomizeComprehensionStories,
+    getStoriesForPhase,
+    randomizeEffortFiles,
+    getEffortFilesForPhase,
+    getTrainingStoriesForDay,
+    getStoryForTrainingDay,
+    getFullRandomizedSequence,
+    testIntelligibilitySequence,
+    resetIntelligibilitySequence
+};

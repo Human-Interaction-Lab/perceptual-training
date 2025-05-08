@@ -1,10 +1,11 @@
-// Modified ComprehensionTest.js
+// Modified ComprehensionTest.js with iPad Chrome compatibility
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardFooter } from "./ui/card";
-import { Volume2, Send, BookOpen, AlertCircle, ArrowRight, Headphones } from 'lucide-react';
+import { Volume2, Send, BookOpen, AlertCircle, ArrowRight, Headphones, AlertTriangle } from 'lucide-react';
 import audioService from '../services/audioService';
+import { isIpadChrome, getAudioSettings } from '../utils/deviceDetection';
 
 const ComprehensionTest = ({
     question,
@@ -115,11 +116,23 @@ const ComprehensionTest = ({
         // Clean up any previous resources
         cleanupAudioResources();
 
-        // Add a timeout for the entire operation - increased to 60 seconds for comprehension stories
+        // Use device-specific audio settings but with a longer base timeout for stories
+        const settings = getAudioSettings();
+        
+        // Use a special timeout for iPad Chrome to prevent hanging
+        const isIPadChromeDevice = isIpadChrome();
+        
+        // Stories need longer timeouts, but still shorter for iPad Chrome
+        const baseTimeout = 60000; // 60 seconds for regular browsers
+        const timeoutDuration = isIPadChromeDevice ? 30000 : baseTimeout; // 30 seconds for iPad Chrome
+        
+        console.log(`Using timeout of ${timeoutDuration}ms for story audio${isIPadChromeDevice ? ' (iPad Chrome)' : ''}`);
+        
+        // Add a timeout promise
         const timeoutPromise = new Promise((_, reject) => {
             timeoutRef.current = setTimeout(() => {
                 reject(new Error('Audio playback timed out'));
-            }, 60000); // Much longer timeout (60 seconds) for stories which have multiple clips
+            }, timeoutDuration);
         });
 
         try {
@@ -219,6 +232,18 @@ const ComprehensionTest = ({
         onSubmit();
     };
 
+    // Initialize state to detect iPad Chrome
+    const [isIPadChromeDevice, setIsIPadChromeDevice] = useState(false);
+    
+    // Detect iPad Chrome on mount
+    useEffect(() => {
+        const detected = isIpadChrome();
+        setIsIPadChromeDevice(detected);
+        if (detected) {
+            console.log('ComprehensionTest detected iPad Chrome');
+        }
+    }, []);
+    
     if (showInstructions) {
         return (
             <Card className="shadow-lg">
@@ -234,6 +259,17 @@ const ComprehensionTest = ({
                             <Headphones className="h-5 w-5 text-[#406368]" />
                             <p className="text-[#406368]">Please wear headphones during this test session.</p>
                         </div>
+                        
+                        {/* iPad Chrome specific notice */}
+                        {isIPadChromeDevice && (
+                            <div className="bg-blue-100 p-4 rounded-lg border border-blue-300 flex items-start space-x-2">
+                                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                                <div className="text-blue-800">
+                                    <p className="font-medium">iPad Chrome Detected</p>
+                                    <p className="text-sm">If audio doesn't play correctly, you can still proceed by clicking "Start Questions" and selecting an answer.</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter className="pt-4">
@@ -278,8 +314,24 @@ const ComprehensionTest = ({
                                 If audio is not available, select an answer to continue
                             </li>
                         )}
+                        {isIPadChromeDevice && (
+                            <li className="flex items-start text-blue-600 mt-2">
+                                <span className="text-blue-600 mr-2">*</span>
+                                iPad Chrome: If audio doesn't play properly, you can still proceed with the questions
+                            </li>
+                        )}
                     </ul>
                 </div>
+                
+                {/* iPad Chrome specific notice when detected */}
+                {isIPadChromeDevice && !storyAudioPlayed && !audioError && (
+                    <div className="mb-4 bg-blue-100 p-3 rounded-md border border-blue-300">
+                        <div className="flex items-center text-blue-800">
+                            <AlertTriangle className="h-5 w-5 mr-2 text-blue-600" />
+                            <p className="text-sm">Stories may take longer to load on iPad Chrome. If loading fails, you can still continue with the questions.</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Header with Progress and Story ID */}
                 <div className="space-y-2">

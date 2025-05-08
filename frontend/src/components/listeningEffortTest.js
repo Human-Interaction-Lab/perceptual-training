@@ -3,8 +3,9 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { Volume2, Send, AlertCircle } from 'lucide-react';
+import { Volume2, Send, AlertCircle, AlertTriangle } from 'lucide-react';
 import audioService from '../services/audioService';
+import { isIpadChrome, getAudioSettings } from '../utils/deviceDetection';
 
 // Simple debounce function to prevent rapid state updates
 const debounce = (func, wait) => {
@@ -121,11 +122,18 @@ const ListeningEffortTest = ({
             try {
                 console.log(`Attempt ${attempt} to play effort audio...`);
 
-                // Add a timeout for the entire operation - increased to 15 seconds
+                // Use device-specific timeout settings from our utility
+                const settings = getAudioSettings();
+                const timeoutDuration = settings.timeout || 15000; // Default to 15s if not specified
+                
+                // iPad Chrome gets a shorter timeout to prevent excessive hanging
+                console.log(`Using timeout of ${timeoutDuration}ms for effort audio playback${isIpadChrome() ? ' (iPad Chrome)' : ''}`);
+                
+                // Add a timeout promise
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutRef.current = setTimeout(() => {
                         reject(new Error('Audio playback timed out'));
-                    }, 15000); // Increased timeout for slower networks
+                    }, timeoutDuration);
                 });
 
                 // Race the audio playback against our timeout
@@ -215,35 +223,39 @@ const ListeningEffortTest = ({
         audioService.dispose();
     };
 
-    // Helper function to detect browser type
-    const getBrowserType = () => {
-        if (typeof window === 'undefined') return 'unknown';
+    // Use the device detection utility instead of detecting browser type ourselves
+    // Initialize device info state to detect iPad Chrome
+    const [deviceInfo, setDeviceInfo] = useState({ browser: 'unknown', isIpadChrome: false });
+    
+    // Initialize device info on mount
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.navigator) return;
         
-        const userAgent = window.navigator.userAgent.toLowerCase();
+        // Use our global isIpadChrome function to check for iPad Chrome
+        const ipadChromeDetected = isIpadChrome();
+        console.log(`Device detection in listening effort test: iPad Chrome detected: ${ipadChromeDetected}`);
         
-        // Check for Edge first (Edge has both "edg" and "chrome" in UA)
-        if (userAgent.indexOf('edg') > -1) return 'edge';
-        
-        // Check for Opera next (Opera has both "opr" and "chrome" in UA)
-        if (userAgent.indexOf('opr') > -1 || userAgent.indexOf('opera') > -1) return 'opera';
-        
-        // Check for Chrome (but not Edge or Opera)
-        if (userAgent.indexOf('chrome') > -1) return 'chrome';
-        
-        // Safari check comes after Chrome (Safari also has "safari" in UA)
-        if (userAgent.indexOf('safari') > -1) return 'safari';
-        
-        // Firefox check
-        if (userAgent.indexOf('firefox') > -1) return 'firefox';
-        
-        return 'other';
-    };
+        // Set device info state
+        setDeviceInfo({ 
+            browser: ipadChromeDetected ? 'ipadchrome' : 'other', 
+            isIpadChrome: ipadChromeDetected 
+        });
+    }, []);
 
     return (
         <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
-                {/* Browser compatibility notice */}
-                {getBrowserType() !== 'chrome' && (
+                {/* iPad Chrome specific notice */}
+                {deviceInfo.isIpadChrome && (
+                    <div className="mb-4 bg-blue-100 border-l-4 border-blue-500 p-3 rounded text-sm">
+                        <p className="font-medium text-blue-800">iPad Chrome Detected</p>
+                        <p className="text-blue-700">We've detected you're using Chrome on iPad. If audio doesn't play correctly, you can enter "NA" as your response and set any rating to continue.</p>
+                    </div>
+                )}
+                
+                {/* Browser compatibility notice for non-Chrome browsers */}
+                {!deviceInfo.isIpadChrome && typeof window !== 'undefined' && 
+                  !window.navigator.userAgent.toLowerCase().includes('chrome') && (
                     <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
                         <p className="font-medium text-yellow-800">Browser Warning</p>
                         <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
