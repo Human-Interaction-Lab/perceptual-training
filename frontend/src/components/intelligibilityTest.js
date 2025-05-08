@@ -195,22 +195,59 @@ const IntelligibilityTest = ({
         audioService.dispose();
     };
 
-    // Helper function to detect browser type
-    const getBrowserType = () => {
-        if (typeof window === 'undefined') return 'unknown';
-        const userAgent = window.navigator.userAgent.toLowerCase();
-        if (userAgent.indexOf('chrome') > -1) return 'chrome';
-        return 'other';
-    };
+    // Helper function to detect browser type and device
+    const [deviceInfo, setDeviceInfo] = useState({ browser: 'unknown', isIpadChrome: false });
+    
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.navigator) return;
+        
+        const userAgent = window.navigator.userAgent;
+        const lowerUA = userAgent.toLowerCase();
+        let browser = 'unknown';
+        let isIpadChrome = false;
+        
+        // Detect iPad
+        const isIPad = /iPad/i.test(userAgent) || 
+                      (/Macintosh/i.test(userAgent) && 
+                       navigator.maxTouchPoints && 
+                       navigator.maxTouchPoints > 1);
+                       
+        // Detect Chrome
+        const isChrome = lowerUA.indexOf('chrome') > -1 && lowerUA.indexOf('edg') === -1;
+        
+        // Set browser type
+        if (isChrome) browser = 'chrome';
+        else if (lowerUA.indexOf('firefox') > -1) browser = 'firefox';
+        else if (lowerUA.indexOf('safari') > -1) browser = 'safari';
+        else if (lowerUA.indexOf('edg') > -1) browser = 'edge';
+        
+        // Special check for iPad Chrome
+        if (isIPad && isChrome) {
+            isIpadChrome = true;
+            browser = 'ipadchrome';
+            console.log('Detected iPad running Chrome');
+        }
+        
+        setDeviceInfo({ browser, isIpadChrome });
+        console.log(`Device detection: browser=${browser}, isIpadChrome=${isIpadChrome}`);
+    }, []);
 
     return (
         <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
                 {/* Browser compatibility notice */}
-                {getBrowserType() !== 'chrome' && (
+                {deviceInfo.browser !== 'chrome' && deviceInfo.browser !== 'ipadchrome' && (
                     <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
                         <p className="font-medium text-yellow-800">Browser Warning</p>
                         <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
+                    </div>
+                )}
+                
+                {/* iPad Chrome specific notice */}
+                {deviceInfo.isIpadChrome && (
+                    <div className="mb-4 bg-blue-100 border-l-4 border-blue-500 p-3 rounded text-sm">
+                        <p className="font-medium text-blue-800">iPad Chrome Detection</p>
+                        <p className="text-blue-700">We detected that you're using Chrome on iPad. If audio doesn't play correctly, you can enter "NA" as your response after trying to play.</p>
                     </div>
                 )}
 

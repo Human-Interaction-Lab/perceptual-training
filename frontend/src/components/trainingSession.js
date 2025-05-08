@@ -248,13 +248,43 @@ const TrainingSession = ({
         };
     }, [audioStoryNumber]);
 
+    // Detect if device is iPad with Chrome
+    const [isIpadChrome, setIsIpadChrome] = useState(false);
+    useEffect(() => {
+        // iPad detection: check for iPad in the user agent and make sure it's not Safari
+        const detectIpadChrome = () => {
+            if (typeof window === 'undefined' || !window.navigator) return false;
+            const ua = window.navigator.userAgent;
+            const isIPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+            const isChrome = /Chrome/i.test(ua) && !/Safari/i.test(ua) || (/Chrome/i.test(ua) && /Safari/i.test(ua) && !/Edg/i.test(ua));
+            return isIPad && isChrome;
+        };
+        setIsIpadChrome(detectIpadChrome());
+        console.log(`Device detection - iPad Chrome: ${detectIpadChrome()}`);
+    }, []);
+
     // Auto-play audio when in training phase and stimulus changes
     useEffect(() => {
         // Only auto-play in training phase, not when resuming a session
         if (currentPhase === 'training' && !audioPlayed && !audioPlaying) {
+            let autoPlayTimer = null;
+            let timeoutTimer = null;
+
             const autoPlay = async () => {
                 try {
                     setAudioPlaying(true);
+
+                    // Set a timeout to prevent infinite loading
+                    // Use a shorter timeout for iPad Chrome which has more issues
+                    const timeoutDuration = isIpadChrome ? 8000 : 15000;
+                    console.log(`Setting audio timeout: ${timeoutDuration}ms${isIpadChrome ? ' (iPad Chrome shorter timeout)' : ''}`);
+                    
+                    // Create a promise that rejects after the timeout
+                    const timeoutPromise = new Promise((_, reject) => {
+                        timeoutTimer = setTimeout(() => {
+                            reject(new Error('Audio loading timeout'));
+                        }, timeoutDuration);
+                    });
 
                     // The sentence index needs to be 1-based for the audio file
                     const sentenceIndex = currentStimulusIndex + 1;
@@ -263,12 +293,21 @@ const TrainingSession = ({
                     const currentStoryNumber = trainingDayStories[storyPairIndex];
                     console.log(`Auto-playing training audio for day ${trainingDay}, story ${currentStoryNumber}, stimulus index ${sentenceIndex}`);
 
-                    // Override the story number parameter in the audioService
-                    const result = await audioService.playTrainingAudio(
-                        trainingDay,
-                        sentenceIndex,
-                        currentStoryNumber // Force the service to use this story number
-                    );
+                    // Race the audio playback against the timeout
+                    const result = await Promise.race([
+                        audioService.playTrainingAudio(
+                            trainingDay,
+                            sentenceIndex,
+                            currentStoryNumber // Force the service to use this story number
+                        ),
+                        timeoutPromise
+                    ]);
+
+                    // Clear the timeout since playback succeeded
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
 
                     // Get the actual story number from the result
                     const actualStoryNumber = result.storyNumber || currentStoryNumber;
@@ -284,30 +323,74 @@ const TrainingSession = ({
                 } catch (error) {
                     console.error('Error auto-playing audio:', error);
                     
-                    // Check for specific audio not found errors
-                    if (error.message === 'AUDIO_NOT_FOUND' ||
-                        error.message.includes('not found') ||
-                        error.message.includes('404')) {
-                        
+                    // Clear the timeout if it exists
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
+                    
+                    // Enhanced error categorization to handle more cases
+                    const isNotFoundError = error.message === 'AUDIO_NOT_FOUND' ||
+                                           error.message.includes('not found') ||
+                                           error.message.includes('404');
+                                           
+                    const isTimeoutError = error.message === 'Audio loading timeout' ||
+                                          error.message.includes('timeout') ||
+                                          error.message.includes('timed out');
+                                          
+                    const isPlaybackError = error.message.includes('play') ||
+                                           error.message.includes('NotAllowedError') ||
+                                           error.message.includes('NotSupportedError');
+                    
+                    // Comprehensive error handling with detailed logging
+                    if (isNotFoundError) {
                         console.log('Audio file not found. Setting audio as played to allow continuing.');
                         // Set audio as played so user can continue
                         setAudioPlayed(true);
                         // Show an alert to inform the user
                         alert('Audio file could not be found. You can proceed to the next phrase by clicking Next.');
+                    } else if (isTimeoutError) {
+                        console.log('Audio playback timed out. Setting audio as played to allow continuing.');
+                        // Set audio as played so user can continue
+                        setAudioPlayed(true);
+                        // Show an alert specific to timeout issues
+                        alert('Audio playback timed out. You can proceed to the next phrase by clicking Next.');
+                    } else if (isPlaybackError) {
+                        console.log('Playback permission or support error. Setting audio as played to allow continuing.');
+                        // Set audio as played so user can continue
+                        setAudioPlayed(true);
+                        // Show an alert for playback issues
+                        alert('There was a problem playing the audio. You can proceed to the next phrase by clicking Next.');
+                    } else {
+                        // Generic fallback for other errors
+                        console.log('Unknown audio error. Setting audio as played to allow continuing.');
+                        setAudioPlayed(true);
+                        alert('An error occurred while playing audio. You can proceed to the next phrase by clicking Next.');
                     }
+                    
+                    // Always ensure audio resources are cleaned up after any error
+                    audioService.dispose();
                 } finally {
                     setAudioPlaying(false);
                 }
             };
 
             // Small delay to ensure the UI has updated before playing
-            const timer = setTimeout(() => {
+            // Use a shorter delay for iPad Chrome to prevent issues
+            const delay = isIpadChrome ? 50 : 100;
+            autoPlayTimer = setTimeout(() => {
                 autoPlay();
-            }, 100);
+            }, delay);
 
-            return () => clearTimeout(timer);
+            return () => {
+                // Clean up all timers on unmount/re-render
+                if (autoPlayTimer) clearTimeout(autoPlayTimer);
+                if (timeoutTimer) clearTimeout(timeoutTimer);
+                // Also clean up any audio resources
+                audioService.dispose();
+            };
         }
-    }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay, storyPairIndex, trainingDayStories]);
+    }, [currentPhase, currentStimulusIndex, audioPlayed, audioPlaying, trainingDay, storyPairIndex, trainingDayStories, isIpadChrome]);
 
     //const handleManualPlayAudio = async () => {
     //    if (audioPlaying || audioPlayed) return;
