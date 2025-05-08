@@ -137,14 +137,35 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   const isStageCompleted = (stageId) => {
     // Access trainingDay from parent component scope
     if (stageId === 'demographics') {
-      // PRIORITY 1: Trust server data first
+      // PRIORITY 1: Check for any demographics-related keys with true values
+      const anyDemographicsCompleted = Object.entries(completedTests).some(([key, value]) => {
+        return key.toLowerCase().includes('demograph') && Boolean(value);
+      });
+      
+      if (anyDemographicsCompleted) {
+        return true;
+      }
+      
+      // PRIORITY 2: Check specific keys we know about
       if (Boolean(completedTests['demographics']) || Boolean(completedTests['pretest_demographics'])) {
         return true;
       }
-      // PRIORITY 2: Fall back to localStorage only if server data doesn't indicate completion
+      
+      // PRIORITY 3: Fall back to localStorage as a last resort
       const userId = localStorage.getItem('userId');
       const userSpecificFlag = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
-      return localStorage.getItem('demographicsCompleted') === 'true' && userSpecificFlag;
+      const globalFlag = localStorage.getItem('demographicsCompleted') === 'true';
+      
+      // Check different combinations for backward compatibility
+      if (userSpecificFlag) {
+        return true;
+      }
+      
+      if (globalFlag && userId) {
+        return true;
+      }
+      
+      return false;
     } else if (stageId === 'pretest') {
       return Boolean(completedTests['pretest_intelligibility']) &&
         Boolean(completedTests['pretest_effort']) &&
@@ -213,17 +234,9 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   // Helper function to determine if a stage is the current one
   const isCurrentStage = (stageId) => {
     // First check if demographics is not completed, force demographics to be the current stage
-    // PRIORITY 1: Trust server data first
-    let isDemoCompleted = Boolean(completedTests['demographics']) || 
-                         Boolean(completedTests['pretest_demographics']);
+    // Reuse isStageCompleted to get consistent behavior
+    const isDemoCompleted = isStageCompleted('demographics');
     
-    // PRIORITY 2: Only fall back to localStorage if server data doesn't indicate completion
-    if (!isDemoCompleted) {
-      const userId = localStorage.getItem('userId');
-      const userSpecificFlag = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
-      isDemoCompleted = localStorage.getItem('demographicsCompleted') === 'true' && userSpecificFlag;
-    }
-
     if (stageId === 'demographics' && !isDemoCompleted) return true;
 
     // Otherwise, proceed with normal stage checks
@@ -567,6 +580,11 @@ const PhaseSelection = ({
   useEffect(() => {
     console.log("Current phase:", currentPhase);
     console.log("Completed tests:", completedTests);
+    console.log("isDemographicsCompleted prop:", isDemographicsCompleted);
+    
+    // Run demographics check on mount and when completed tests change
+    const demoStatus = checkDemographicsCompleted();
+    console.log("Demographics completion status on phase/tests update:", demoStatus);
 
     // Check for fresh demographics completion
     // Remove the currentPhase === 'pretest' condition since demographics is totally separate
@@ -580,30 +598,95 @@ const PhaseSelection = ({
         console.log("Post-demographics special handling period ended");
       }, 60000); // Reset after 1 minute
     }
-  }, [currentPhase, completedTests, isPostDemographics]);
+  }, [currentPhase, completedTests, isDemographicsCompleted, isPostDemographics]);
+  
+  // Add a specific effect just to check demographics status on initial load
+  useEffect(() => {
+    // This runs once on component mount
+    console.log("=== INITIAL DEMOGRAPHICS CHECK ===");
+    console.log("Prop isDemographicsCompleted:", isDemographicsCompleted);
+    console.log("completedTests object:", completedTests);
+    
+    const anyDemographicsKey = Object.keys(completedTests).find(key => 
+      key.toLowerCase().includes('demograph')
+    );
+    
+    if (anyDemographicsKey) {
+      console.log(`Found demographics key: ${anyDemographicsKey} with value:`, completedTests[anyDemographicsKey]);
+    } else {
+      console.log("No demographics keys found in completedTests");
+    }
+    
+    // Local storage check
+    const userId = localStorage.getItem('userId');
+    console.log("userId from localStorage:", userId);
+    console.log("Global demographics flag:", localStorage.getItem('demographicsCompleted'));
+    console.log("User-specific demographics flag:", localStorage.getItem(`demographicsCompleted_${userId}`));
+    
+    // Final check result
+    console.log("Final demographics completion status:", checkDemographicsCompleted());
+  }, []);
 
 
   // CRITICAL FIX: Helper function to consistently check demographics completion with improved validation
   const checkDemographicsCompleted = () => {
-    // PRIORITY 1: Check server-provided data first (these should be most authoritative)
-    // If either of these are true, demographics is definitely completed
-    if (isDemographicsCompleted || 
-        Boolean(completedTests['demographics']) || 
-        Boolean(completedTests['pretest_demographics'])) {
+    // Add detailed logging to track all possible sources of demographics completion status
+    console.log("Checking demographics completion with sources:", {
+      serverStatusFlag: isDemographicsCompleted,
+      completedTestsObject: completedTests,
+      demographicsKey: completedTests['demographics'],
+      pretest_demographicsKey: completedTests['pretest_demographics'],
+      demographicsCompletedKeys: Object.keys(completedTests).filter(key => key.includes('demograph')),
+      userId: localStorage.getItem('userId'),
+      localStorageGlobalFlag: localStorage.getItem('demographicsCompleted'),
+      userSpecificLocalFlag: localStorage.getItem(`demographicsCompleted_${localStorage.getItem('userId')}`)
+    });
+
+    // PRIORITY 1: Check if props explicitly say demographics is completed
+    if (isDemographicsCompleted) {
+      console.log("Demographics completed via isDemographicsCompleted prop");
       return true;
     }
     
-    // PRIORITY 2: Only fall back to localStorage as a last resort
-    // Get userId for user-specific demographic completion validation
+    // PRIORITY 2: Check if completedTests has any demographics-related keys with true values
+    // Look for any key containing 'demograph' that has a truthy value
+    const anyDemographicsCompleted = Object.entries(completedTests).some(([key, value]) => {
+      return key.toLowerCase().includes('demograph') && Boolean(value);
+    });
+    
+    if (anyDemographicsCompleted) {
+      console.log("Demographics completed via completedTests object");
+      return true;
+    }
+    
+    // PRIORITY 3: Check for specific demographics completion keys we know about
+    if (Boolean(completedTests['demographics']) || Boolean(completedTests['pretest_demographics'])) {
+      console.log("Demographics completed via specific completedTests keys");
+      return true;
+    }
+    
+    // PRIORITY 4: Only fall back to localStorage as a last resort
     const userId = localStorage.getItem('userId');
     
     // Check user-specific demographics completion flag
     const userSpecificCompletion = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
     
-    // Only consider localStorage demographicsCompleted flag if we also have the user-specific flag
-    const localStorageCompletion = localStorage.getItem('demographicsCompleted') === 'true' && userSpecificCompletion;
+    // Check if global flag exists
+    const globalFlag = localStorage.getItem('demographicsCompleted') === 'true';
     
-    return localStorageCompletion;
+    // Now consider various combinations for backward compatibility
+    if (userSpecificCompletion) {
+      console.log("Demographics completed via user-specific localStorage flag");
+      return true;
+    }
+    
+    if (globalFlag && userId) {
+      console.log("Demographics completed via global localStorage flag with userID present");
+      return true;
+    }
+    
+    console.log("Demographics NOT completed based on all checks");
+    return false;
   };
 
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading
@@ -636,11 +719,12 @@ const PhaseSelection = ({
 
   // Helper function to determine if a test type is available
   const getTestStatus = (phase, testType) => {
-    // Check if demographics is completed using our standardized helper
-    const demoCompleted = checkDemographicsCompleted();
-
     // Special handling for demographics - completely separate phase
     if (testType === 'demographics') {
+      // Using our improved check function for demographics completion
+      const demoCompleted = checkDemographicsCompleted();
+      console.log(`Demographics completion status from getTestStatus: ${demoCompleted}`);
+      
       // Demographics card should not be shown at all if completed
       return {
         isAvailable: !demoCompleted,
@@ -648,6 +732,9 @@ const PhaseSelection = ({
         hasProgress: false // Demographics doesn't support resuming
       };
     }
+    
+    // Check if demographics is completed for other types of tests
+    const demoCompleted = checkDemographicsCompleted();
 
     // For training phase
     if (phase === 'training') {
