@@ -203,7 +203,7 @@ const getGroupForPhase = (phase, trainingDay = null, userId = null) => {
     if (group.length === 0) {
         console.error(`ERROR: No files extracted for phase ${phase}, day ${trainingDay}, startIndex ${startIndex}`);
     }
-    
+
     // Log the full group and parameters for debugging
     console.log(`Full group for ${phase}${trainingDay ? ', day ' + trainingDay : ''}: ${group.join(', ')}`);
     console.log(`Randomization parameters: startIndex=${startIndex}, groupSize=${groupSize}, fullSequenceLength=${fullSequence.length}`);

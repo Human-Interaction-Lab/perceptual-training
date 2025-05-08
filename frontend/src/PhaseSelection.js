@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X, AlertTriangle } from "lucide-react";
-import { formatDate, getCurrentDateInEastern, toEasternTime, isToday, isSameDay } from './lib/utils';
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X } from "lucide-react";
+import { formatDate, getCurrentDateInEastern, toEasternTime, isToday } from './lib/utils';
 import audioService from './services/audioService';
-import config from './config';
-import { isIpadChrome, getDeviceInfo, getAudioSettings } from './utils/deviceDetection';
+import { isIpadChrome, getAudioSettings } from './utils/deviceDetection';
 // Make audioService available globally for components that need it
 window.audioService = audioService;
 
@@ -138,7 +137,14 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   const isStageCompleted = (stageId) => {
     // Access trainingDay from parent component scope
     if (stageId === 'demographics') {
-      return Boolean(completedTests['demographics']) || localStorage.getItem('demographicsCompleted') === 'true';
+      // PRIORITY 1: Trust server data first
+      if (Boolean(completedTests['demographics']) || Boolean(completedTests['pretest_demographics'])) {
+        return true;
+      }
+      // PRIORITY 2: Fall back to localStorage only if server data doesn't indicate completion
+      const userId = localStorage.getItem('userId');
+      const userSpecificFlag = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
+      return localStorage.getItem('demographicsCompleted') === 'true' && userSpecificFlag;
     } else if (stageId === 'pretest') {
       return Boolean(completedTests['pretest_intelligibility']) &&
         Boolean(completedTests['pretest_effort']) &&
@@ -207,8 +213,16 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
   // Helper function to determine if a stage is the current one
   const isCurrentStage = (stageId) => {
     // First check if demographics is not completed, force demographics to be the current stage
-    const isDemoCompleted = Boolean(completedTests['demographics']) ||
-      localStorage.getItem('demographicsCompleted') === 'true';
+    // PRIORITY 1: Trust server data first
+    let isDemoCompleted = Boolean(completedTests['demographics']) || 
+                         Boolean(completedTests['pretest_demographics']);
+    
+    // PRIORITY 2: Only fall back to localStorage if server data doesn't indicate completion
+    if (!isDemoCompleted) {
+      const userId = localStorage.getItem('userId');
+      const userSpecificFlag = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
+      isDemoCompleted = localStorage.getItem('demographicsCompleted') === 'true' && userSpecificFlag;
+    }
 
     if (stageId === 'demographics' && !isDemoCompleted) return true;
 
@@ -334,10 +348,6 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, complet
   })();
 
   // Helper functions inside the component
-  const isDateToday = (date) => {
-    if (!date) return false;
-    return isToday(date);
-  };
 
   const getExpectedTrainingDate = (baseDate, dayNumber) => {
     if (!baseDate) return null;
@@ -504,19 +514,6 @@ const PhaseSelection = ({
   //  posttest1: { completed: false },
   //  posttest2: { completed: false }
   //});
-  const [preloadedPhases, setPreloadedPhases] = useState({
-    pretest: false,
-    training: {},  // Will store days as keys
-    posttest1: false,
-    posttest2: false
-  });
-
-  const [showLoadingIndicator, setShowLoadingIndicator] = useState({
-    pretest: false,
-    posttest1: false,
-    posttest2: false,
-    training: false
-  });
 
   // Add state to track posttest availability
   const [posttestAvailability, setPosttestAvailability] = useState({
@@ -542,7 +539,7 @@ const PhaseSelection = ({
   // Add state for showing/hiding the study process diagram
   const [showStudyDiagram, setShowStudyDiagram] = useState(true);
 
-  const testTypes = [
+  const testTypes = React.useMemo(() => [
     {
       id: 'intelligibility',
       title: 'Intelligibility',
@@ -564,7 +561,7 @@ const PhaseSelection = ({
       type: 'comprehension',
       order: 3  // Make comprehension last (priority 3)
     }
-  ];
+  ], []);
 
   // Debug log to see current phase and completed tests
   useEffect(() => {
@@ -585,37 +582,28 @@ const PhaseSelection = ({
     }
   }, [currentPhase, completedTests, isPostDemographics]);
 
-  // Helper function to get active test types (not completed)
-  const getActiveTestTypes = (phase) => {
-    return testTypes
-      .filter(test => {
-        // Check both formats for completed tests
-        const isCompleted =
-          completedTests[`${phase}_${test.type}`] ||
-          completedTests[test.type];
-
-        return !isCompleted;
-      })
-      .sort((a, b) => a.order - b.order) // Explicitly sort by the order property
-      .map(test => test.type);
-  };
 
   // CRITICAL FIX: Helper function to consistently check demographics completion with improved validation
   const checkDemographicsCompleted = () => {
+    // PRIORITY 1: Check server-provided data first (these should be most authoritative)
+    // If either of these are true, demographics is definitely completed
+    if (isDemographicsCompleted || 
+        Boolean(completedTests['demographics']) || 
+        Boolean(completedTests['pretest_demographics'])) {
+      return true;
+    }
+    
+    // PRIORITY 2: Only fall back to localStorage as a last resort
     // Get userId for user-specific demographic completion validation
     const userId = localStorage.getItem('userId');
-
+    
     // Check user-specific demographics completion flag
     const userSpecificCompletion = userId && localStorage.getItem(`demographicsCompleted_${userId}`) === 'true';
-
+    
     // Only consider localStorage demographicsCompleted flag if we also have the user-specific flag
-    const localStorageCompletion =
-      localStorage.getItem('demographicsCompleted') === 'true' && userSpecificCompletion;
-
-    return isDemographicsCompleted ||
-      Boolean(completedTests['demographics']) ||
-      Boolean(completedTests['pretest_demographics']) ||
-      localStorageCompletion;
+    const localStorageCompletion = localStorage.getItem('demographicsCompleted') === 'true' && userSpecificCompletion;
+    
+    return localStorageCompletion;
   };
 
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading
@@ -837,16 +825,16 @@ const PhaseSelection = ({
   };
 
   // Helper function to check if training is complete (all 4 days)
-  const isTrainingCompleted = () => {
+  const isTrainingCompleted = React.useCallback(() => {
     // Add explicit boolean conversion for safety
     return Boolean(completedTests['training_day1']) &&
       Boolean(completedTests['training_day2']) &&
       Boolean(completedTests['training_day3']) &&
       Boolean(completedTests['training_day4']);
-  };
+  }, [completedTests]);
 
   // Helper function to calculate days until a specific date
-  const getDaysUntilDate = (baseDate, daysToAdd) => {
+  const getDaysUntilDate = React.useCallback((baseDate, daysToAdd) => {
     if (!baseDate) return null;
 
     const referenceDate = toEasternTime(baseDate);
@@ -860,28 +848,28 @@ const PhaseSelection = ({
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     return diffDays > 0 ? diffDays : 0;
-  };
+  }, []);
 
   // Helper function to calculate days until posttest1
-  const getDaysUntilPosttest1 = () => {
+  const getDaysUntilPosttest1 = React.useCallback(() => {
     // Use trainingCompletedDate if available, otherwise fall back to pretestDate
     if (trainingCompletedDate) {
       return getDaysUntilDate(trainingCompletedDate, 7); // 7 days after training completion
     }
     return getDaysUntilDate(pretestDate, 12); // Legacy: 12 days after pretest
-  };
+  }, [trainingCompletedDate, pretestDate, getDaysUntilDate]);
 
   // Helper function to calculate days until posttest2
-  const getDaysUntilPosttest2 = () => {
+  const getDaysUntilPosttest2 = React.useCallback(() => {
     // Use trainingCompletedDate if available, otherwise fall back to pretestDate
     if (trainingCompletedDate) {
       return getDaysUntilDate(trainingCompletedDate, 30); // 30 days after training completion
     }
     return getDaysUntilDate(pretestDate, 35); // Legacy: 35 days after pretest
-  };
+  }, [trainingCompletedDate, pretestDate, getDaysUntilDate]);
 
   // Calculate posttest availability when current time is after expected date
-  const calculatePosttestAvailability = (pretestDate, trainingCompletedDate, trainingDay) => {
+  const calculatePosttestAvailability = React.useCallback((pretestDate, trainingCompletedDate, trainingDay) => {
     const today = getCurrentDateInEastern();
 
     // Use trainingCompletedDate if available, otherwise fallback to pretestDate for backward compatibility
@@ -940,14 +928,14 @@ const PhaseSelection = ({
 
     // No dates available at all
     return { posttest1: false, posttest2: false };
-  };
+  }, [currentPhase, isTrainingCompleted]);
 
   // Calculate posttest availability when component mounts or date/phase changes
   useEffect(() => {
     const availability = calculatePosttestAvailability(pretestDate, trainingCompletedDate, trainingDay);
     console.log("Posttest availability:", availability);
     setPosttestAvailability(availability);
-  }, [pretestDate, trainingCompletedDate, trainingDay, currentPhase]);
+  }, [pretestDate, trainingCompletedDate, trainingDay, currentPhase, calculatePosttestAvailability]);
 
   // Debug useEffect to log training completion conditions
   useEffect(() => {
@@ -963,7 +951,7 @@ const PhaseSelection = ({
       posttest1Available: posttestAvailability.posttest1,
       daysUntilPosttest1: getDaysUntilPosttest1()
     });
-  }, [currentPhase, trainingDay, completedTests, posttestAvailability]);
+  }, [currentPhase, trainingDay, completedTests, posttestAvailability, getDaysUntilPosttest1, isTrainingCompleted]);
 
   // Auto-transition to training phase when returning on a different day after completing pretest
   useEffect(() => {
