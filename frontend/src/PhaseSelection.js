@@ -4,6 +4,7 @@ import { Button } from "./components/ui/button";
 import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X, AlertTriangle } from "lucide-react";
 import { formatDate, getCurrentDateInEastern, toEasternTime, isToday } from './lib/utils';
 import audioService from './services/audioService';
+import TrainingFAQ from './faq.accordion';
 import { isIpadChrome, getAudioSettings } from './utils/deviceDetection';
 // Make audioService available globally for components that need it
 window.audioService = audioService;
@@ -1620,6 +1621,9 @@ const PhaseSelection = ({
           </div>
         )}
       </div>
+
+      {/* FAQ section */}
+      <TrainingFAQ />
     </div >
   );
 };
