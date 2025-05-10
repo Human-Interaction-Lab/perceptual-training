@@ -18,7 +18,8 @@ const ComprehensionTest = ({
     onPlayAudio,
     storyId,
     currentStoryIndex, // Add this prop to track the story number in sequence
-    isSubmitting = false
+    isSubmitting = false,
+    onBack
 }) => {
     const [storyAudioPlayed, setStoryAudioPlayed] = useState(false);
     const [isPlayingStory, setIsPlayingStory] = useState(false);
@@ -232,9 +233,20 @@ const ComprehensionTest = ({
         onSubmit();
     };
 
+    // Handle back button press
+    const handleBack = () => {
+        // Clean up any audio resources before going back
+        cleanupAudioResources();
+
+        // Call the onBack prop to return to the phase selection
+        if (onBack) {
+            onBack();
+        }
+    };
+
     // Initialize state to detect iPad Chrome
     const [isIPadChromeDevice, setIsIPadChromeDevice] = useState(false);
-    
+
     // Detect iPad Chrome on mount
     useEffect(() => {
         const detected = isIpadChrome();
@@ -243,10 +255,21 @@ const ComprehensionTest = ({
             console.log('ComprehensionTest detected iPad Chrome');
         }
     }, []);
-    
+
     if (showInstructions) {
         return (
             <Card className="shadow-lg">
+                {onBack && (
+                    <div className="p-4">
+                        <Button
+                            variant="ghost"
+                            onClick={handleBack}
+                            className="text-[#406368] hover:text-[#6c8376]"
+                        >
+                            ← Back to Phase Selection
+                        </Button>
+                    </div>
+                )}
                 <CardHeader className="bg-[#406368] text-white">
                     <h2 className="text-xl font-semibold">Story Comprehension Activity</h2>
                 </CardHeader>
@@ -294,6 +317,17 @@ const ComprehensionTest = ({
     return (
         <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
+                {/* Back button */}
+                {onBack && (
+                    <Button
+                        variant="ghost"
+                        onClick={handleBack}
+                        className="mb-4 text-[#406368] hover:text-[#6c8376]"
+                    >
+                        ← Back to Phase Selection
+                    </Button>
+                )}
+
                 {/* Instructions - Shown at the top */}
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions:</h4>

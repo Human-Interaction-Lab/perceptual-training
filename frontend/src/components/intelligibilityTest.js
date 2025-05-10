@@ -27,7 +27,8 @@ const IntelligibilityTest = ({
     currentStimulus,
     totalStimuli,
     onPlayAudio,
-    isSubmitting
+    isSubmitting,
+    onBack
 }) => {
     const [audioError, setAudioError] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -240,9 +241,30 @@ const IntelligibilityTest = ({
         console.log(`Device detection: browser=${browser}, isIpadChrome=${isIpadChrome ? 'true' : 'false'}`);
     }, []);
 
+    const handleBack = () => {
+        // Clean up any audio resources before going back
+        cleanupAudioResources();
+
+        // Call the onBack prop to return to the phase selection
+        if (onBack) {
+            onBack();
+        }
+    };
+
     return (
         <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
+                {/* Back button */}
+                {onBack && (
+                    <Button
+                        variant="ghost"
+                        onClick={handleBack}
+                        className="mb-4 text-[#406368] hover:text-[#6c8376]"
+                    >
+                        ← Back to Phase Selection
+                    </Button>
+                )}
+
                 {/* Browser compatibility notice */}
                 {(() => {
                     // Use self-executing function to avoid direct boolean rendering

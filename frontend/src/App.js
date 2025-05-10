@@ -2418,6 +2418,16 @@ const App = () => {
 
 
   const renderAudioTest = () => {
+    // Function to handle going back to phase selection
+    const handleBackToPhaseSelection = () => {
+      // Reset test state
+      setCurrentTestType(null);
+      setCurrentStimulus(0);
+
+      // Navigate back to phase selection
+      setPhase('selection');
+    };
+
     const renderTestComponent = () => {
       switch (currentTestType) {
         case 'intelligibility':
@@ -2429,6 +2439,7 @@ const App = () => {
               currentStimulus={currentStimulus}
               totalStimuli={20} // Set to your desired number
               onPlayAudio={handlePlayAudio}
+              onBack={handleBackToPhaseSelection}
             />
           );
 
@@ -2443,6 +2454,7 @@ const App = () => {
               currentStimulus={currentStimulus}
               totalStimuli={30} // Set to your desired number
               onPlayAudio={handlePlayAudio}
+              onBack={handleBackToPhaseSelection}
             />
           );
 
@@ -2470,6 +2482,7 @@ const App = () => {
               totalStimuli={currentStory?.questions.length || 10}
               currentStoryIndex={currentStoryIndex} // Pass this prop for proper numbering
               onPlayAudio={handlePlayAudio}
+              onBack={handleBackToPhaseSelection}
             />
           );
 
