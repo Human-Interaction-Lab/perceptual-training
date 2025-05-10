@@ -29,14 +29,14 @@ const ComprehensionTest = ({
     const [allQuestionsAnswered, setAllQuestionsAnswered] = useState(false);
     const timeoutRef = useRef(null);
     const isPlayingRef = useRef(false); // For avoiding race conditions
-    
+
     // Proper cleanup on component unmount
     useEffect(() => {
         return () => {
             cleanupAudioResources();
         };
     }, []);
-    
+
     // Central cleanup function for audio resources
     const cleanupAudioResources = () => {
         // Clear any pending timeouts
@@ -44,10 +44,10 @@ const ComprehensionTest = ({
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
-        
+
         // Cleanup any audio elements
         audioService.dispose();
-        
+
         // Reset internal state
         isPlayingRef.current = false;
     };
@@ -80,7 +80,7 @@ const ComprehensionTest = ({
         setAudioError(false);
         setShowQuestions(false);
         setAllQuestionsAnswered(false);
-        
+
         // Ensure cleanup when story changes
         cleanupAudioResources();
     }, [storyId]);
@@ -102,13 +102,13 @@ const ComprehensionTest = ({
             console.log('Story audio already playing, ignoring additional play request');
             return;
         }
-        
+
         // If this is a retry attempt, reset error and played states
         if (audioError) {
             console.log('Retrying audio playback after previous error');
             setStoryAudioPlayed(false);
         }
-        
+
         setIsPlayingStory(true);
         isPlayingRef.current = true;
         setAudioError(false);
@@ -119,16 +119,16 @@ const ComprehensionTest = ({
 
         // Use device-specific audio settings but with a longer base timeout for stories
         const settings = getAudioSettings();
-        
+
         // Use a special timeout for iPad Chrome to prevent hanging
         const isIPadChromeDevice = isIpadChrome();
-        
+
         // Stories need longer timeouts, but still shorter for iPad Chrome
         const baseTimeout = 60000; // 60 seconds for regular browsers
         const timeoutDuration = isIPadChromeDevice ? 30000 : baseTimeout; // 30 seconds for iPad Chrome
-        
+
         console.log(`Using timeout of ${timeoutDuration}ms for story audio${isIPadChromeDevice ? ' (iPad Chrome)' : ''}`);
-        
+
         // Add a timeout promise
         const timeoutPromise = new Promise((_, reject) => {
             timeoutRef.current = setTimeout(() => {
@@ -138,19 +138,19 @@ const ComprehensionTest = ({
 
         try {
             console.log(`Playing full story audio for ${storyId}`);
-            
+
             // Create a flag to track if audio has started playing
             let hasStartedPlaying = false;
-            
+
             // Listen for audio play events at the window level
             const handleAudioPlaying = () => {
                 console.log('Detected audio is playing - adjusting timeout');
                 hasStartedPlaying = true;
-                
+
                 // Once audio starts playing, clear the original timeout and set a much longer one
                 if (timeoutRef.current) {
                     clearTimeout(timeoutRef.current);
-                    
+
                     // Set a very long timeout (2 minutes) once audio is actually playing
                     // This prevents timeout errors while audio is still playing
                     timeoutRef.current = setTimeout(() => {
@@ -160,25 +160,25 @@ const ComprehensionTest = ({
                     }, 120000); // 2 minutes
                 }
             };
-            
+
             // Add a global event listener for audio play events
             if (typeof window !== 'undefined') {
                 window.addEventListener('audio-playing', handleAudioPlaying);
             }
-            
+
             try {
                 // Race the story playback against our timeout
                 await Promise.race([
                     onPlayAudio(storyId),
                     timeoutPromise
                 ]);
-                
+
                 // Clear timeout if successful
                 if (timeoutRef.current) {
                     clearTimeout(timeoutRef.current);
                     timeoutRef.current = null;
                 }
-                
+
                 setStoryAudioPlayed(true);
                 console.log('Story audio played successfully');
             } finally {
@@ -189,31 +189,31 @@ const ComprehensionTest = ({
             }
         } catch (error) {
             console.error("Error playing story audio:", error);
-            
+
             // Clear timeout on error
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
             }
-            
+
             // Handle the audio error case
             if (error.message === 'AUDIO_NOT_FOUND' ||
                 error.message.includes('not found') ||
                 error.message.includes('404') ||
                 error.message.includes('timed out')) {
-                
+
                 setAudioError(true);
                 setStoryAudioPlayed(true);
-                
+
                 // Auto-select the first answer option to allow proceeding
                 if (userResponse === null) {
                     onResponseChange(0);
                     console.log('Auto-selected first answer option due to audio error');
                 }
-                
+
                 // Show questions immediately when audio fails
                 setShowQuestions(true);
-                
+
                 // Show user message about audio failure
                 alert('Story audio could not be played. You can proceed with the questions by selecting any answer option.');
             }
@@ -266,7 +266,7 @@ const ComprehensionTest = ({
                             onClick={handleBack}
                             className="text-[#406368] hover:text-[#6c8376]"
                         >
-                            ← Back to Phase Selection
+                            ← Back to Activity Selection
                         </Button>
                     </div>
                 )}
@@ -282,7 +282,7 @@ const ComprehensionTest = ({
                             <Headphones className="h-5 w-5 text-[#406368]" />
                             <p className="text-[#406368]">Please wear headphones during this test session.</p>
                         </div>
-                        
+
                         {/* iPad Chrome specific notice */}
                         {(() => {
                             // Use self-executing function to avoid direct boolean rendering
@@ -362,7 +362,7 @@ const ComprehensionTest = ({
                         )}
                     </ul>
                 </div>
-                
+
                 {/* iPad Chrome specific notice when detected */}
                 {(() => {
                     // Use self-executing function to avoid direct boolean rendering
@@ -491,7 +491,7 @@ const ComprehensionTest = ({
                             onClick={handleSubmit}
                             disabled={
                                 // Normal case: require an answer
-                                (!allQuestionsAnswered || isSubmitting) && 
+                                (!allQuestionsAnswered || isSubmitting) &&
                                 // But enable if there's an audio error and any answer is selected
                                 !(audioError && userResponse !== null)
                             }

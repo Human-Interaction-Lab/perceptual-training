@@ -9,15 +9,15 @@ import { isIpadChrome, getAudioSettings } from '../utils/deviceDetection';
 
 // Simple debounce function to prevent rapid state updates
 const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
     };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
 };
 
 const ListeningEffortTest = ({
@@ -40,7 +40,7 @@ const ListeningEffortTest = ({
     const timeoutRef = useRef(null);
     const isPlayingRef = useRef(false); // For avoiding race conditions
     const inputRef = useRef(null); // Reference to input element
-    
+
     // Create stable debounced handlers that won't cause re-renders
     const debouncedResponseChange = useCallback(
         debounce((value) => {
@@ -48,7 +48,7 @@ const ListeningEffortTest = ({
         }, 300),
         [onResponseChange]
     );
-    
+
     const getRatingLabel = (value) => {
         if (value <= 20) return 'Very Easy';
         if (value <= 40) return 'Easy';
@@ -63,13 +63,13 @@ const ListeningEffortTest = ({
         setAudioError(false);
         // Reset input value when stimulus changes
         setInputValue('');
-        
+
         // Ensure cleanup when stimulus changes
         return () => {
             cleanupAudioResources();
         };
     }, [currentStimulus]);
-    
+
     // Keep local input state in sync with props
     useEffect(() => {
         // Only update if different to avoid loops
@@ -92,14 +92,14 @@ const ListeningEffortTest = ({
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
-        
+
         // Cleanup any audio elements
         audioService.dispose();
-        
+
         // Reset internal state
         isPlayingRef.current = false;
     };
-    
+
     // Handler to track when audio has been played - with retries
     const handlePlayAudio = async () => {
         // Prevent concurrent calls
@@ -107,7 +107,7 @@ const ListeningEffortTest = ({
             console.log('Audio already playing, ignoring additional play request');
             return;
         }
-        
+
         setIsPlaying(true);
         isPlayingRef.current = true;
         setAudioError(false);
@@ -126,10 +126,10 @@ const ListeningEffortTest = ({
                 // Use device-specific timeout settings from our utility
                 const settings = getAudioSettings();
                 const timeoutDuration = settings.timeout || 15000; // Default to 15s if not specified
-                
+
                 // iPad Chrome gets a shorter timeout to prevent excessive hanging
                 console.log(`Using timeout of ${timeoutDuration}ms for effort audio playback${isIpadChrome() ? ' (iPad Chrome)' : ''}`);
-                
+
                 // Add a timeout promise
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutRef.current = setTimeout(() => {
@@ -227,7 +227,7 @@ const ListeningEffortTest = ({
     // Use the device detection utility instead of detecting browser type ourselves
     // Initialize device info state to detect iPad Chrome
     const [deviceInfo, setDeviceInfo] = useState({ browser: 'unknown', isIpadChrome: false });
-    
+
     // Initialize device info on mount
     useEffect(() => {
         if (typeof window === 'undefined' || !window.navigator) return;
@@ -264,7 +264,7 @@ const ListeningEffortTest = ({
                         onClick={handleBack}
                         className="mb-4 text-[#406368] hover:text-[#6c8376]"
                     >
-                        ← Back to Phase Selection
+                        ← Back to Activity Selection
                     </Button>
                 )}
 
@@ -281,11 +281,11 @@ const ListeningEffortTest = ({
                     }
                     return null;
                 })()}
-                
+
                 {/* Browser compatibility notice for non-Chrome browsers */}
                 {(() => {
                     // Use self-executing function to avoid direct boolean rendering
-                    if (!deviceInfo.isIpadChrome && typeof window !== 'undefined' && 
+                    if (!deviceInfo.isIpadChrome && typeof window !== 'undefined' &&
                         !window.navigator.userAgent.toLowerCase().includes('chrome')) {
                         return (
                             <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
@@ -461,7 +461,7 @@ const ListeningEffortTest = ({
                         disabled={
                             // Standard validation: require response and rating
                             // But make an exception for "NA" responses due to missing audio
-                            (!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting) && 
+                            (!userResponse.trim() || !rating || !audioPlayed || isPlaying || isSubmitting) &&
                             // Special exception for "NA" with audio errors
                             !(userResponse.trim() === "NA" && audioError)
                         }

@@ -9,15 +9,15 @@ import { isIpadChrome, getAudioSettings } from '../utils/deviceDetection';
 
 // Simple debounce function to prevent rapid state updates
 const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
     };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
 };
 
 const IntelligibilityTest = ({
@@ -37,7 +37,7 @@ const IntelligibilityTest = ({
     const timeoutRef = useRef(null);
     const isPlayingRef = useRef(false); // For avoiding race conditions
     const inputRef = useRef(null); // Reference to input element
-    
+
     // Create stable debounced handlers that won't cause re-renders
     const debouncedResponseChange = useCallback(
         debounce((value) => {
@@ -54,13 +54,13 @@ const IntelligibilityTest = ({
         setAudioError(false);
         // Reset input value when stimulus changes
         setInputValue('');
-        
+
         // Ensure cleanup when stimulus changes
         return () => {
             cleanupAudioResources();
         };
     }, [currentStimulus]);
-    
+
     // Keep local input state in sync with props
     useEffect(() => {
         // Only update if different to avoid loops
@@ -68,14 +68,14 @@ const IntelligibilityTest = ({
             setInputValue(userResponse || '');
         }
     }, [userResponse]);
-    
+
     // Proper cleanup on component unmount
     useEffect(() => {
         return () => {
             cleanupAudioResources();
         };
     }, []);
-    
+
     // Central cleanup function for audio resources
     const cleanupAudioResources = () => {
         // Clear any pending timeouts
@@ -83,10 +83,10 @@ const IntelligibilityTest = ({
             clearTimeout(timeoutRef.current);
             timeoutRef.current = null;
         }
-        
+
         // Cleanup any audio elements
         audioService.dispose();
-        
+
         // Reset internal state
         isPlayingRef.current = false;
     };
@@ -97,7 +97,7 @@ const IntelligibilityTest = ({
             console.log('Audio already playing, ignoring additional play request');
             return;
         }
-        
+
         setIsPlaying(true);
         isPlayingRef.current = true;
         setAudioError(false);
@@ -116,10 +116,10 @@ const IntelligibilityTest = ({
                 // Use device-specific timeout settings from our utility
                 const settings = getAudioSettings();
                 const timeoutDuration = settings.timeout || 15000; // Default to 15s if not specified
-                
+
                 // iPad Chrome gets a shorter timeout to prevent excessive hanging
                 console.log(`Using timeout of ${timeoutDuration}ms for audio playback${isIpadChrome() ? ' (iPad Chrome)' : ''}`);
-                
+
                 // Add a timeout promise
                 const timeoutPromise = new Promise((_, reject) => {
                     timeoutRef.current = setTimeout(() => {
@@ -206,37 +206,37 @@ const IntelligibilityTest = ({
 
     // Helper function to detect browser type and device
     const [deviceInfo, setDeviceInfo] = useState({ browser: 'unknown', isIpadChrome: false });
-    
+
     useEffect(() => {
         if (typeof window === 'undefined' || !window.navigator) return;
-        
+
         const userAgent = window.navigator.userAgent;
         const lowerUA = userAgent.toLowerCase();
         let browser = 'unknown';
         let isIpadChrome = false;
-        
+
         // Detect iPad
-        const isIPad = /iPad/i.test(userAgent) || 
-                      (/Macintosh/i.test(userAgent) && 
-                       navigator.maxTouchPoints && 
-                       navigator.maxTouchPoints > 1);
-                       
+        const isIPad = /iPad/i.test(userAgent) ||
+            (/Macintosh/i.test(userAgent) &&
+                navigator.maxTouchPoints &&
+                navigator.maxTouchPoints > 1);
+
         // Detect Chrome
         const isChrome = lowerUA.indexOf('chrome') > -1 && lowerUA.indexOf('edg') === -1;
-        
+
         // Set browser type
         if (isChrome) browser = 'chrome';
         else if (lowerUA.indexOf('firefox') > -1) browser = 'firefox';
         else if (lowerUA.indexOf('safari') > -1) browser = 'safari';
         else if (lowerUA.indexOf('edg') > -1) browser = 'edge';
-        
+
         // Special check for iPad Chrome
         if (isIPad && isChrome) {
             isIpadChrome = true;
             browser = 'ipadchrome';
             console.log('Detected iPad running Chrome');
         }
-        
+
         setDeviceInfo({ browser, isIpadChrome });
         console.log(`Device detection: browser=${browser}, isIpadChrome=${isIpadChrome ? 'true' : 'false'}`);
     }, []);
@@ -261,7 +261,7 @@ const IntelligibilityTest = ({
                         onClick={handleBack}
                         className="mb-4 text-[#406368] hover:text-[#6c8376]"
                     >
-                        ← Back to Phase Selection
+                        ← Back to Activity Selection
                     </Button>
                 )}
 
@@ -278,7 +278,7 @@ const IntelligibilityTest = ({
                     }
                     return null;
                 })()}
-                
+
                 {/* iPad Chrome specific notice */}
                 {(() => {
                     // Use self-executing function to avoid direct boolean rendering
@@ -408,7 +408,7 @@ const IntelligibilityTest = ({
                         onClick={onSubmit}
                         disabled={
                             // Standard validation: require response and audio played
-                            (!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting) && 
+                            (!userResponse.trim() || !audioPlayed || isPlaying || isSubmitting) &&
                             // Special exception for "NA" with audio errors
                             !(userResponse.trim() === "NA" && audioError)
                         }
