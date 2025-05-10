@@ -396,8 +396,8 @@ const testIntelligibilitySequence = (userId = null) => {
     return sequence;
 };
 
-// Export all functions for ES module (browser) usage
-export {
+// Export all functions for CommonJS (Node.js) and browser usage
+module.exports = {
     stratifyAndRandomizeFiles,
     getGroupForPhase,
     randomizeComprehensionStories,
