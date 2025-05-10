@@ -261,15 +261,21 @@ const ComprehensionTest = ({
                         </div>
                         
                         {/* iPad Chrome specific notice */}
-                        {isIPadChromeDevice && (
-                            <div className="bg-blue-100 p-4 rounded-lg border border-blue-300 flex items-start space-x-2">
-                                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-                                <div className="text-blue-800">
-                                    <p className="font-medium">iPad Chrome Detected</p>
-                                    <p className="text-sm">If audio doesn't play correctly, you can still proceed by clicking "Start Questions" and selecting an answer.</p>
-                                </div>
-                            </div>
-                        )}
+                        {(() => {
+                            // Use self-executing function to avoid direct boolean rendering
+                            if (isIPadChromeDevice) {
+                                return (
+                                    <div className="bg-blue-100 p-4 rounded-lg border border-blue-300 flex items-start space-x-2">
+                                        <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                                        <div className="text-blue-800">
+                                            <p className="font-medium">iPad Chrome Detected</p>
+                                            <p className="text-sm">If audio doesn't play correctly, you can still proceed by clicking "Start Questions" and selecting an answer.</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
                     </div>
                 </CardContent>
                 <CardFooter className="pt-4">
@@ -324,14 +330,20 @@ const ComprehensionTest = ({
                 </div>
                 
                 {/* iPad Chrome specific notice when detected */}
-                {isIPadChromeDevice && !storyAudioPlayed && !audioError && (
-                    <div className="mb-4 bg-blue-100 p-3 rounded-md border border-blue-300">
-                        <div className="flex items-center text-blue-800">
-                            <AlertTriangle className="h-5 w-5 mr-2 text-blue-600" />
-                            <p className="text-sm">Stories may take longer to load on iPad Chrome. If loading fails, you can still continue with the questions.</p>
-                        </div>
-                    </div>
-                )}
+                {(() => {
+                    // Use self-executing function to avoid direct boolean rendering
+                    if (isIPadChromeDevice && !storyAudioPlayed && !audioError) {
+                        return (
+                            <div className="mb-4 bg-blue-100 p-3 rounded-md border border-blue-300">
+                                <div className="flex items-center text-blue-800">
+                                    <AlertTriangle className="h-5 w-5 mr-2 text-blue-600" />
+                                    <p className="text-sm">Stories may take longer to load on iPad Chrome. If loading fails, you can still continue with the questions.</p>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Header with Progress and Story ID */}
                 <div className="space-y-2">

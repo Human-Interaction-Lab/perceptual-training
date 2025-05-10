@@ -259,8 +259,9 @@ const TrainingSession = ({
             const isChrome = /Chrome/i.test(ua) && !/Safari/i.test(ua) || (/Chrome/i.test(ua) && /Safari/i.test(ua) && !/Edg/i.test(ua));
             return isIPad && isChrome;
         };
-        setIsIpadChrome(detectIpadChrome());
-        console.log(`Device detection - iPad Chrome: ${detectIpadChrome()}`);
+        const isIPadChromeDetected = detectIpadChrome();
+        setIsIpadChrome(isIPadChromeDetected);
+        console.log(`Device detection - iPad Chrome: ${isIPadChromeDetected ? 'true' : 'false'}`);
     }, []);
 
     // Auto-play audio when in training phase and stimulus changes

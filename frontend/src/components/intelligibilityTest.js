@@ -237,27 +237,39 @@ const IntelligibilityTest = ({
         }
         
         setDeviceInfo({ browser, isIpadChrome });
-        console.log(`Device detection: browser=${browser}, isIpadChrome=${isIpadChrome}`);
+        console.log(`Device detection: browser=${browser}, isIpadChrome=${isIpadChrome ? 'true' : 'false'}`);
     }, []);
 
     return (
         <Card className="shadow-lg">
             <CardContent className="p-6 space-y-6">
                 {/* Browser compatibility notice */}
-                {deviceInfo.browser !== 'chrome' && deviceInfo.browser !== 'ipadchrome' && (
-                    <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
-                        <p className="font-medium text-yellow-800">Browser Warning</p>
-                        <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
-                    </div>
-                )}
+                {(() => {
+                    // Use self-executing function to avoid direct boolean rendering
+                    if (deviceInfo.browser !== 'chrome' && deviceInfo.browser !== 'ipadchrome') {
+                        return (
+                            <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-3 rounded text-sm">
+                                <p className="font-medium text-yellow-800">Browser Warning</p>
+                                <p className="text-yellow-700">Audio features work best in Google Chrome. Please switch browsers if you experience issues.</p>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
                 
                 {/* iPad Chrome specific notice */}
-                {deviceInfo.isIpadChrome && (
-                    <div className="mb-4 bg-blue-100 border-l-4 border-blue-500 p-3 rounded text-sm">
-                        <p className="font-medium text-blue-800">iPad Chrome Detection</p>
-                        <p className="text-blue-700">We detected that you're using Chrome on iPad. If audio doesn't play correctly, you can enter "NA" as your response after trying to play.</p>
-                    </div>
-                )}
+                {(() => {
+                    // Use self-executing function to avoid direct boolean rendering
+                    if (deviceInfo.isIpadChrome) {
+                        return (
+                            <div className="mb-4 bg-blue-100 border-l-4 border-blue-500 p-3 rounded text-sm">
+                                <p className="font-medium text-blue-800">iPad Chrome Detection</p>
+                                <p className="text-blue-700">We detected that you're using Chrome on iPad. If audio doesn't play correctly, you can enter "NA" as your response after trying to play.</p>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
 
                 {/* Instructions - Moved to top */}
                 <div className="mb-4 p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">

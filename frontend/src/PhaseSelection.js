@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X } from "lucide-react";
+import { CheckCircle, Lock, Clock, ArrowRight, PartyPopper, Loader, Volume2, VolumeX, X, AlertTriangle } from "lucide-react";
 import { formatDate, getCurrentDateInEastern, toEasternTime, isToday } from './lib/utils';
 import audioService from './services/audioService';
 import { isIpadChrome, getAudioSettings } from './utils/deviceDetection';
@@ -397,7 +397,7 @@ const TrainingDayCard = ({ day, currentDay, onSelect, date, pretestDate, complet
       expectedDate: expectedDate ? new Date(expectedDate).toISOString() : null,
       today: new Date(getCurrentDateInEastern()).toISOString(),
       isDayAvailableToday,
-      isIPadChromeDetected: getIsUsingIpadChrome()
+      isIPadChromeDetected: getIsUsingIpadChrome() ? 'true' : 'false'
     });
   }
 
@@ -688,7 +688,7 @@ const PhaseSelection = ({
     // Final check result
     console.log("Final demographics completion status:", checkDemographicsCompleted());
   }, [isDemographicsCompleted, completedTests, checkDemographicsCompleted]);
-  
+
   // CRITICAL CHANGE: Completely DISABLE all automatic preloading
   // This is to prevent any preloading from happening automatically when arriving at the selection page
   useEffect(() => {
@@ -1187,23 +1187,30 @@ const PhaseSelection = ({
       <CompletionMessageModal />
 
       <div className="max-w-4xl mx-auto">
-        {/* iPad Chrome specific notice 
-        {getIsUsingIpadChrome() && (
-          <div className="mb-6 bg-blue-100 border-l-4 border-blue-500 p-4 rounded-md">
-            <div className="flex items-center">
-              <AlertTriangle className="h-6 w-6 text-blue-500 mr-3" />
-              <div>
-                <p className="font-medium text-blue-800">iPad Chrome Detected</p>
-                <p className="text-sm text-blue-700">
-                  We've detected you're using Chrome on iPad. We've made special adjustments to ensure
-                  audio works correctly. If you experience any issues with audio playback, you can
-                  proceed by entering "NA" as your response after trying to play the audio.
-                </p>
+        {/* iPad Chrome specific notice - only render if it's detected */}
+        {(() => {
+          // Use a self-executing function to avoid direct boolean rendering
+          if (getIsUsingIpadChrome()) {
+            return (
+              <div className="mb-6 bg-blue-100 border-l-4 border-blue-500 p-4 rounded-md">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-6 w-6 text-blue-500 mr-3" />
+                  <div>
+                    <p className="font-medium text-blue-800">iPad Chrome Detected</p>
+                    <p className="text-sm text-blue-700">
+                      We've detected you're using Chrome on iPad. We've made special adjustments to ensure
+                      audio works correctly. If you experience any issues with audio playback, you can
+                      proceed by entering "NA" as your response after trying to play the audio.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-        */}
+            );
+          }
+          // Return null when not iPad Chrome to avoid rendering anything
+          return null;
+        })()}
+
 
 
         {/* Browser compatibility warning for non-Chrome browsers (but not iPad Chrome) */}
