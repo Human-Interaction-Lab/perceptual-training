@@ -34,7 +34,7 @@ const TrainingFAQ = () => {
     },
     {
       question: "How long will each portion take?",
-      answer: "The pretest and posttests are estimated to take approximately XX minutes. Each of the four training days is estimated to take approximately 30 minutes."
+      answer: "The pretest and posttests are estimated to take approximately 30-45 minutes. Each of the four training days is estimated to take approximately 30 minutes."
     },
     {
       question: "Is there a specific time of day I need to complete the training?",
