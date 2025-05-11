@@ -17,6 +17,7 @@ const Admin = () => {
     email: '',
     trainingDay: 1,
     pretestDate: '',
+    trainingCompletedDate: '',
     currentPhase: '',
     speaker: ''
   });
@@ -42,6 +43,7 @@ const Admin = () => {
         email: selectedUser.email || '',
         trainingDay: selectedUser.trainingDay || 1,
         pretestDate: selectedUser.pretestDate ? new Date(selectedUser.pretestDate).toISOString().split('T')[0] : '',
+        trainingCompletedDate: selectedUser.trainingCompletedDate ? new Date(selectedUser.trainingCompletedDate).toISOString().split('T')[0] : '',
         currentPhase: selectedUser.currentPhase || 'pretest',
         speaker: selectedUser.speaker || ''
       });
@@ -83,6 +85,7 @@ const Admin = () => {
             email: refreshedUser.email || '',
             trainingDay: refreshedUser.trainingDay || 1,
             pretestDate: refreshedUser.pretestDate ? new Date(refreshedUser.pretestDate).toISOString().split('T')[0] : '',
+            trainingCompletedDate: refreshedUser.trainingCompletedDate ? new Date(refreshedUser.trainingCompletedDate).toISOString().split('T')[0] : '',
             currentPhase: refreshedUser.currentPhase || 'pretest',
             speaker: refreshedUser.speaker || ''
           });
@@ -307,7 +310,8 @@ This action cannot be undone.`)) {
         trainingDay: updatedUserData.trainingDay || 1,
         currentPhase: updatedUserData.currentPhase || 'pretest',
         speaker: updatedUserData.speaker || '',
-        pretestDate: updatedUserData.pretestDate || ''
+        pretestDate: updatedUserData.pretestDate || '',
+        trainingCompletedDate: updatedUserData.trainingCompletedDate || ''
       };
       
       console.log("handleUpdateUser: SENDING TO SERVER:", JSON.stringify(dataToSend));
@@ -350,6 +354,7 @@ This action cannot be undone.`)) {
           email: data.user.email || '',
           trainingDay: data.user.trainingDay || 1,
           pretestDate: data.user.pretestDate ? new Date(data.user.pretestDate).toISOString().split('T')[0] : '',
+          trainingCompletedDate: data.user.trainingCompletedDate ? new Date(data.user.trainingCompletedDate).toISOString().split('T')[0] : '',
           currentPhase: data.user.currentPhase || 'pretest',
           speaker: data.user.speaker || ''
         };
@@ -618,6 +623,7 @@ This action cannot be undone.`)) {
       email: user.email || '',
       trainingDay: user.trainingDay || 1,
       pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
+      trainingCompletedDate: user.trainingCompletedDate ? new Date(user.trainingCompletedDate).toISOString().split('T')[0] : '',
       currentPhase: user.currentPhase || 'pretest',
       speaker: user.speaker || ''
     });
@@ -635,6 +641,7 @@ This action cannot be undone.`)) {
         email: user.email || '',
         trainingDay: user.trainingDay || 1,
         pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
+        trainingCompletedDate: user.trainingCompletedDate ? new Date(user.trainingCompletedDate).toISOString().split('T')[0] : '',
         currentPhase: user.currentPhase || 'pretest',
         speaker: user.speaker || ''
       });
@@ -813,6 +820,21 @@ This action cannot be undone.`)) {
                     onChange={handleLocalInputChange}
                     className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Date when user completed the pretest phase.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Training Day 4 Completion Date <span className="text-xs text-blue-600">(editable)</span>
+                  </label>
+                  <Input
+                    type="date"
+                    name="trainingCompletedDate"
+                    value={localEditedUser.trainingCompletedDate ? new Date(localEditedUser.trainingCompletedDate).toISOString().split('T')[0] : ''}
+                    onChange={handleLocalInputChange}
+                    className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Date when user completed training day 4.</p>
                 </div>
 
                 <button
@@ -882,7 +904,21 @@ This action cannot be undone.`)) {
                   <div>{user.completed ? 'Yes' : 'No'}</div>
 
                   <div className="font-medium">Created:</div>
-                  <div>{new Date(user.createdAt).toLocaleDateString()}</div>
+                  <div>{new Date(user.createdAt).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+
+                  {user.pretestDate && (
+                    <>
+                      <div className="font-medium">Pretest Completed:</div>
+                      <div>{new Date(user.pretestDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+                    </>
+                  )}
+
+                  {user.trainingCompletedDate && (
+                    <>
+                      <div className="font-medium">Training Day 4 Completed:</div>
+                      <div>{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+                    </>
+                  )}
                 </div>
 
                 {/* Display Completed Tests */}
@@ -1354,7 +1390,10 @@ This action cannot be undone.`)) {
                       Phase: {user.currentPhase}<br />
                       Day: {user.trainingDay}<br />
                       {user.pretestDate && (
-                        <>Pretest: {new Date(user.pretestDate).toLocaleDateString()}<br /></>
+                        <>Pretest completed: <span className="font-medium">{new Date(user.pretestDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</span><br /></>
+                      )}
+                      {user.trainingCompletedDate && (
+                        <>Training Day 4 completed: <span className="font-medium">{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</span><br /></>
                       )}
                       {/* Activity completion summary */}
                       <span className="text-xs mt-1">
