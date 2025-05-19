@@ -874,7 +874,9 @@ app.post('/api/login', async (req, res) => {
       currentPhase: user.currentPhase,
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
-      trainingCompletedDate: user.trainingCompletedDate, // Add training completed date
+      trainingCompletedDate: user.trainingCompletedDate,
+      posttest1CompletedDate: user.posttest1CompletedDate,
+      posttest2CompletedDate: user.posttest2CompletedDate,
       completed: user.completed,
       canProceedToday,
       completedTests: Object.fromEntries(user.completedTests) || {},
@@ -1074,6 +1076,14 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
         // Mark posttest1 as completed 
         user.markTestCompleted('posttest1', 'COMPLETED', true);
+        
+        // Set posttest1 completion date if not already set
+        if (!user.posttest1CompletedDate) {
+          const utils = require('./utils');
+          const easternDate = utils.getCurrentDateInEastern();
+          console.log(`Setting posttest1 completion date to ${easternDate} (Eastern Time) for user ${user.userId}`);
+          user.posttest1CompletedDate = easternDate;
+        }
 
         // Set phase to posttest2 but don't auto-advance
         // The frontend will still check date requirements before allowing access
@@ -1090,6 +1100,14 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
         // Mark posttest2 as completed
         user.markTestCompleted('posttest2', 'COMPLETED', true);
+        
+        // Set posttest2 completion date if not already set
+        if (!user.posttest2CompletedDate) {
+          const utils = require('./utils');
+          const easternDate = utils.getCurrentDateInEastern();
+          console.log(`Setting posttest2 completion date to ${easternDate} (Eastern Time) for user ${user.userId}`);
+          user.posttest2CompletedDate = easternDate;
+        }
 
         // Mark the entire study as completed
         user.completed = true;
@@ -1107,6 +1125,8 @@ app.post('/api/response', authenticateToken, async (req, res) => {
       trainingDay: user.trainingDay,
       pretestDate: user.pretestDate,
       trainingCompletedDate: user.trainingCompletedDate,
+      posttest1CompletedDate: user.posttest1CompletedDate,
+      posttest2CompletedDate: user.posttest2CompletedDate,
       completed: user.completed,
       completedTests: Object.fromEntries(user.completedTests) || {}
     });
@@ -1275,7 +1295,16 @@ app.delete('/api/admin/users/:userId', async (req, res) => {
 app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { email, trainingDay, pretestDate, currentPhase, speaker } = req.body;
+    const { 
+      email, 
+      trainingDay, 
+      pretestDate, 
+      currentPhase, 
+      speaker, 
+      trainingCompletedDate,
+      posttest1CompletedDate,
+      posttest2CompletedDate
+    } = req.body;
 
     // Debug request
     console.log('PUT /api/admin/users/:userId request:');
@@ -1317,13 +1346,29 @@ app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     if (currentPhase) user.currentPhase = currentPhase;
     if (speaker) user.speaker = speaker;
 
-    // Handle pretest date specially
-    if (pretestDate) {
-      try {
-        user.pretestDate = new Date(pretestDate);
-      } catch (err) {
-        return res.status(400).json({ error: 'Invalid pretest date format' });
+    // Handle date fields specially
+    const handleDateField = (fieldName, fieldValue) => {
+      if (fieldValue !== undefined) {
+        try {
+          if (fieldValue === '') {
+            user[fieldName] = null; // Clear the date if empty string is provided
+          } else {
+            user[fieldName] = new Date(fieldValue);
+          }
+        } catch (err) {
+          throw new Error(`Invalid ${fieldName} format`);
+        }
       }
+    };
+
+    // Try to handle all date fields
+    try {
+      handleDateField('pretestDate', pretestDate);
+      handleDateField('trainingCompletedDate', trainingCompletedDate);
+      handleDateField('posttest1CompletedDate', posttest1CompletedDate);
+      handleDateField('posttest2CompletedDate', posttest2CompletedDate);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
     }
     
     // Save the updated user
@@ -1341,6 +1386,9 @@ app.put('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
         trainingDay: updatedUser.trainingDay,
         currentPhase: updatedUser.currentPhase,
         pretestDate: updatedUser.pretestDate,
+        trainingCompletedDate: updatedUser.trainingCompletedDate,
+        posttest1CompletedDate: updatedUser.posttest1CompletedDate,
+        posttest2CompletedDate: updatedUser.posttest2CompletedDate,
         speaker: updatedUser.speaker
       }
     });

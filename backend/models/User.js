@@ -40,6 +40,14 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    posttest1CompletedDate: {
+        type: Date,
+        default: null
+    },
+    posttest2CompletedDate: {
+        type: Date,
+        default: null
+    },
     completed: {
         type: Boolean,
         default: false

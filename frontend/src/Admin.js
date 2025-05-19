@@ -44,6 +44,8 @@ const Admin = () => {
         trainingDay: selectedUser.trainingDay || 1,
         pretestDate: selectedUser.pretestDate ? new Date(selectedUser.pretestDate).toISOString().split('T')[0] : '',
         trainingCompletedDate: selectedUser.trainingCompletedDate ? new Date(selectedUser.trainingCompletedDate).toISOString().split('T')[0] : '',
+        posttest1CompletedDate: selectedUser.posttest1CompletedDate ? new Date(selectedUser.posttest1CompletedDate).toISOString().split('T')[0] : '',
+        posttest2CompletedDate: selectedUser.posttest2CompletedDate ? new Date(selectedUser.posttest2CompletedDate).toISOString().split('T')[0] : '',
         currentPhase: selectedUser.currentPhase || 'pretest',
         speaker: selectedUser.speaker || ''
       });
@@ -86,6 +88,8 @@ const Admin = () => {
             trainingDay: refreshedUser.trainingDay || 1,
             pretestDate: refreshedUser.pretestDate ? new Date(refreshedUser.pretestDate).toISOString().split('T')[0] : '',
             trainingCompletedDate: refreshedUser.trainingCompletedDate ? new Date(refreshedUser.trainingCompletedDate).toISOString().split('T')[0] : '',
+            posttest1CompletedDate: refreshedUser.posttest1CompletedDate ? new Date(refreshedUser.posttest1CompletedDate).toISOString().split('T')[0] : '',
+            posttest2CompletedDate: refreshedUser.posttest2CompletedDate ? new Date(refreshedUser.posttest2CompletedDate).toISOString().split('T')[0] : '',
             currentPhase: refreshedUser.currentPhase || 'pretest',
             speaker: refreshedUser.speaker || ''
           });
@@ -303,7 +307,7 @@ This action cannot be undone.`)) {
 
       // Force a small timeout to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Create a direct object with all fields explicitly
       const dataToSend = {
         email: updatedUserData.email || '',
@@ -311,9 +315,11 @@ This action cannot be undone.`)) {
         currentPhase: updatedUserData.currentPhase || 'pretest',
         speaker: updatedUserData.speaker || '',
         pretestDate: updatedUserData.pretestDate || '',
-        trainingCompletedDate: updatedUserData.trainingCompletedDate || ''
+        trainingCompletedDate: updatedUserData.trainingCompletedDate || '',
+        posttest1CompletedDate: updatedUserData.posttest1CompletedDate || '',
+        posttest2CompletedDate: updatedUserData.posttest2CompletedDate || ''
       };
-      
+
       console.log("handleUpdateUser: SENDING TO SERVER:", JSON.stringify(dataToSend));
 
       const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${userId}`, {
@@ -331,45 +337,47 @@ This action cannot be undone.`)) {
         // Log the server response
         console.log("Server response data:", data);
         console.log("Server returned user:", data.user);
-        
+
         setModalMessage('User updated successfully');
-        
+
         // First update the user's data in the users array to ensure it's fresh
-        const updatedUsers = users.map(u => 
-          u.userId === userId ? {...u, ...data.user} : u
+        const updatedUsers = users.map(u =>
+          u.userId === userId ? { ...u, ...data.user } : u
         );
         console.log("Setting users array with updated user:", data.user.email);
         setUsers(updatedUsers);
-        
+
         // Also directly update the selected user
         console.log("Updating selectedUser with:", data.user.email);
         setSelectedUser(prev => {
-          const updated = {...prev, ...data.user};
+          const updated = { ...prev, ...data.user };
           console.log("New selectedUser value:", updated);
           return updated;
         });
-        
+
         // Update the edited user state to match the server response
         const updatedEditedUser = {
           email: data.user.email || '',
           trainingDay: data.user.trainingDay || 1,
           pretestDate: data.user.pretestDate ? new Date(data.user.pretestDate).toISOString().split('T')[0] : '',
           trainingCompletedDate: data.user.trainingCompletedDate ? new Date(data.user.trainingCompletedDate).toISOString().split('T')[0] : '',
+          posttest1CompletedDate: data.user.posttest1CompletedDate ? new Date(data.user.posttest1CompletedDate).toISOString().split('T')[0] : '',
+          posttest2CompletedDate: data.user.posttest2CompletedDate ? new Date(data.user.posttest2CompletedDate).toISOString().split('T')[0] : '',
           currentPhase: data.user.currentPhase || 'pretest',
           speaker: data.user.speaker || ''
         };
         console.log("Setting editedUser to:", updatedEditedUser);
         setEditedUser(updatedEditedUser);
-        
+
         // Refetch all data to ensure everything is up to date
         console.log("Calling fetchData to refresh all user data");
         await fetchData();
-        
+
         // Update the UI after a brief delay to ensure all state updates have happened
         setTimeout(async () => {
           console.log("AFTER TIMEOUT - current selectedUser:", selectedUser?.email);
           console.log("AFTER TIMEOUT - current editedUser:", editedUser?.email);
-          
+
           // One more fetch to be really sure
           await fetchData();
           setModalMessage('');
@@ -624,6 +632,8 @@ This action cannot be undone.`)) {
       trainingDay: user.trainingDay || 1,
       pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
       trainingCompletedDate: user.trainingCompletedDate ? new Date(user.trainingCompletedDate).toISOString().split('T')[0] : '',
+      posttest1CompletedDate: user.posttest1CompletedDate ? new Date(user.posttest1CompletedDate).toISOString().split('T')[0] : '',
+      posttest2CompletedDate: user.posttest2CompletedDate ? new Date(user.posttest2CompletedDate).toISOString().split('T')[0] : '',
       currentPhase: user.currentPhase || 'pretest',
       speaker: user.speaker || ''
     });
@@ -635,13 +645,15 @@ This action cannot be undone.`)) {
     // This ensures we always show the current database values
     useEffect(() => {
       console.log("User prop changed, updating form - user email:", user.email);
-      
+
       // Reset local state directly from user prop
       setLocalEditedUser({
         email: user.email || '',
         trainingDay: user.trainingDay || 1,
         pretestDate: user.pretestDate ? new Date(user.pretestDate).toISOString().split('T')[0] : '',
         trainingCompletedDate: user.trainingCompletedDate ? new Date(user.trainingCompletedDate).toISOString().split('T')[0] : '',
+        posttest1CompletedDate: user.posttest1CompletedDate ? new Date(user.posttest1CompletedDate).toISOString().split('T')[0] : '',
+        posttest2CompletedDate: user.posttest2CompletedDate ? new Date(user.posttest2CompletedDate).toISOString().split('T')[0] : '',
         currentPhase: user.currentPhase || 'pretest',
         speaker: user.speaker || ''
       });
@@ -660,22 +672,22 @@ This action cannot be undone.`)) {
     const handleSubmit = async (e) => {
       e.preventDefault();
       console.log("Form submission - local state:", localEditedUser);
-      
+
       // Update the parent state with all form values at once
       setEditedUser(localEditedUser);
-      
+
       // Log the value being set
       console.log("Setting editedUser to:", localEditedUser);
-      
+
       // Save current form values for direct use in API call
-      const formValues = {...localEditedUser};
-      
+      const formValues = { ...localEditedUser };
+
       // Call update API with direct reference to form values
       try {
         setModalMessage('Updating user...');
-        
+
         console.log("Sending direct API call with form values:", formValues);
-        
+
         const response = await fetch(`${config.API_BASE_URL}/api/admin/users/${user.userId}`, {
           method: 'PUT',
           headers: {
@@ -684,16 +696,16 @@ This action cannot be undone.`)) {
           },
           body: JSON.stringify(formValues)
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
           console.log("API update successful, refreshing data");
           setModalMessage('User updated successfully');
-          
+
           // Refetch user data
           await fetchData();
-          
+
           setTimeout(() => {
             setModalMessage('');
           }, 2000);
@@ -837,6 +849,34 @@ This action cannot be undone.`)) {
                   <p className="text-xs text-gray-500 mt-1">Date when user completed training day 4.</p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Posttest 1 Completion Date <span className="text-xs text-blue-600">(editable)</span>
+                  </label>
+                  <Input
+                    type="date"
+                    name="posttest1CompletedDate"
+                    value={localEditedUser.posttest1CompletedDate ? new Date(localEditedUser.posttest1CompletedDate).toISOString().split('T')[0] : ''}
+                    onChange={handleLocalInputChange}
+                    className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Date when user completed posttest 1. Leave blank if not completed.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Posttest 2 Completion Date <span className="text-xs text-blue-600">(editable)</span>
+                  </label>
+                  <Input
+                    type="date"
+                    name="posttest2CompletedDate"
+                    value={localEditedUser.posttest2CompletedDate ? new Date(localEditedUser.posttest2CompletedDate).toISOString().split('T')[0] : ''}
+                    onChange={handleLocalInputChange}
+                    className="mt-1 block w-full border-2 border-blue-200 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Date when user completed posttest 2. Leave blank if not completed.</p>
+                </div>
+
                 <button
                   type="submit"
                   className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center justify-center"
@@ -904,21 +944,59 @@ This action cannot be undone.`)) {
                   <div>{user.completed ? 'Yes' : 'No'}</div>
 
                   <div className="font-medium">Created:</div>
-                  <div>{new Date(user.createdAt).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+                  <div>{new Date(user.createdAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</div>
 
                   {user.pretestDate && (
                     <>
                       <div className="font-medium">Pretest Completed:</div>
-                      <div>{new Date(user.pretestDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+                      <div>{new Date(user.pretestDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</div>
                     </>
                   )}
 
                   {user.trainingCompletedDate && (
                     <>
                       <div className="font-medium">Training Day 4 Completed:</div>
-                      <div>{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</div>
+                      <div>{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</div>
                     </>
                   )}
+
+                  {/* Posttest 1 status */}
+                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed' ? (
+                    user.posttest1CompletedDate ? (
+                      <>
+                        <div className="font-medium">Posttest 1 Completed:</div>
+                        <div className="text-green-600">{new Date(user.posttest1CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-medium">Posttest 1 Due Date:</div>
+                        <div className="text-amber-600">
+                          {user.trainingCompletedDate ?
+                            new Date(new Date(user.trainingCompletedDate).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) + ' (7 days after training)'
+                            : 'Pending (training not completed)'}
+                        </div>
+                      </>
+                    )
+                  ) : null}
+
+                  {/* Posttest 2 status */}
+                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed' ? (
+                    user.posttest2CompletedDate ? (
+                      <>
+                        <div className="font-medium">Posttest 2 Completed:</div>
+                        <div className="text-green-600">{new Date(user.posttest2CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-medium">Posttest 2 Due Date:</div>
+                        <div className="text-amber-600">
+                          {user.trainingCompletedDate ?
+                            new Date(new Date(user.trainingCompletedDate).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) + ' (30 days after training)'
+                            : 'Pending (training not completed)'}
+                        </div>
+                      </>
+                    )
+                  ) : null}
                 </div>
 
                 {/* Display Completed Tests */}
@@ -1390,10 +1468,28 @@ This action cannot be undone.`)) {
                       Phase: {user.currentPhase}<br />
                       Day: {user.trainingDay}<br />
                       {user.pretestDate && (
-                        <>Pretest completed: <span className="font-medium">{new Date(user.pretestDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</span><br /></>
+                        <>Pretest completed: <span className="font-medium">{new Date(user.pretestDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></>
                       )}
                       {user.trainingCompletedDate && (
-                        <>Training Day 4 completed: <span className="font-medium">{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', {timeZone: 'America/New_York'})}</span><br /></>
+                        <>Training Day 4 completed: <span className="font-medium">{new Date(user.trainingCompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></>
+                      )}
+
+                      {/* Posttest 1 status */}
+                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed') && (
+                        user.posttest1CompletedDate ?
+                          <>Posttest 1 completed: <span className="font-medium text-green-600">{new Date(user.posttest1CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
+                          user.trainingCompletedDate ?
+                            <>Posttest 1 due: <span className="font-medium text-amber-600">{new Date(new Date(user.trainingCompletedDate).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
+                            null
+                      )}
+
+                      {/* Posttest 2 status */}
+                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed') && (
+                        user.posttest2CompletedDate ?
+                          <>Posttest 2 completed: <span className="font-medium text-green-600">{new Date(user.posttest2CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
+                          user.trainingCompletedDate ?
+                            <>Posttest 2 due: <span className="font-medium text-amber-600">{new Date(new Date(user.trainingCompletedDate).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
+                            null
                       )}
                       {/* Activity completion summary */}
                       <span className="text-xs mt-1">
