@@ -1403,10 +1403,8 @@ const App = () => {
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
       const assignedStories = getStoriesForPhase(phase, userId);
 
-      // Create standardized stimulusId format
-      const storyNum = currentStoryId.replace('Comp_', '');
-      const questionNum = questionIndex + 1;
-      const stimulusId = `${phase}_comprehension_${storyNum}_${questionNum}`;
+      // Use the actual question ID from the comprehension data
+      const stimulusId = currentQuestion.id;
       
       // Determine if this is the last question of the last story
       const isLastStory = currentStoryIndex >= assignedStories.length - 1;
@@ -1414,7 +1412,7 @@ const App = () => {
       const isTestCompleted = isLastStory && isLastQuestion;
       
       // Log test completion status and details
-      console.log(`Submitting comprehension question answer: story ${storyNum}, question ${questionNum}, ${isTestCompleted ? 'FINAL QUESTION' : 'more questions remain'}`);
+      console.log(`Submitting comprehension question answer: ${stimulusId}, ${isTestCompleted ? 'FINAL QUESTION' : 'more questions remain'}`);
 
       // Create a timeout promise for the fetch operation
       const timeoutPromise = new Promise((_, reject) => {
