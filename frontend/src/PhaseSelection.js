@@ -887,7 +887,16 @@ const PhaseSelection = ({
         break;
 
       case 'posttest2':
-        daysToAdd = 35; // Posttest2 is about a month after training
+        // CRITICAL FIX: Use consistent logic with availability calculation
+        if (trainingCompletedDate) {
+          // Use new system: 30 days after training completion
+          const trainingCompleted = toEasternTime(trainingCompletedDate);
+          const posttest2Date = new Date(trainingCompleted);
+          posttest2Date.setDate(posttest2Date.getDate() + 30);
+          return formatDate(posttest2Date);
+        }
+        // Fall back to legacy system: 35 days after pretest
+        daysToAdd = 35;
         break;
 
       default:

@@ -119,8 +119,10 @@ const isCorrectDay = (user, phase) => {
   if (phase === 'pretest') return true;
   if (!user.pretestDate) return false;
 
-  const pretest = new Date(user.pretestDate);
-  const today = new Date();
+  // CRITICAL FIX: Use consistent Eastern Time calculations
+  const utils = require('./utils');
+  const pretest = utils.toEasternTime(user.pretestDate);
+  const today = utils.getCurrentDateInEastern();
   pretest.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
 
@@ -135,7 +137,7 @@ const isCorrectDay = (user, phase) => {
     // For posttest1, check if training has been completed and 7 days have passed
     // If trainingCompletedDate is set, use that as the reference point
     if (user.trainingCompletedDate) {
-      const trainingCompleted = new Date(user.trainingCompletedDate);
+      const trainingCompleted = utils.toEasternTime(user.trainingCompletedDate);
       trainingCompleted.setHours(0, 0, 0, 0);
       const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
       
@@ -150,7 +152,7 @@ const isCorrectDay = (user, phase) => {
   if (phase === 'posttest2') {
     // For posttest2, 30 days after training completion (or 23 days after posttest1)
     if (user.trainingCompletedDate) {
-      const trainingCompleted = new Date(user.trainingCompletedDate);
+      const trainingCompleted = utils.toEasternTime(user.trainingCompletedDate);
       trainingCompleted.setHours(0, 0, 0, 0);
       const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
       
@@ -810,8 +812,10 @@ app.post('/api/login', async (req, res) => {
     if (user.currentPhase === 'pretest') {
       canProceedToday = true; // Always allow pretest
     } else if (user.pretestDate) {
-      const pretest = new Date(user.pretestDate);
-      const today = new Date();
+      // CRITICAL FIX: Use consistent Eastern Time calculations
+      const utils = require('./utils');
+      const pretest = utils.toEasternTime(user.pretestDate);
+      const today = utils.getCurrentDateInEastern();
       pretest.setHours(0, 0, 0, 0);
       today.setHours(0, 0, 0, 0);
 
@@ -820,11 +824,29 @@ app.post('/api/login', async (req, res) => {
       if (user.currentPhase === 'training') {
         canProceedToday = daysSincePretest === user.trainingDay;
       } else if (user.currentPhase === 'posttest1') {
-        // For posttest1, we use day 12
-        canProceedToday = daysSincePretest >= 12;
+        // CRITICAL FIX: Use consistent logic with availability check
+        if (user.trainingCompletedDate) {
+          // Use new system: 7 days after training completion (Eastern Time)
+          const trainingCompleted = utils.toEasternTime(user.trainingCompletedDate);
+          trainingCompleted.setHours(0, 0, 0, 0);
+          const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
+          canProceedToday = daysSinceTrainingCompleted >= 7;
+        } else {
+          // Fall back to legacy system: 12 days after pretest
+          canProceedToday = daysSincePretest >= 12;
+        }
       } else if (user.currentPhase === 'posttest2') {
-        // For posttest2, we use day 35
-        canProceedToday = daysSincePretest >= 35;
+        // For posttest2, use consistent logic
+        if (user.trainingCompletedDate) {
+          // Use new system: 30 days after training completion (Eastern Time)
+          const trainingCompleted = utils.toEasternTime(user.trainingCompletedDate);
+          trainingCompleted.setHours(0, 0, 0, 0);
+          const daysSinceTrainingCompleted = Math.floor((today - trainingCompleted) / (1000 * 60 * 60 * 24));
+          canProceedToday = daysSinceTrainingCompleted >= 30;
+        } else {
+          // Fall back to legacy system: 35 days after pretest
+          canProceedToday = daysSincePretest >= 35;
+        }
       } else if (user.currentPhase === 'posttest') {
         // Backward compatibility - generic posttest
         canProceedToday = daysSincePretest >= 12;
@@ -840,9 +862,23 @@ app.post('/api/login', async (req, res) => {
     const currentPhaseCompletedTests = user.getCompletedTestsForPhase(user.currentPhase);
 
     // Check specifically for demographics completion
-    const isDemographicsCompleted =
+    // First check completedTests, then check if demographics data exists
+    let isDemographicsCompleted =
       user.completedTests.get('demographics') === true ||
       user.completedTests.get('pretest_demographics') === true;
+
+    // CRITICAL FIX: If not marked as completed but demographics exist, mark as completed
+    if (!isDemographicsCompleted) {
+      const existingDemographics = await Demographics.findOne({ userId: user.userId });
+      if (existingDemographics) {
+        // Demographics exist but not marked as completed - fix this
+        user.completedTests.set('demographics', true);
+        user.completedTests.set('pretest_demographics', true);
+        await user.save();
+        isDemographicsCompleted = true;
+        console.log(`Fixed demographics completion status for user: ${user.userId}`);
+      }
+    }
 
     // Check if test users were recently initialized
     let testUsersInitialized = false;
@@ -1927,6 +1963,16 @@ app.post('/api/demographics', authenticateToken, async (req, res) => {
     // Create new demographics entry
     const demographics = new Demographics(demographicsData);
     await demographics.save();
+
+    // CRITICAL FIX: Mark demographics as completed in user's completedTests
+    const user = await User.findOne({ userId: req.user.userId });
+    if (user) {
+      // Mark demographics as completed using both expected keys
+      user.completedTests.set('demographics', true);
+      user.completedTests.set('pretest_demographics', true);
+      await user.save();
+      console.log(`Marked demographics as completed for user: ${req.user.userId}`);
+    }
 
     res.status(201).json(demographics);
   } catch (error) {
