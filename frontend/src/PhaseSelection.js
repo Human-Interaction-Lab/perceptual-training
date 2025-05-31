@@ -209,15 +209,14 @@ const StudyProcessDiagram = ({ currentPhase, completedTests, trainingDay, onClos
         // Use trainingDay only for days we've already passed
         (parseInt(day) < parseInt(trainingDay));
 
-      // Log for debugging - only for day 1 and day 2 to see comparison
-      if (day === '1' || day === '2') {
-        console.log(`Training day ${day} completion check:`, {
-          [`training_day${day}`]: Boolean(completedTests[`training_day${day}`]),
-          trainingDay: trainingDay,
-          pastDay: parseInt(day) < parseInt(trainingDay),
-          isCompleted: isCompleted
-        });
-      }
+      // Log for debugging - check all training days for comprehensive tracking
+      console.log(`Training day ${day} completion check:`, {
+        [`training_day${day}`]: Boolean(completedTests[`training_day${day}`]),
+        trainingDay: trainingDay,
+        pastDay: parseInt(day) < parseInt(trainingDay),
+        isCompleted: isCompleted,
+        completedTestsKeys: Object.keys(completedTests).filter(k => k.includes('training'))
+      });
 
       return isCompleted;
     } else if (stageId === 'posttest1') {
