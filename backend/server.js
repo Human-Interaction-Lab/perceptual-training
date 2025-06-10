@@ -904,6 +904,10 @@ app.post('/api/login', async (req, res) => {
       }
     }
 
+    // CRITICAL FIX: Validate and correct phase if user should be further along
+    // This handles cases where users were stuck in wrong phases due to previous bugs
+    await validateAndCorrectUserPhase(user);
+
     res.json({
       token,
       isAdmin: user.isAdmin,
@@ -1095,13 +1099,18 @@ app.post('/api/response', authenticateToken, async (req, res) => {
         user.pretestDate = new Date(); // Set pretest date when completing pretest
       }
     } else if (phase === 'training') {
+      // CRITICAL FIX: Mark the current training day as completed in the database
+      user.markTestCompleted('training', `day${trainingDay}`, true);
+      console.log(`User ${user.userId} completed training day ${trainingDay}`);
+      
       if (trainingDay >= 4) {
         // When training day 4 is completed, set the trainingCompletedDate
         user.trainingCompletedDate = new Date();
         user.currentPhase = 'posttest1'; // Changed from 'posttest' to 'posttest1'
-        console.log(`User ${user.userId} completed training on ${user.trainingCompletedDate}`);
+        console.log(`User ${user.userId} completed all training and advancing to posttest1 on ${user.trainingCompletedDate}`);
       } else {
         user.trainingDay = trainingDay + 1;
+        console.log(`User ${user.userId} advancing to training day ${user.trainingDay}`);
       }
     } else if (phase === 'posttest1') {
       // Check if all posttest1 items are completed
@@ -1187,14 +1196,123 @@ function checkAllPretestCompleted(user) {
 
 // Helper function to check if all posttest items are completed
 function checkAllPosttestCompleted(user, postTestPhase) {
-  const requiredTests = [
-    'COMPREHENSION_1',
-    'COMPREHENSION_2',
-    'EFFORT_1',
-    'INTELLIGIBILITY_1'
-  ];
+  // CRITICAL FIX: Check for ANY completion in each test type category rather than specific test IDs
+  // This accounts for the frontend sending different test IDs than expected
+  
+  const requiredTestTypes = ['intelligibility', 'effort', 'comprehension'];
+  
+  // Check if user has completed at least one test of each type in this phase
+  return requiredTestTypes.every(testType => {
+    // Look for any completed test that contains this test type and phase
+    for (const [key, value] of user.completedTests) {
+      if (value === true && 
+          key.includes(postTestPhase) && 
+          key.includes(testType)) {
+        console.log(`Found completed ${testType} test for ${postTestPhase}: ${key}`);
+        return true;
+      }
+    }
+    
+    // Also check for direct phase_testType pattern
+    const directKey = `${postTestPhase}_${testType}`;
+    if (user.completedTests.get(directKey) === true) {
+      console.log(`Found completed test via direct key: ${directKey}`);
+      return true;
+    }
+    
+    console.log(`Missing ${testType} completion for ${postTestPhase}`);
+    return false;
+  });
+}
 
-  return user.hasCompletedAllTests(postTestPhase, requiredTests);
+// CRITICAL FIX: Function to validate and correct user phase during login
+// This ensures users aren't stuck in wrong phases due to previous bugs
+async function validateAndCorrectUserPhase(user) {
+  console.log(`Validating phase for user ${user.userId}, current phase: ${user.currentPhase}`);
+  
+  let phaseChanged = false;
+  
+  // Check if user should be in posttest2 but is stuck in posttest1
+  if (user.currentPhase === 'posttest1') {
+    const posttest1Complete = checkAllPosttestCompleted(user, 'posttest1');
+    
+    if (posttest1Complete) {
+      console.log(`User ${user.userId} has completed posttest1 but is stuck in posttest1 phase - advancing to posttest2`);
+      user.currentPhase = 'posttest2';
+      
+      // Set posttest1 completion date if not already set
+      if (!user.posttest1CompletedDate) {
+        user.posttest1CompletedDate = new Date();
+        console.log(`Setting posttest1 completion date for user ${user.userId}`);
+      }
+      
+      phaseChanged = true;
+    }
+  }
+  
+  // Check if user should be in posttest2 but is stuck in training
+  else if (user.currentPhase === 'training') {
+    // Check if all training days are completed
+    const trainingComplete = user.completedTests.get('training_day1') === true &&
+                           user.completedTests.get('training_day2') === true &&
+                           user.completedTests.get('training_day3') === true &&
+                           user.completedTests.get('training_day4') === true;
+    
+    if (trainingComplete) {
+      console.log(`User ${user.userId} has completed all training but is stuck in training phase`);
+      
+      // Check if they also completed posttest1
+      const posttest1Complete = checkAllPosttestCompleted(user, 'posttest1');
+      
+      if (posttest1Complete) {
+        console.log(`User ${user.userId} has also completed posttest1 - advancing to posttest2`);
+        user.currentPhase = 'posttest2';
+        
+        // Set completion dates if not already set
+        if (!user.trainingCompletedDate) {
+          user.trainingCompletedDate = new Date();
+        }
+        if (!user.posttest1CompletedDate) {
+          user.posttest1CompletedDate = new Date();
+        }
+      } else {
+        console.log(`User ${user.userId} completed training - advancing to posttest1`);
+        user.currentPhase = 'posttest1';
+        
+        if (!user.trainingCompletedDate) {
+          user.trainingCompletedDate = new Date();
+        }
+      }
+      
+      phaseChanged = true;
+    }
+  }
+  
+  // Check if user should be in completed phase
+  else if (user.currentPhase === 'posttest2') {
+    const posttest2Complete = checkAllPosttestCompleted(user, 'posttest2');
+    
+    if (posttest2Complete) {
+      console.log(`User ${user.userId} has completed posttest2 - marking as completed`);
+      user.currentPhase = 'completed';
+      
+      if (!user.posttest2CompletedDate) {
+        user.posttest2CompletedDate = new Date();
+      }
+      
+      phaseChanged = true;
+    }
+  }
+  
+  // Save changes if phase was corrected
+  if (phaseChanged) {
+    try {
+      await user.save();
+      console.log(`Phase correction saved for user ${user.userId}: now in ${user.currentPhase} phase`);
+    } catch (error) {
+      console.error(`Error saving phase correction for user ${user.userId}:`, error);
+    }
+  }
 }
 
 
