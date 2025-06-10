@@ -271,6 +271,7 @@ const App = () => {
   const [pretestDate, setPretestDate] = useState(null);
   const [trainingCompletedDate, setTrainingCompletedDate] = useState(null);
   const [canProceedToday, setCanProceedToday] = useState(false); // Default to false until we check
+  const [completed, setCompleted] = useState(false); // Track if user has completed entire study
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [rating, setRating] = useState(null);
   const [completedTests, setCompletedTests] = useState({});
@@ -1002,6 +1003,7 @@ const App = () => {
         setPretestDate(data.pretestDate);
         setTrainingCompletedDate(data.trainingCompletedDate);
         setCanProceedToday(data.canProceedToday);
+        setCompleted(data.completed || false);
         setCompletedTests(data.completedTests || {});
         // Initialize story assignments
         initializeStoryAssignments(userId);
@@ -2641,6 +2643,7 @@ const App = () => {
               pretestDate={pretestDate}
               trainingCompletedDate={trainingCompletedDate}
               canProceedToday={canProceedToday} // Pass calendar day check flag
+              completed={completed} // Pass completed status
               onSelectPhase={handlePhaseSelect}
               completedTests={completedTests}
               isDemographicsCompleted={isDemographicsCompleted}

@@ -511,6 +511,7 @@ const PhaseSelection = ({
   pretestDate,
   trainingCompletedDate, // Add training completed date
   canProceedToday = false, // Add calendar day verification prop
+  completed = false, // Track if user has completed entire study
   onSelectPhase,
   isDemographicsCompleted,
   onPhaseTransition,
