@@ -990,7 +990,7 @@ const PhaseSelection = ({
         // For posttest1, check both date AND phase
         posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
         // For posttest2, check both date AND that the current phase is posttest2
-        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
+        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || completed)
       };
     }
     // Fall back to original logic using pretestDate
@@ -1017,7 +1017,7 @@ const PhaseSelection = ({
         // For posttest1, check both date AND that all training days are completed
         posttest1: (today >= posttest1Date) && (currentPhase === 'posttest1' || (currentPhase === 'training' && isTrainingCompleted())),
         // For posttest2, check both date AND that the current phase is posttest2
-        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || currentPhase === 'completed')
+        posttest2: (today >= posttest2Date) && (currentPhase === 'posttest2' || completed)
       };
     }
 
@@ -1586,7 +1586,7 @@ const PhaseSelection = ({
         )}
 
         {/* Message when posttest2 is available but not yet started */}
-        {posttestAvailability.posttest2 && currentPhase !== 'completed' && !testTypes.some(test => completedTests[`posttest2_${test.type}`]) && (
+        {posttestAvailability.posttest2 && !completed && !testTypes.some(test => completedTests[`posttest2_${test.type}`]) && (
           <div className="mb-4 text-center p-4 bg-[#f3ecda] rounded-lg border border-[#dad6d9]">
             <div className="flex items-center justify-center mb-1">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#406368] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

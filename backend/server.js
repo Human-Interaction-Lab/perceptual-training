@@ -1156,7 +1156,7 @@ app.post('/api/response', authenticateToken, async (req, res) => {
 
         // Mark the entire study as completed
         user.completed = true;
-        user.currentPhase = 'completed';
+        // Keep user in posttest2 phase - don't set to 'completed' as it's not in enum
       }
     }
     // Additional posttest phases can be added here
@@ -1294,7 +1294,8 @@ async function validateAndCorrectUserPhase(user) {
     
     if (posttest2Complete) {
       console.log(`User ${user.userId} has completed posttest2 - marking as completed`);
-      user.currentPhase = 'completed';
+      user.completed = true;
+      // Keep user in posttest2 phase - don't set to 'completed' as it's not in enum
       
       if (!user.posttest2CompletedDate) {
         user.posttest2CompletedDate = new Date();

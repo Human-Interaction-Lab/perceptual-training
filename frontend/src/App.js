@@ -2654,7 +2654,7 @@ const App = () => {
             <NotAvailableMessage />
           ) : phase === 'training' ? (
             renderTrainingSession()
-          ) : currentPhase === 'completed' ? (
+          ) : completed ? (
             renderCompleted()
           ) : (
             renderAudioTest()

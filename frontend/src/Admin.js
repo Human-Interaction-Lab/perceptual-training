@@ -961,7 +961,7 @@ This action cannot be undone.`)) {
                   )}
 
                   {/* Posttest 1 status */}
-                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed' ? (
+                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.completed ? (
                     user.posttest1CompletedDate ? (
                       <>
                         <div className="font-medium">Posttest 1 Completed:</div>
@@ -980,7 +980,7 @@ This action cannot be undone.`)) {
                   ) : null}
 
                   {/* Posttest 2 status */}
-                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed' ? (
+                  {user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.completed ? (
                     user.posttest2CompletedDate ? (
                       <>
                         <div className="font-medium">Posttest 2 Completed:</div>
@@ -1475,7 +1475,7 @@ This action cannot be undone.`)) {
                       )}
 
                       {/* Posttest 1 status */}
-                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed') && (
+                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.completed) && (
                         user.posttest1CompletedDate ?
                           <>Posttest 1 completed: <span className="font-medium text-green-600">{new Date(user.posttest1CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
                           user.trainingCompletedDate ?
@@ -1484,7 +1484,7 @@ This action cannot be undone.`)) {
                       )}
 
                       {/* Posttest 2 status */}
-                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.currentPhase === 'completed') && (
+                      {(user.currentPhase === 'posttest1' || user.currentPhase === 'posttest2' || user.completed) && (
                         user.posttest2CompletedDate ?
                           <>Posttest 2 completed: <span className="font-medium text-green-600">{new Date(user.posttest2CompletedDate).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</span><br /></> :
                           user.trainingCompletedDate ?
