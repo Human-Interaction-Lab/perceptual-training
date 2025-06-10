@@ -15,7 +15,7 @@ import DemographicsForm from './demographics'
 import TrainingSession from './components/trainingSession';
 import { TRAINING_DATA, TRAINING_TEST_STIMULI } from './components/trainingData';
 import audioService from './services/audioService';
-import { getStoriesForPhase } from './utils/randomization';
+// import { getStoriesForPhase } from './utils/randomization'; // No longer needed - using phaseStories state
 import { toEasternTime } from './lib/utils';
 import config from './config';
 // import { cn, formatDuration, calculateProgress, formatDate, formatPhaseName } from './lib/utils';
@@ -276,7 +276,6 @@ const App = () => {
   const [rating, setRating] = useState(null);
   const [completedTests, setCompletedTests] = useState({});
   const [currentTestType, setCurrentTestType] = useState('intelligibility'); // 'intelligibility', 'effort', 'comprehension'
-  const [currentStoryId, setCurrentStoryId] = useState('Comp_01');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDemographicsCompleted, setIsDemographicsCompleted] = useState(false);
@@ -1400,10 +1399,13 @@ const App = () => {
         throw new Error('Authentication token not found. Please log in again.');
       }
       
+      const assignedStories = phaseStories[phase] || [];
+      const currentStoryId = assignedStories.length > 0
+        ? assignedStories[currentStoryIndex % assignedStories.length]
+        : "Comp_01";
       const currentStory = COMPREHENSION_DATA[currentStoryId];
       const currentQuestion = currentStory.questions[questionIndex];
       const optionLabels = ['A', 'B', 'C', 'D', 'E'];
-      const assignedStories = getStoriesForPhase(phase, userId);
 
       // Use the actual question ID from the comprehension data
       const stimulusId = currentQuestion.id;
