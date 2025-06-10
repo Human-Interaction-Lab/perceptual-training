@@ -297,7 +297,7 @@ const App = () => {
         }
         
         // Import date utilities with platform-consistent implementations
-        const { isToday, toEasternTime, getCurrentDateInEastern, normalizeDate } = require('./lib/utils');
+        const { toEasternTime, getCurrentDateInEastern } = require('./lib/utils');
         
         // Convert pretest date to eastern time with cross-platform handling
         const pretestEastern = toEasternTime(pretestDate);
@@ -2442,6 +2442,7 @@ const App = () => {
               totalStimuli={20} // Set to your desired number
               onPlayAudio={handlePlayAudio}
               onBack={handleBackToPhaseSelection}
+              isSubmitting={isSubmitting}
             />
           );
 
@@ -2457,6 +2458,7 @@ const App = () => {
               totalStimuli={30} // Set to your desired number
               onPlayAudio={handlePlayAudio}
               onBack={handleBackToPhaseSelection}
+              isSubmitting={isSubmitting}
             />
           );
 
@@ -2485,6 +2487,7 @@ const App = () => {
               currentStoryIndex={currentStoryIndex} // Pass this prop for proper numbering
               onPlayAudio={handlePlayAudio}
               onBack={handleBackToPhaseSelection}
+              isSubmitting={isSubmitting}
             />
           );
 

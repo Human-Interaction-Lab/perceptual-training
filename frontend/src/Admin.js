@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import config from './config';
 import { Input } from './components/ui/input';
 
@@ -295,7 +295,8 @@ This action cannot be undone.`)) {
     }
   };
 
-  // New function to handle updating user details
+  // New function to handle updating user details (currently unused)
+  /*
   const handleUpdateUser = async (userId) => {
     try {
       setModalMessage('Updating user...');
@@ -402,7 +403,9 @@ This action cannot be undone.`)) {
       );
     }
   };
+  */
 
+  /*
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditedUser(prev => ({
@@ -410,7 +413,9 @@ This action cannot be undone.`)) {
       [name]: value
     }));
   };
+  */
 
+  /*
   const handleCreateUserChange = (e) => {
     const { name, value } = e.target;
     setNewUser(prev => ({
@@ -418,7 +423,9 @@ This action cannot be undone.`)) {
       [name]: value
     }));
   };
+  */
 
+  /*
   const handleCreateUser = async () => {
     try {
       // Validate required fields
@@ -477,6 +484,7 @@ This action cannot be undone.`)) {
       setModalMessage('Error creating user');
     }
   };
+  */
 
   const ExportButtons = () => {
     const downloadFile = async (url, filename) => {
