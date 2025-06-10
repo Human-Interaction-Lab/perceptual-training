@@ -168,10 +168,7 @@ const runInitialization = async () => {
         // Connect to MongoDB if not already connected
         if (mongoose.connection.readyState !== 1) {
             const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
-            await mongoose.connect(dbURI, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true
-            });
+            await mongoose.connect(dbURI);
             console.log('Connected to MongoDB...');
         }
 

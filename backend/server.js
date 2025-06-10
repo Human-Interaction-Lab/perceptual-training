@@ -185,10 +185,7 @@ const connectDB = async () => {
     }
 
     const dbURI = process.env.MONGODB_URI || 'mongodb://localhost/audio-perception';
-    await mongoose.connect(dbURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(dbURI);
     logger.info('MongoDB connected...');
 
     // Initialize admin and test users after successful connection
