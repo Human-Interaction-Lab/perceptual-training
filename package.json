@@ -7,10 +7,16 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm start",
     "client": "cd frontend && npm start",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "test:e2e": "playwright test",
+    "test:e2e:manual": "playwright test --config=playwright.config.manual.js",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
+    "@playwright/test": "^1.53.0",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "postcss": "^8.4.49",
