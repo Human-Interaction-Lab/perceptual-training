@@ -9,7 +9,6 @@
 
 # tests
 screenshots/
-e2e-tests/
 test-results/
 playwright-report/
 *.log
