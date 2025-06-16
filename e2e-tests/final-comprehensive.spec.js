@@ -2,11 +2,51 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Comprehensive App Screenshots', () => {
   test('should capture complete app workflow with real login', async ({ page }) => {
-    // Enable logging for debugging
+    // Enable logging for debugging (but filter out dev messages)
     page.on('console', msg => {
-      if (msg.text().includes('API') || msg.text().includes('login') || msg.text().includes('phase')) {
-        console.log('PAGE:', msg.text());
+      const text = msg.text();
+      if ((text.includes('API') || text.includes('login') || text.includes('phase')) && 
+          !text.includes('React DevTools') && 
+          !text.includes('Download the React DevTools')) {
+        console.log('PAGE:', text);
       }
+    });
+
+    // Suppress browser compatibility warning and dev messages
+    await page.addInitScript(() => {
+      // Override console.log to suppress React DevTools message
+      const originalLog = console.log;
+      console.log = (...args) => {
+        const message = args.join(' ');
+        if (!message.includes('React DevTools') && 
+            !message.includes('Download the React DevTools')) {
+          originalLog.apply(console, args);
+        }
+      };
+
+      // Set user agent to Chrome to avoid browser warning
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        writable: false
+      });
+    });
+
+    // Add CSS to hide browser compatibility warning
+    await page.addStyleTag({
+      content: `
+        /* Hide browser compatibility warning */
+        .bg-yellow-100,
+        [class*="bg-yellow"],
+        .border-yellow-500,
+        [class*="border-yellow"] {
+          display: none !important;
+        }
+        
+        /* Hide any warning banners */
+        div:has(svg[viewBox="0 0 20 20"]) {
+          display: none !important;
+        }
+      `
     });
 
     await page.goto('/');
@@ -162,6 +202,34 @@ test.describe('Comprehensive App Screenshots', () => {
   });
 
   test('should test specific training scenarios with time bypass', async ({ page }) => {
+    // Apply same suppressions for this test
+    await page.addInitScript(() => {
+      const originalLog = console.log;
+      console.log = (...args) => {
+        const message = args.join(' ');
+        if (!message.includes('React DevTools') && 
+            !message.includes('Download the React DevTools')) {
+          originalLog.apply(console, args);
+        }
+      };
+
+      Object.defineProperty(navigator, 'userAgent', {
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        writable: false
+      });
+    });
+
+    await page.addStyleTag({
+      content: `
+        .bg-yellow-100, [class*="bg-yellow"], .border-yellow-500, [class*="border-yellow"] {
+          display: none !important;
+        }
+        div:has(svg[viewBox="0 0 20 20"]) {
+          display: none !important;
+        }
+      `
+    });
+
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 

@@ -7,21 +7,29 @@
    npm run dev
    ```
 
-2. **Run the comprehensive test suite**:
+2. **Run the basic test suite**:
    ```bash
    npm run test:e2e
+   ```
+
+3. **Run comprehensive multi-phase testing** (shows all phases):
+   ```bash
+   npm run test:e2e:all-phases
    ```
 
 ## Available Commands
 
 ```bash
-# Run tests in headless mode (recommended)
+# Basic test with single user (fast)
 npm run test:e2e
 
-# Run tests with visual UI (interactive)
+# Comprehensive test with all phases (recommended for full coverage)
+npm run test:e2e:all-phases
+
+# Interactive visual UI
 npm run test:e2e:ui
 
-# Run tests in headed mode (see browser)
+# See browser during tests
 npm run test:e2e:headed
 
 # Debug tests step-by-step
@@ -29,6 +37,10 @@ npm run test:e2e:debug
 
 # View last test report
 npm run test:e2e:report
+
+# Manual test user management (usually not needed)
+npm run test:e2e:setup    # Create test users
+npm run test:e2e:cleanup  # Remove test users
 ```
 
 ## What Gets Tested & Screenshot
@@ -36,15 +48,25 @@ npm run test:e2e:report
 The comprehensive test captures:
 
 ### 📸 **Screenshots Generated:**
+
+**Basic Test (`npm run test:e2e`):**
 - `final-01-login-page.png` - Initial login interface
-- `final-02-filled-login.png` - Login form with credentials
+- `final-02-filled-login.png` - Login form with credentials  
 - `final-03-phase-selection.png` - Main phase selection screen
-- `final-04-[activity].png` - Each activity interface (demographics, intelligibility, comprehension, effort, training)
-- `final-05-[activity]-interface.png` - Detailed view of each test interface
-- `final-06-[activity]-started.png` - Active test sessions
+- `final-04-[activity].png` - Available activity interfaces
 - `final-08-responsive-[device].png` - Desktop/tablet/mobile views
-- `final-10-time-bypassed.png` - Training interfaces (with time restrictions bypassed)
-- `final-11-training-interface.png` - Training session details
+
+**Comprehensive Multi-Phase Test (`npm run test:e2e:all-phases`):**
+- `phase-pretest-demographics-01-main.png` - Demographics form interface
+- `phase-pretest-intelligibility-01-main.png` - Intelligibility test setup
+- `phase-pretest-effort-01-main.png` - Listening effort test interface  
+- `phase-pretest-comprehension-01-main.png` - Story comprehension tests
+- `phase-training-selection-01-main.png` - Training day selection
+- `phase-training-activity-01-main.png` - Active training session
+- `phase-posttest1-01-main.png` - 1-week follow-up interface
+- `phase-posttest2-01-main.png` - 1-month follow-up interface
+- `progression-1-4-[phase].png` - User journey progression
+- Plus detailed interface screenshots for each phase
 
 ### 🔄 **User Flows Tested:**
 - ✅ Complete login process with real test user (`test_pretesta`)
