@@ -16,7 +16,10 @@
     "test:e2e:report": "npx playwright show-report",
     "test:e2e:setup": "node e2e-tests/create-phase-users.js create",
     "test:e2e:cleanup": "node e2e-tests/create-phase-users.js cleanup",
-    "test:e2e:comprehensive": "playwright test comprehensive-full-stack.spec.js --config=playwright.config.manual.js"
+    "test:e2e:comprehensive": "playwright test comprehensive-full-stack.spec.js --config=playwright.config.manual.js",
+    "test:e2e:simple": "playwright test simple-activity-capture.spec.js --config=playwright.config.manual.js",
+    "test:e2e:fresh": "playwright test fresh-user-capture.spec.js --config=playwright.config.manual.js",
+    "test:e2e:manual": "playwright test manual-activity-capture.spec.js --config=playwright.config.manual.js"
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
