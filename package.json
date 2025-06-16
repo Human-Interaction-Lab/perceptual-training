@@ -19,7 +19,12 @@
     "test:e2e:comprehensive": "playwright test comprehensive-full-stack.spec.js --config=playwright.config.manual.js",
     "test:e2e:simple": "playwright test simple-activity-capture.spec.js --config=playwright.config.manual.js",
     "test:e2e:fresh": "playwright test fresh-user-capture.spec.js --config=playwright.config.manual.js",
-    "test:e2e:manual": "playwright test manual-activity-capture.spec.js --config=playwright.config.manual.js"
+    "test:e2e:manual": "playwright test manual-activity-capture.spec.js --config=playwright.config.manual.js",
+    "test:e2e:journey": "playwright test comprehensive-user-journey.spec.js --config=playwright.config.manual.js",
+    "test:e2e:journey:headed": "playwright test comprehensive-user-journey.spec.js --config=playwright.config.manual.js --headed",
+    "test:e2e:journey:debug": "playwright test comprehensive-user-journey.spec.js --config=playwright.config.manual.js --debug",
+    "test:e2e:screenshots": "playwright test complete-screenshot-journey.spec.js --config=playwright.config.manual.js",
+    "test:e2e:screenshots:headed": "playwright test complete-screenshot-journey.spec.js --config=playwright.config.manual.js --headed"
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
