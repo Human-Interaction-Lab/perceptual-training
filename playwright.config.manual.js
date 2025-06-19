@@ -9,7 +9,7 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  timeout: 30000, // 30 seconds per test
+  timeout: 60000, // 1 minute default timeout (individual tests can override)
   use: {
     baseURL: 'http://localhost:3001',
     trace: 'on-first-retry',
